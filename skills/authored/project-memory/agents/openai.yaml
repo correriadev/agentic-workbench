@@ -1,0 +1,5 @@
+interface:
+  display_name: "Project Memory"
+  short_description: "Technical documentation specialist. Creates and maintains the docs/ folder an..."
+policy:
+  allow_implicit_invocation: false

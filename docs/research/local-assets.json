@@ -1,0 +1,1270 @@
+{
+  "date": "2026-10-23",
+  "skills": [
+    {
+      "name": "adversarial-qa",
+      "agent": "codex",
+      "source": ".codex/skills/adversarial-qa",
+      "sha256": "2073616379c19bcc5cce63b1853e1973d0f3150f13df64d68ae87ecf39020bc2",
+      "files": 2,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/adversarial-qa"
+    },
+    {
+      "name": "adversarial-traverser",
+      "agent": "codex",
+      "source": ".codex/skills/adversarial-traverser",
+      "sha256": "550598eeafca1283ddc471e30c6982c9ee7f4999324b1252e49b6ab713152a69",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/adversarial-traverser"
+    },
+    {
+      "name": "autonomous-orchestrator",
+      "agent": "codex",
+      "source": ".codex/skills/autonomous-orchestrator",
+      "sha256": "98d5ea8468c3d09423a747e0200fed1abfd3f11a1dad8082987110997e403f1d",
+      "files": 7,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/autonomous-orchestrator"
+    },
+    {
+      "name": "codebase-memory",
+      "agent": "codex",
+      "source": ".codex/skills/codebase-memory",
+      "sha256": "d814f798795eff892c158282dd7aa81688b4d17cd8141c705bf8c6a1ad15e413",
+      "files": 1,
+      "classification": "custom-fork-integration",
+      "canonical": "skills/authored/codebase-memory"
+    },
+    {
+      "name": "constellation-individuator",
+      "agent": "codex",
+      "source": ".codex/skills/constellation-individuator",
+      "sha256": "52dfbe94874ace920ee59a27c15a5826da3e6521f0fe753c16397214f4e7a175",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/constellation-individuator"
+    },
+    {
+      "name": "contextual-mentorship",
+      "agent": "codex",
+      "source": ".codex/skills/contextual-mentorship",
+      "sha256": "cc70378e3cf07d57b4312bd5597efd31d280ed7ff4dd5fc5ab956943b3e19c2e",
+      "files": 2,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/contextual-mentorship"
+    },
+    {
+      "name": "dialogo-sombra",
+      "agent": "codex",
+      "source": ".codex/skills/dialogo-sombra",
+      "sha256": "a076974296e80e7f6a39d285c885e170d140137e09e8ae1207f9a0b7925cf03c",
+      "files": 5,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/dialogo-sombra"
+    },
+    {
+      "name": "graph-grounding",
+      "agent": "codex",
+      "source": ".codex/skills/graph-grounding",
+      "sha256": "bf02a89482f179489413a9ef8af8d07c46f29248c47b1ca8cd4fc5f7a4320138",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/graph-grounding"
+    },
+    {
+      "name": "harness-evaluator",
+      "agent": "codex",
+      "source": ".codex/skills/harness-evaluator",
+      "sha256": "9e9e5305c22fdeb019f35ea79b24da3efbef39f557ad4904608412a4f559f6ed",
+      "files": 2,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/harness-evaluator"
+    },
+    {
+      "name": "harness-tracer",
+      "agent": "codex",
+      "source": ".codex/skills/harness-tracer",
+      "sha256": "0a36bb333dfa21ec4a82f3ce3ef1ef707656ce341ef850f269a3f66dea376077",
+      "files": 2,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/harness-tracer"
+    },
+    {
+      "name": "horizon-deliberator",
+      "agent": "codex",
+      "source": ".codex/skills/horizon-deliberator",
+      "sha256": "94d9edd409a78e19abbfe1c6f88d2987a4aa13f3979cbdea29f7b4728154ab55",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/horizon-deliberator"
+    },
+    {
+      "name": "integrar-temenos",
+      "agent": "codex",
+      "source": ".codex/skills/integrar-temenos",
+      "sha256": "8a684d5dc1a8225c9ef57abbbe30bf1c9c98ade6a3782fe91973f3a3692fc25e",
+      "files": 5,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/integrar-temenos"
+    },
+    {
+      "name": "jev-browser-use",
+      "agent": "codex",
+      "source": ".codex/skills/jev-browser-use",
+      "sha256": "acd89b1ca53c085230c97801df450f6534592318a8326415d42f637da70fe90b",
+      "files": 2,
+      "classification": "unresolved-third-party-local-snapshot",
+      "canonical": "skills/authored/jev-browser-use"
+    },
+    {
+      "name": "jev-compaction",
+      "agent": "codex",
+      "source": ".codex/skills/jev-compaction",
+      "sha256": "c9dd8c9d0437d8f724382df83d9d9ff4095c43e74c773c18743d09901b26b260",
+      "files": 1,
+      "classification": "unresolved-third-party-local-snapshot",
+      "canonical": "skills/authored/jev-compaction"
+    },
+    {
+      "name": "jev-computer-use",
+      "agent": "codex",
+      "source": ".codex/skills/jev-computer-use",
+      "sha256": "ddb224f0c861f372006f741c608f93c7cba854e2bc60612964105b88d9319fe1",
+      "files": 3,
+      "classification": "unresolved-third-party-local-snapshot",
+      "canonical": "skills/authored/jev-computer-use"
+    },
+    {
+      "name": "jev-frontier-work",
+      "agent": "codex",
+      "source": ".codex/skills/jev-frontier-work",
+      "sha256": "e104e5993bd4fb6293455cf3cdae9cf4856eff9461e02cbb25d423f551718d10",
+      "files": 1,
+      "classification": "unresolved-third-party-local-snapshot",
+      "canonical": "skills/authored/jev-frontier-work"
+    },
+    {
+      "name": "jev-mailbox",
+      "agent": "codex",
+      "source": ".codex/skills/jev-mailbox",
+      "sha256": "d5baa6b362c52f2eff22f936070943d4a64c436fad72c05a24431b8b3b7df7c7",
+      "files": 1,
+      "classification": "unresolved-third-party-local-snapshot",
+      "canonical": "skills/authored/jev-mailbox"
+    },
+    {
+      "name": "jev-memory",
+      "agent": "codex",
+      "source": ".codex/skills/jev-memory",
+      "sha256": "eade8a813e7a0a62191fae3ec87a3c26c95639bdfb6f0cdfa1062e658182662a",
+      "files": 1,
+      "classification": "unresolved-third-party-local-snapshot",
+      "canonical": "skills/authored/jev-memory"
+    },
+    {
+      "name": "jev-model-routing",
+      "agent": "codex",
+      "source": ".codex/skills/jev-model-routing",
+      "sha256": "22208f43eed18d98ed1e9ee3c913baabd645467a0578488ac6c24aca3f040d65",
+      "files": 1,
+      "classification": "unresolved-third-party-local-snapshot",
+      "canonical": "skills/authored/jev-model-routing"
+    },
+    {
+      "name": "jev-search",
+      "agent": "codex",
+      "source": ".codex/skills/jev-search",
+      "sha256": "bdcdef48beb90015a15793341adfc219ab3965679b39eea7d5ea27d7d4efeb2f",
+      "files": 1,
+      "classification": "unresolved-third-party-local-snapshot",
+      "canonical": "skills/authored/jev-search"
+    },
+    {
+      "name": "jev-setup",
+      "agent": "codex",
+      "source": ".codex/skills/jev-setup",
+      "sha256": "4c4e0fd77c9bfe718308b34b39979420ca9ffc6b91ffc58bf37c3d5cb7a30f28",
+      "files": 1,
+      "classification": "unresolved-third-party-local-snapshot",
+      "canonical": "skills/authored/jev-setup"
+    },
+    {
+      "name": "jev-skill-select",
+      "agent": "codex",
+      "source": ".codex/skills/jev-skill-select",
+      "sha256": "43e763e0cc2cf4d3d0297042d41d96f3ebc9dea7e677553db9889f84f7ceca08",
+      "files": 1,
+      "classification": "unresolved-third-party-local-snapshot",
+      "canonical": "skills/authored/jev-skill-select"
+    },
+    {
+      "name": "jev-social-research",
+      "agent": "codex",
+      "source": ".codex/skills/jev-social-research",
+      "sha256": "453d0cd4d04b4d3f0b7183211f2ff5d6d5a11b90927c2114af1ec997ec0387bf",
+      "files": 1,
+      "classification": "unresolved-third-party-local-snapshot",
+      "canonical": "skills/authored/jev-social-research"
+    },
+    {
+      "name": "level-graduator",
+      "agent": "codex",
+      "source": ".codex/skills/level-graduator",
+      "sha256": "354bcba300215f19d6e2ec1935899ec8142481aef13ae1cacbe0edf12bb88052",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/level-graduator"
+    },
+    {
+      "name": "memory-context",
+      "agent": "codex",
+      "source": ".codex/skills/memory-context",
+      "sha256": "bc29b5d09f8a993a1489c51bf982f0cd10583d3b782fc36a30fda39bb401dc4b",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/memory-context"
+    },
+    {
+      "name": "meta-harness",
+      "agent": "codex",
+      "source": ".codex/skills/meta-harness",
+      "sha256": "9adb053cef5b54cc3e0a3ece01575caf8394c703d06789b26b258d2804bf4986",
+      "files": 2,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/meta-harness"
+    },
+    {
+      "name": "pbb-design",
+      "agent": "codex",
+      "source": ".codex/skills/pbb-design",
+      "sha256": "e8dcaa711e89955c299dd1c2c0d1f3be06841d2a57dff8c2ecf857b4f1bf06f1",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/pbb-design"
+    },
+    {
+      "name": "project-memory",
+      "agent": "codex",
+      "source": ".codex/skills/project-memory",
+      "sha256": "35d6be395d976e859e37303eff4fd164c0f9c8805e831fe9513fcf8f273e4006",
+      "files": 12,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/project-memory"
+    },
+    {
+      "name": "qa-orchestrator",
+      "agent": "codex",
+      "source": ".codex/skills/qa-orchestrator",
+      "sha256": "f33db1a18ef358dda634f1d78036652a2b442b8b70c8c5a48515e2858ace5493",
+      "files": 2,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/qa-orchestrator"
+    },
+    {
+      "name": "read-ui-prototype",
+      "agent": "codex",
+      "source": ".codex/skills/read-ui-prototype",
+      "sha256": "f87b8044702a304b2cc35a9f0a4ff3b657eb536f7b074100f8cc48642a9cb2c4",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/read-ui-prototype"
+    },
+    {
+      "name": "refusal-discipline",
+      "agent": "codex",
+      "source": ".codex/skills/refusal-discipline",
+      "sha256": "46ebb73828ad9951807a621ce78ee3b06374a4ceeed9c5cb9d98be59265f4e9c",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/refusal-discipline"
+    },
+    {
+      "name": "scope-refinement",
+      "agent": "codex",
+      "source": ".codex/skills/scope-refinement",
+      "sha256": "7f6b3c835419ab88ee2488ca61ebb3f9464fb5ad0aca8d3887c54251dd7493ab",
+      "files": 6,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/scope-refinement"
+    },
+    {
+      "name": "skill-contract-attestor",
+      "agent": "codex",
+      "source": ".codex/skills/skill-contract-attestor",
+      "sha256": "10998c55206912d4e9039d68abdd8bb6f293284a86ba7def1e8dca50d81459d9",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/skill-contract-attestor"
+    },
+    {
+      "name": "tdd-orchestrator",
+      "agent": "codex",
+      "source": ".codex/skills/tdd-orchestrator",
+      "sha256": "4a38b7e789963cfee3b4369ab3aa9e0467901d1e46fc7802149bdd9aa38b1064",
+      "files": 2,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/tdd-orchestrator"
+    },
+    {
+      "name": "temenos",
+      "agent": "codex",
+      "source": ".codex/skills/temenos",
+      "sha256": "a7876b966ac79b8fc610527b32b8af557f36e18f042ce74f6c85f4689fd63bbf",
+      "files": 5,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/temenos"
+    },
+    {
+      "name": "the-grumpy-tech-lead",
+      "agent": "codex",
+      "source": ".codex/skills/the-grumpy-tech-lead",
+      "sha256": "352fd5128c85e5c08e492e5d67d1dab1a45b34095d1179ee4f9d477cd9710bba",
+      "files": 2,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/the-grumpy-tech-lead"
+    },
+    {
+      "name": "union-tracer",
+      "agent": "codex",
+      "source": ".codex/skills/union-tracer",
+      "sha256": "38a34ce79620cb9085d5cafabdfdf3508c59f0ec2ff1777787335353ceb22da7",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/union-tracer"
+    },
+    {
+      "name": "cavecrew",
+      "agent": "shared",
+      "source": ".agents/skills/cavecrew",
+      "sha256": "f42181e23bb3fb4716f0dd0cdc270139fb7a218e7c3d878f8709f5054e978eb8",
+      "files": 2,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "caveman",
+      "agent": "shared",
+      "source": ".agents/skills/caveman",
+      "sha256": "8b3754bc149b996200ad076338a59cf621b367384a61ca14e84e43e2416f33c2",
+      "files": 2,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "caveman-commit",
+      "agent": "shared",
+      "source": ".agents/skills/caveman-commit",
+      "sha256": "d0f73b5e2d4a918c5f9284e4a1a1a24c6193f6b321ed29faa4cab73d1872fdfd",
+      "files": 2,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "caveman-compress",
+      "agent": "shared",
+      "source": ".agents/skills/caveman-compress",
+      "sha256": "8021b4a8d9bed2ebc2d697a4ffcc61b071b35c1514c0df6e88c37df2b35208f9",
+      "files": 10,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "caveman-discover",
+      "agent": "shared",
+      "source": ".agents/skills/caveman-discover",
+      "sha256": "0166e7f79aa9d06bce0c8c78d628ca7b5aacc1c0462bf6fc438850370e94a86b",
+      "files": 1,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "caveman-evidence-review",
+      "agent": "shared",
+      "source": ".agents/skills/caveman-evidence-review",
+      "sha256": "542e40f3e5b10b577572aabac7baf03f85a8267f3a7ab5af033c34eb3df1858b",
+      "files": 1,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "caveman-explore",
+      "agent": "shared",
+      "source": ".agents/skills/caveman-explore",
+      "sha256": "77568ce33790887480bd2d231d0ca2237b252f359deeeca92cd4715ccba2dbdf",
+      "files": 3,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "caveman-help",
+      "agent": "shared",
+      "source": ".agents/skills/caveman-help",
+      "sha256": "10570bb77272402be07f4e608020bffe092ced8be2c49a8ea5f3a9754f082487",
+      "files": 2,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "caveman-learn",
+      "agent": "shared",
+      "source": ".agents/skills/caveman-learn",
+      "sha256": "92dcf0cf218927c5c5662202c580d3cfd5f232ea6914f70ba970bfde4f931e9f",
+      "files": 6,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "caveman-manage",
+      "agent": "shared",
+      "source": ".agents/skills/caveman-manage",
+      "sha256": "fe70ff2a48c4e186fabc426fa69d92ad86480a735077c4be14794d596918d3f3",
+      "files": 1,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "caveman-optimize",
+      "agent": "shared",
+      "source": ".agents/skills/caveman-optimize",
+      "sha256": "30759ab1276c31d1b1d5469e08a642e2be8a6418401f08c3b58764543efc8c02",
+      "files": 1,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "caveman-review",
+      "agent": "shared",
+      "source": ".agents/skills/caveman-review",
+      "sha256": "1d3483c4c2f5096352f53265b7e24b87949f7486b2d0ce8cc55fb909fbd1bbcc",
+      "files": 2,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "caveman-setup",
+      "agent": "shared",
+      "source": ".agents/skills/caveman-setup",
+      "sha256": "146a31526c332c3434f4ace8315ac96404123c94968e3a4d3b5eaebe6d8efa70",
+      "files": 1,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "caveman-stats",
+      "agent": "shared",
+      "source": ".agents/skills/caveman-stats",
+      "sha256": "2a8b297e1c89d6d2c3759afba3c080dd0543ddc44ffb2963eaca041662094226",
+      "files": 2,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "investigate-first",
+      "agent": "shared",
+      "source": ".agents/skills/investigate-first",
+      "sha256": "f5de93d62877336aa8e646261fb8aaa4bcf5f15848c893f94f831aa6023a7a36",
+      "files": 2,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "lean-build",
+      "agent": "shared",
+      "source": ".agents/skills/lean-build",
+      "sha256": "231fd26a2fc0105ae0dbc03ca59871778bae25a6770cdb2600cdbc00d5c75ecc",
+      "files": 2,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "megacave",
+      "agent": "shared",
+      "source": ".agents/skills/megacave",
+      "sha256": "fd0f8d96f7facce3d186460184b0584b52e30b9a2f40f6206a5b74f0c154f807",
+      "files": 2,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "migration",
+      "agent": "shared",
+      "source": ".agents/skills/migration",
+      "sha256": "cd7dbde4f6d9621df51fcc658ff01669e4b5290094bae53857fdb952866726f8",
+      "files": 2,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "safe-refactor",
+      "agent": "shared",
+      "source": ".agents/skills/safe-refactor",
+      "sha256": "6586385362c62137c650f1e2f7d885b8646127574c34f3044b29a53a37009439",
+      "files": 2,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "surgical-patch",
+      "agent": "shared",
+      "source": ".agents/skills/surgical-patch",
+      "sha256": "3c9b1a664c68ef79ba00082edc242f7bed636a5da89ce12a41be57c90a57713b",
+      "files": 2,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "ultracave",
+      "agent": "shared",
+      "source": ".agents/skills/ultracave",
+      "sha256": "91f00c3944ce5896186699b874a4c4dd248c58eae3c223e25bf99625e1f27a82",
+      "files": 2,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "verify-and-stop",
+      "agent": "shared",
+      "source": ".agents/skills/verify-and-stop",
+      "sha256": "75aa895be5205e811349597ce91bb8a8dcdeda8f3d4c26bc9f452300aec9a85e",
+      "files": 2,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "adversarial-traverser",
+      "agent": "antigravity",
+      "source": ".gemini/config/skills/adversarial-traverser",
+      "sha256": "550598eeafca1283ddc471e30c6982c9ee7f4999324b1252e49b6ab713152a69",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/adversarial-traverser"
+    },
+    {
+      "name": "ask-codex",
+      "agent": "antigravity",
+      "source": ".gemini/config/skills/ask-codex",
+      "sha256": "d8c0b078a56d25cacf864037d47f1a00501a701610bf9c739d62061cce23ab4a",
+      "files": 2,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/ask-codex"
+    },
+    {
+      "name": "ask-opencode",
+      "agent": "antigravity",
+      "source": ".gemini/config/skills/ask-opencode",
+      "sha256": "e45f6f2e5ca2332017766f6b782453abe703f98c011d26a02651ac1b27cba267",
+      "files": 2,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/ask-opencode"
+    },
+    {
+      "name": "constellation-individuator",
+      "agent": "antigravity",
+      "source": ".gemini/config/skills/constellation-individuator",
+      "sha256": "52dfbe94874ace920ee59a27c15a5826da3e6521f0fe753c16397214f4e7a175",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/constellation-individuator"
+    },
+    {
+      "name": "contextual-mentorship",
+      "agent": "antigravity",
+      "source": ".gemini/config/skills/contextual-mentorship",
+      "sha256": "341535d4ef0a0d3af26e8c0a493e9f2723ae06607b8c4bc480f987e95ae7c7a3",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/contextual-mentorship--antigravity"
+    },
+    {
+      "name": "dialogo-sombra",
+      "agent": "antigravity",
+      "source": ".gemini/config/skills/dialogo-sombra",
+      "sha256": "a076974296e80e7f6a39d285c885e170d140137e09e8ae1207f9a0b7925cf03c",
+      "files": 5,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/dialogo-sombra"
+    },
+    {
+      "name": "graph-grounding",
+      "agent": "antigravity",
+      "source": ".gemini/config/skills/graph-grounding",
+      "sha256": "bf02a89482f179489413a9ef8af8d07c46f29248c47b1ca8cd4fc5f7a4320138",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/graph-grounding"
+    },
+    {
+      "name": "horizon-deliberator",
+      "agent": "antigravity",
+      "source": ".gemini/config/skills/horizon-deliberator",
+      "sha256": "94d9edd409a78e19abbfe1c6f88d2987a4aa13f3979cbdea29f7b4728154ab55",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/horizon-deliberator"
+    },
+    {
+      "name": "integrar-temenos",
+      "agent": "antigravity",
+      "source": ".gemini/config/skills/integrar-temenos",
+      "sha256": "8a684d5dc1a8225c9ef57abbbe30bf1c9c98ade6a3782fe91973f3a3692fc25e",
+      "files": 5,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/integrar-temenos"
+    },
+    {
+      "name": "level-graduator",
+      "agent": "antigravity",
+      "source": ".gemini/config/skills/level-graduator",
+      "sha256": "354bcba300215f19d6e2ec1935899ec8142481aef13ae1cacbe0edf12bb88052",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/level-graduator"
+    },
+    {
+      "name": "refusal-discipline",
+      "agent": "antigravity",
+      "source": ".gemini/config/skills/refusal-discipline",
+      "sha256": "46ebb73828ad9951807a621ce78ee3b06374a4ceeed9c5cb9d98be59265f4e9c",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/refusal-discipline"
+    },
+    {
+      "name": "skill-contract-attestor",
+      "agent": "antigravity",
+      "source": ".gemini/config/skills/skill-contract-attestor",
+      "sha256": "10998c55206912d4e9039d68abdd8bb6f293284a86ba7def1e8dca50d81459d9",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/skill-contract-attestor"
+    },
+    {
+      "name": "temenos",
+      "agent": "antigravity",
+      "source": ".gemini/config/skills/temenos",
+      "sha256": "a7876b966ac79b8fc610527b32b8af557f36e18f042ce74f6c85f4689fd63bbf",
+      "files": 5,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/temenos"
+    },
+    {
+      "name": "union-tracer",
+      "agent": "antigravity",
+      "source": ".gemini/config/skills/union-tracer",
+      "sha256": "38a34ce79620cb9085d5cafabdfdf3508c59f0ec2ff1777787335353ceb22da7",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/union-tracer"
+    },
+    {
+      "name": "adversarial-qa",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/adversarial-qa",
+      "sha256": "01552b336eb1e0c1575dd6f07a8f8634058d3fa408bfcd452fd8e4a94189c61a",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/adversarial-qa--opencode"
+    },
+    {
+      "name": "adversarial-traverser",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/adversarial-traverser",
+      "sha256": "550598eeafca1283ddc471e30c6982c9ee7f4999324b1252e49b6ab713152a69",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/adversarial-traverser"
+    },
+    {
+      "name": "autonomous-orchestrator",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/autonomous-orchestrator",
+      "sha256": "a1b2897390941a533de1a8b7f04a83870cb56a42c506d2abe8efe5048ba1c60e",
+      "files": 6,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/autonomous-orchestrator--opencode"
+    },
+    {
+      "name": "cavecrew",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/cavecrew",
+      "sha256": "f42181e23bb3fb4716f0dd0cdc270139fb7a218e7c3d878f8709f5054e978eb8",
+      "files": 2,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "caveman",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/caveman",
+      "sha256": "8b3754bc149b996200ad076338a59cf621b367384a61ca14e84e43e2416f33c2",
+      "files": 2,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "caveman-commit",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/caveman-commit",
+      "sha256": "d0f73b5e2d4a918c5f9284e4a1a1a24c6193f6b321ed29faa4cab73d1872fdfd",
+      "files": 2,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "caveman-compress",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/caveman-compress",
+      "sha256": "82f4382b989264f0114d1ecc3eab64ac376b11f790106a8b81cbee3d60565cac",
+      "files": 10,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "caveman-help",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/caveman-help",
+      "sha256": "10570bb77272402be07f4e608020bffe092ced8be2c49a8ea5f3a9754f082487",
+      "files": 2,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "caveman-review",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/caveman-review",
+      "sha256": "1d3483c4c2f5096352f53265b7e24b87949f7486b2d0ce8cc55fb909fbd1bbcc",
+      "files": 2,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "caveman-stats",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/caveman-stats",
+      "sha256": "2a8b297e1c89d6d2c3759afba3c080dd0543ddc44ffb2963eaca041662094226",
+      "files": 2,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "codebase-memory",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/codebase-memory",
+      "sha256": "d814f798795eff892c158282dd7aa81688b4d17cd8141c705bf8c6a1ad15e413",
+      "files": 1,
+      "classification": "custom-fork-integration",
+      "canonical": "skills/authored/codebase-memory"
+    },
+    {
+      "name": "constellation-individuator",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/constellation-individuator",
+      "sha256": "52dfbe94874ace920ee59a27c15a5826da3e6521f0fe753c16397214f4e7a175",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/constellation-individuator"
+    },
+    {
+      "name": "dialogo-sombra",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/dialogo-sombra",
+      "sha256": "a076974296e80e7f6a39d285c885e170d140137e09e8ae1207f9a0b7925cf03c",
+      "files": 5,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/dialogo-sombra"
+    },
+    {
+      "name": "graph-grounding",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/graph-grounding",
+      "sha256": "bf02a89482f179489413a9ef8af8d07c46f29248c47b1ca8cd4fc5f7a4320138",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/graph-grounding"
+    },
+    {
+      "name": "harness-evaluator",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/harness-evaluator",
+      "sha256": "47f1ca8585ae2ad207e52dbb2041db24abd373e7876ddd6d8c51b89a5b5c3ca2",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/harness-evaluator--opencode"
+    },
+    {
+      "name": "harness-tracer",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/harness-tracer",
+      "sha256": "4ebd47fb828b9de8f04a27a4a6ec2a6e869093d99949c3b271e169b262e897dd",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/harness-tracer--opencode"
+    },
+    {
+      "name": "horizon-deliberator",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/horizon-deliberator",
+      "sha256": "94d9edd409a78e19abbfe1c6f88d2987a4aa13f3979cbdea29f7b4728154ab55",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/horizon-deliberator"
+    },
+    {
+      "name": "integrar-temenos",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/integrar-temenos",
+      "sha256": "8a684d5dc1a8225c9ef57abbbe30bf1c9c98ade6a3782fe91973f3a3692fc25e",
+      "files": 5,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/integrar-temenos"
+    },
+    {
+      "name": "level-graduator",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/level-graduator",
+      "sha256": "354bcba300215f19d6e2ec1935899ec8142481aef13ae1cacbe0edf12bb88052",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/level-graduator"
+    },
+    {
+      "name": "megacave",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/megacave",
+      "sha256": "fd0f8d96f7facce3d186460184b0584b52e30b9a2f40f6206a5b74f0c154f807",
+      "files": 2,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "memory-context",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/memory-context",
+      "sha256": "bc29b5d09f8a993a1489c51bf982f0cd10583d3b782fc36a30fda39bb401dc4b",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/memory-context"
+    },
+    {
+      "name": "meta-harness",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/meta-harness",
+      "sha256": "c95dd0dbdfac75bc897da665bb60fd0ef60004502156ae5a054ef2eda5c9b2eb",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/meta-harness--opencode"
+    },
+    {
+      "name": "pbb-design",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/pbb-design",
+      "sha256": "e8dcaa711e89955c299dd1c2c0d1f3be06841d2a57dff8c2ecf857b4f1bf06f1",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/pbb-design"
+    },
+    {
+      "name": "project-memory",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/project-memory",
+      "sha256": "be65ebe10717e1da7f1ba05b9bdb3ffd22824f1b7162426a5d005ed18a5918f1",
+      "files": 11,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/project-memory--opencode"
+    },
+    {
+      "name": "qa-orchestrator",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/qa-orchestrator",
+      "sha256": "f33db1a18ef358dda634f1d78036652a2b442b8b70c8c5a48515e2858ace5493",
+      "files": 2,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/qa-orchestrator"
+    },
+    {
+      "name": "read-ui-prototype",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/read-ui-prototype",
+      "sha256": "f87b8044702a304b2cc35a9f0a4ff3b657eb536f7b074100f8cc48642a9cb2c4",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/read-ui-prototype"
+    },
+    {
+      "name": "refusal-discipline",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/refusal-discipline",
+      "sha256": "46ebb73828ad9951807a621ce78ee3b06374a4ceeed9c5cb9d98be59265f4e9c",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/refusal-discipline"
+    },
+    {
+      "name": "scope-refinement",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/scope-refinement",
+      "sha256": "e6f60e4b44f332a1c3b8b288a656fff2fa5a67c28b7671a56a5ec4bb9b668605",
+      "files": 5,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/scope-refinement--opencode"
+    },
+    {
+      "name": "skill-contract-attestor",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/skill-contract-attestor",
+      "sha256": "10998c55206912d4e9039d68abdd8bb6f293284a86ba7def1e8dca50d81459d9",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/skill-contract-attestor"
+    },
+    {
+      "name": "tdd-orchestrator",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/tdd-orchestrator",
+      "sha256": "be1412de3101e179e28b21a4ae11cd3c37f67ddc0dbcc67900a9758c33f5c82e",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/tdd-orchestrator--opencode"
+    },
+    {
+      "name": "temenos",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/temenos",
+      "sha256": "a7876b966ac79b8fc610527b32b8af557f36e18f042ce74f6c85f4689fd63bbf",
+      "files": 5,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/temenos"
+    },
+    {
+      "name": "the-grumpy-tech-lead",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/the-grumpy-tech-lead",
+      "sha256": "6ef92536f69e2457529c879ece431b1293cf33e9fdae7b875feef0d94571c75f",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/the-grumpy-tech-lead--opencode"
+    },
+    {
+      "name": "ultracave",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/ultracave",
+      "sha256": "91f00c3944ce5896186699b874a4c4dd248c58eae3c223e25bf99625e1f27a82",
+      "files": 2,
+      "classification": "third-party",
+      "upstream": "https://github.com/JuliusBrussee/caveman.git",
+      "ref": "v4.0.1"
+    },
+    {
+      "name": "union-tracer",
+      "agent": "opencode",
+      "source": ".config/opencode/skills/union-tracer",
+      "sha256": "38a34ce79620cb9085d5cafabdfdf3508c59f0ec2ff1777787335353ceb22da7",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/union-tracer"
+    },
+    {
+      "name": "adversarial-traverser",
+      "agent": "antigravity-cli",
+      "source": ".gemini/antigravity-cli/skills/adversarial-traverser",
+      "sha256": "550598eeafca1283ddc471e30c6982c9ee7f4999324b1252e49b6ab713152a69",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/adversarial-traverser"
+    },
+    {
+      "name": "constellation-individuator",
+      "agent": "antigravity-cli",
+      "source": ".gemini/antigravity-cli/skills/constellation-individuator",
+      "sha256": "52dfbe94874ace920ee59a27c15a5826da3e6521f0fe753c16397214f4e7a175",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/constellation-individuator"
+    },
+    {
+      "name": "contextual-mentorship",
+      "agent": "antigravity-cli",
+      "source": ".gemini/antigravity-cli/skills/contextual-mentorship",
+      "sha256": "341535d4ef0a0d3af26e8c0a493e9f2723ae06607b8c4bc480f987e95ae7c7a3",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/contextual-mentorship--antigravity"
+    },
+    {
+      "name": "dialogo-sombra",
+      "agent": "antigravity-cli",
+      "source": ".gemini/antigravity-cli/skills/dialogo-sombra",
+      "sha256": "a076974296e80e7f6a39d285c885e170d140137e09e8ae1207f9a0b7925cf03c",
+      "files": 5,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/dialogo-sombra"
+    },
+    {
+      "name": "graph-grounding",
+      "agent": "antigravity-cli",
+      "source": ".gemini/antigravity-cli/skills/graph-grounding",
+      "sha256": "bf02a89482f179489413a9ef8af8d07c46f29248c47b1ca8cd4fc5f7a4320138",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/graph-grounding"
+    },
+    {
+      "name": "horizon-deliberator",
+      "agent": "antigravity-cli",
+      "source": ".gemini/antigravity-cli/skills/horizon-deliberator",
+      "sha256": "94d9edd409a78e19abbfe1c6f88d2987a4aa13f3979cbdea29f7b4728154ab55",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/horizon-deliberator"
+    },
+    {
+      "name": "integrar-temenos",
+      "agent": "antigravity-cli",
+      "source": ".gemini/antigravity-cli/skills/integrar-temenos",
+      "sha256": "8a684d5dc1a8225c9ef57abbbe30bf1c9c98ade6a3782fe91973f3a3692fc25e",
+      "files": 5,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/integrar-temenos"
+    },
+    {
+      "name": "level-graduator",
+      "agent": "antigravity-cli",
+      "source": ".gemini/antigravity-cli/skills/level-graduator",
+      "sha256": "354bcba300215f19d6e2ec1935899ec8142481aef13ae1cacbe0edf12bb88052",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/level-graduator"
+    },
+    {
+      "name": "refusal-discipline",
+      "agent": "antigravity-cli",
+      "source": ".gemini/antigravity-cli/skills/refusal-discipline",
+      "sha256": "46ebb73828ad9951807a621ce78ee3b06374a4ceeed9c5cb9d98be59265f4e9c",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/refusal-discipline"
+    },
+    {
+      "name": "skill-contract-attestor",
+      "agent": "antigravity-cli",
+      "source": ".gemini/antigravity-cli/skills/skill-contract-attestor",
+      "sha256": "10998c55206912d4e9039d68abdd8bb6f293284a86ba7def1e8dca50d81459d9",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/skill-contract-attestor"
+    },
+    {
+      "name": "temenos",
+      "agent": "antigravity-cli",
+      "source": ".gemini/antigravity-cli/skills/temenos",
+      "sha256": "a7876b966ac79b8fc610527b32b8af557f36e18f042ce74f6c85f4689fd63bbf",
+      "files": 5,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/temenos"
+    },
+    {
+      "name": "union-tracer",
+      "agent": "antigravity-cli",
+      "source": ".gemini/antigravity-cli/skills/union-tracer",
+      "sha256": "38a34ce79620cb9085d5cafabdfdf3508c59f0ec2ff1777787335353ceb22da7",
+      "files": 1,
+      "classification": "local-customization-authorship-unverified",
+      "canonical": "skills/authored/union-tracer"
+    }
+  ],
+  "assets": [
+    {
+      "source": ".codex/agents/codebase-memory-auditor.toml",
+      "canonical": "integrations/codex/agents/codebase-memory-auditor.toml",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".codex/agents/codebase-memory-scout.toml",
+      "canonical": "integrations/codex/agents/codebase-memory-scout.toml",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".codex/agents/codebase-memory.toml",
+      "canonical": "integrations/codex/agents/codebase-memory.toml",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".codex/agents/cto.toml",
+      "canonical": "integrations/codex/agents/cto.toml",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".codex/agents/developer-backend.toml",
+      "canonical": "integrations/codex/agents/developer-backend.toml",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".codex/agents/developer-debugging.toml",
+      "canonical": "integrations/codex/agents/developer-debugging.toml",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".codex/agents/developer-devops.toml",
+      "canonical": "integrations/codex/agents/developer-devops.toml",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".codex/agents/developer-frontend.toml",
+      "canonical": "integrations/codex/agents/developer-frontend.toml",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".codex/agents/developer-qa.toml",
+      "canonical": "integrations/codex/agents/developer-qa.toml",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".codex/agents/harness-qa.toml",
+      "canonical": "integrations/codex/agents/harness-qa.toml",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".codex/agents/harness-tech-lead.toml",
+      "canonical": "integrations/codex/agents/harness-tech-lead.toml",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".codex/agents/meta-harness-agent.toml",
+      "canonical": "integrations/codex/agents/meta-harness-agent.toml",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".codex/agents/software-architect.toml",
+      "canonical": "integrations/codex/agents/software-architect.toml",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".config/opencode/agents/codebase-memory-auditor.md",
+      "canonical": "integrations/opencode/agents/codebase-memory-auditor.md",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".config/opencode/agents/codebase-memory-scout.md",
+      "canonical": "integrations/opencode/agents/codebase-memory-scout.md",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".config/opencode/agents/codebase-memory.md",
+      "canonical": "integrations/opencode/agents/codebase-memory.md",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".config/opencode/agents/cto.md",
+      "canonical": "integrations/opencode/agents/cto.md",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".config/opencode/agents/developer-backend.md",
+      "canonical": "integrations/opencode/agents/developer-backend.md",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".config/opencode/agents/developer-debugging.md",
+      "canonical": "integrations/opencode/agents/developer-debugging.md",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".config/opencode/agents/developer-devops.md",
+      "canonical": "integrations/opencode/agents/developer-devops.md",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".config/opencode/agents/developer-frontend.md",
+      "canonical": "integrations/opencode/agents/developer-frontend.md",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".config/opencode/agents/developer-qa.md",
+      "canonical": "integrations/opencode/agents/developer-qa.md",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".config/opencode/agents/harness-qa.md",
+      "canonical": "integrations/opencode/agents/harness-qa.md",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".config/opencode/agents/harness-tech-lead.md",
+      "canonical": "integrations/opencode/agents/harness-tech-lead.md",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".config/opencode/agents/meta-harness-agent.md",
+      "canonical": "integrations/opencode/agents/meta-harness-agent.md",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".config/opencode/agents/software-architect.md",
+      "canonical": "integrations/opencode/agents/software-architect.md",
+      "classification": "local-agent-definition"
+    },
+    {
+      "source": ".codex/AGENTS.md",
+      "canonical": "integrations/codex/instructions.md",
+      "classification": "personal-instructions-with-managed-upstream-blocks"
+    },
+    {
+      "source": ".config/opencode/AGENTS.md",
+      "canonical": "integrations/opencode/instructions.md",
+      "classification": "personal-instructions-with-managed-upstream-blocks"
+    },
+    {
+      "source": ".gemini/GEMINI.md",
+      "canonical": "integrations/antigravity/instructions.md",
+      "classification": "personal-instructions-with-managed-upstream-blocks"
+    },
+    {
+      "source": ".config/opencode/plugins/cbm-augment.ts",
+      "canonical": "integrations/opencode/quarantine/cbm-augment.ts",
+      "classification": "unresolved-custom-fork-plugin-disabled",
+      "sha256": "a5ea122674fd72f437ca8cefbcc99a5ea7ef2bc490056ca0bc36a1ec3ef8fec0"
+    }
+  ],
+  "excluded": [
+    "credentials",
+    "sessions",
+    "databases",
+    "logs",
+    "caches",
+    "node_modules",
+    "built-in .system skills"
+  ],
+  "path_template": "__HOME__"
+}

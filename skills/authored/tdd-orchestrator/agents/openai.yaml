@@ -1,0 +1,5 @@
+interface:
+  display_name: "Tdd Orchestrator"
+  short_description: "Orchestrates development workflow using Test-Driven Development methodology"
+policy:
+  allow_implicit_invocation: false

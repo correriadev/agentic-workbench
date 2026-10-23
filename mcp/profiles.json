@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "default": "unresolved-original-baseline",
+  "servers": {
+    "codebase-memory-fork": {
+      "transport": "stdio",
+      "version": "mgh-8dd9f4ec-codex-20261021-relaxed",
+      "selection": "--custom-cbm ABSOLUTE_BINARY_PATH",
+      "integrity": "environment.lock.yaml:local_codebase_memory.sha256",
+      "status": "exact artifact required; fresh-home runtime settings failure unresolved"
+    },
+    "codebase-memory-upstream": {
+      "transport": "stdio",
+      "selection": "--upstream-cbm",
+      "lock": "environment.lock.yaml:binaries.codebase-memory-upstream",
+      "status": "explicit alternative; not equivalent to custom fork"
+    },
+    "open-graph": {
+      "transport": "stdio",
+      "runtime": "bun@1.3.14",
+      "source": "environment.lock.yaml:sources.open-graph",
+      "entrypoint": "packages/agy-plugin/mcp-wrapper.ts",
+      "working_directory": "pinned source root",
+      "status": "manual pinned-source reconstruction and protocol validation required"
+    }
+  },
+  "excluded": {
+    "node_repl": "Codex app-owned runtime; reinstall app, do not transplant absolute runtime paths"
+  }
+}

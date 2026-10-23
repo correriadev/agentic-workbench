@@ -1,0 +1,5 @@
+interface:
+  display_name: "Harness Evaluator"
+  short_description: "Harness performance evaluator. Reads all execution traces and computes compos..."
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,9 @@
+{
+  "name": "ai-dev-environment-toolchain",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@openai/codex": "0.160.0",
+    "opencode-ai": "1.19.4"
+  }
+}

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Autonomous Orchestrator"
+  short_description: "Sovereign loop manager. Handles file initialization, feature lifecycle tracki..."
+policy:
+  allow_implicit_invocation: false

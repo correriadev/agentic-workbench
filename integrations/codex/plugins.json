@@ -1,0 +1,64 @@
+{
+  "verified": "2026-10-23",
+  "plugins": {
+    "codex-app-tools@openai-bundled": {
+      "enabled": true
+    },
+    "browser@openai-bundled": {
+      "enabled": true
+    },
+    "unified-computer-use@openai-bundled": {
+      "enabled": true
+    },
+    "code-review@openai-bundled": {
+      "enabled": true
+    },
+    "visualize@openai-bundled": {
+      "enabled": true
+    },
+    "computer-use@openai-bundled": {
+      "enabled": true
+    },
+    "documents@openai-primary-runtime": {
+      "enabled": true
+    },
+    "pdf@openai-primary-runtime": {
+      "enabled": true
+    },
+    "spreadsheets@openai-primary-runtime": {
+      "enabled": true
+    },
+    "presentations@openai-primary-runtime": {
+      "enabled": true
+    },
+    "template-creator@openai-primary-runtime": {
+      "enabled": true
+    },
+    "chrome@openai-bundled": {
+      "enabled": true
+    },
+    "postman@postman": {
+      "enabled": true
+    },
+    "ponytail@ponytail": {
+      "enabled": true
+    }
+  },
+  "marketplaces": {
+    "postman": {
+      "source": "https://github.com/postmanlabs/postman-plugin.git",
+      "installed_version": "1.1.0",
+      "revision_status": "unresolved; app-managed install"
+    },
+    "ponytail": {
+      "source": "https://github.com/DietrichGebert/ponytail.git",
+      "commit": "16352ac229eb08a9598dcae48fe9f2b342567d86"
+    },
+    "openai-bundled": {
+      "status": "agent-distributed; reinstall Codex app"
+    },
+    "openai-primary-runtime": {
+      "status": "agent-distributed; reinstall Codex app"
+    }
+  }
+}

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Scope Refinement"
+  short_description: "DDD Scope Refinement Orchestrator. Coordinates all phases from business disco..."
+policy:
+  allow_implicit_invocation: false

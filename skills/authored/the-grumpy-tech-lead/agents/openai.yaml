@@ -1,0 +1,5 @@
+interface:
+  display_name: "The Grumpy Tech Lead"
+  short_description: "Senior Tech Lead specialized in technical code review using Socratic questioning"
+policy:
+  allow_implicit_invocation: false

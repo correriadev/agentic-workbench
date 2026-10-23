@@ -1,0 +1,339 @@
+{
+  "agents": {
+    "codex": [
+      {
+        "name": "adversarial-qa",
+        "source": "skills/authored/adversarial-qa"
+      },
+      {
+        "name": "adversarial-traverser",
+        "source": "skills/authored/adversarial-traverser"
+      },
+      {
+        "name": "autonomous-orchestrator",
+        "source": "skills/authored/autonomous-orchestrator"
+      },
+      {
+        "name": "codebase-memory",
+        "source": "skills/authored/codebase-memory"
+      },
+      {
+        "name": "constellation-individuator",
+        "source": "skills/authored/constellation-individuator"
+      },
+      {
+        "name": "contextual-mentorship",
+        "source": "skills/authored/contextual-mentorship"
+      },
+      {
+        "name": "dialogo-sombra",
+        "source": "skills/authored/dialogo-sombra"
+      },
+      {
+        "name": "graph-grounding",
+        "source": "skills/authored/graph-grounding"
+      },
+      {
+        "name": "harness-evaluator",
+        "source": "skills/authored/harness-evaluator"
+      },
+      {
+        "name": "harness-tracer",
+        "source": "skills/authored/harness-tracer"
+      },
+      {
+        "name": "horizon-deliberator",
+        "source": "skills/authored/horizon-deliberator"
+      },
+      {
+        "name": "integrar-temenos",
+        "source": "skills/authored/integrar-temenos"
+      },
+      {
+        "name": "jev-browser-use",
+        "source": "skills/authored/jev-browser-use"
+      },
+      {
+        "name": "jev-compaction",
+        "source": "skills/authored/jev-compaction"
+      },
+      {
+        "name": "jev-computer-use",
+        "source": "skills/authored/jev-computer-use"
+      },
+      {
+        "name": "jev-frontier-work",
+        "source": "skills/authored/jev-frontier-work"
+      },
+      {
+        "name": "jev-mailbox",
+        "source": "skills/authored/jev-mailbox"
+      },
+      {
+        "name": "jev-memory",
+        "source": "skills/authored/jev-memory"
+      },
+      {
+        "name": "jev-model-routing",
+        "source": "skills/authored/jev-model-routing"
+      },
+      {
+        "name": "jev-search",
+        "source": "skills/authored/jev-search"
+      },
+      {
+        "name": "jev-setup",
+        "source": "skills/authored/jev-setup"
+      },
+      {
+        "name": "jev-skill-select",
+        "source": "skills/authored/jev-skill-select"
+      },
+      {
+        "name": "jev-social-research",
+        "source": "skills/authored/jev-social-research"
+      },
+      {
+        "name": "level-graduator",
+        "source": "skills/authored/level-graduator"
+      },
+      {
+        "name": "memory-context",
+        "source": "skills/authored/memory-context"
+      },
+      {
+        "name": "meta-harness",
+        "source": "skills/authored/meta-harness"
+      },
+      {
+        "name": "pbb-design",
+        "source": "skills/authored/pbb-design"
+      },
+      {
+        "name": "project-memory",
+        "source": "skills/authored/project-memory"
+      },
+      {
+        "name": "qa-orchestrator",
+        "source": "skills/authored/qa-orchestrator"
+      },
+      {
+        "name": "read-ui-prototype",
+        "source": "skills/authored/read-ui-prototype"
+      },
+      {
+        "name": "refusal-discipline",
+        "source": "skills/authored/refusal-discipline"
+      },
+      {
+        "name": "scope-refinement",
+        "source": "skills/authored/scope-refinement"
+      },
+      {
+        "name": "skill-contract-attestor",
+        "source": "skills/authored/skill-contract-attestor"
+      },
+      {
+        "name": "tdd-orchestrator",
+        "source": "skills/authored/tdd-orchestrator"
+      },
+      {
+        "name": "temenos",
+        "source": "skills/authored/temenos"
+      },
+      {
+        "name": "the-grumpy-tech-lead",
+        "source": "skills/authored/the-grumpy-tech-lead"
+      },
+      {
+        "name": "union-tracer",
+        "source": "skills/authored/union-tracer"
+      }
+    ],
+    "opencode": [
+      {
+        "name": "adversarial-qa",
+        "source": "skills/authored/adversarial-qa--opencode"
+      },
+      {
+        "name": "adversarial-traverser",
+        "source": "skills/authored/adversarial-traverser"
+      },
+      {
+        "name": "autonomous-orchestrator",
+        "source": "skills/authored/autonomous-orchestrator--opencode"
+      },
+      {
+        "name": "codebase-memory",
+        "source": "skills/authored/codebase-memory"
+      },
+      {
+        "name": "constellation-individuator",
+        "source": "skills/authored/constellation-individuator"
+      },
+      {
+        "name": "dialogo-sombra",
+        "source": "skills/authored/dialogo-sombra"
+      },
+      {
+        "name": "graph-grounding",
+        "source": "skills/authored/graph-grounding"
+      },
+      {
+        "name": "harness-evaluator",
+        "source": "skills/authored/harness-evaluator--opencode"
+      },
+      {
+        "name": "harness-tracer",
+        "source": "skills/authored/harness-tracer--opencode"
+      },
+      {
+        "name": "horizon-deliberator",
+        "source": "skills/authored/horizon-deliberator"
+      },
+      {
+        "name": "integrar-temenos",
+        "source": "skills/authored/integrar-temenos"
+      },
+      {
+        "name": "level-graduator",
+        "source": "skills/authored/level-graduator"
+      },
+      {
+        "name": "memory-context",
+        "source": "skills/authored/memory-context"
+      },
+      {
+        "name": "meta-harness",
+        "source": "skills/authored/meta-harness--opencode"
+      },
+      {
+        "name": "pbb-design",
+        "source": "skills/authored/pbb-design"
+      },
+      {
+        "name": "project-memory",
+        "source": "skills/authored/project-memory--opencode"
+      },
+      {
+        "name": "qa-orchestrator",
+        "source": "skills/authored/qa-orchestrator"
+      },
+      {
+        "name": "read-ui-prototype",
+        "source": "skills/authored/read-ui-prototype"
+      },
+      {
+        "name": "refusal-discipline",
+        "source": "skills/authored/refusal-discipline"
+      },
+      {
+        "name": "scope-refinement",
+        "source": "skills/authored/scope-refinement--opencode"
+      },
+      {
+        "name": "skill-contract-attestor",
+        "source": "skills/authored/skill-contract-attestor"
+      },
+      {
+        "name": "tdd-orchestrator",
+        "source": "skills/authored/tdd-orchestrator--opencode"
+      },
+      {
+        "name": "temenos",
+        "source": "skills/authored/temenos"
+      },
+      {
+        "name": "the-grumpy-tech-lead",
+        "source": "skills/authored/the-grumpy-tech-lead--opencode"
+      },
+      {
+        "name": "union-tracer",
+        "source": "skills/authored/union-tracer"
+      }
+    ],
+    "antigravity": [
+      {
+        "name": "adversarial-traverser",
+        "source": "skills/authored/adversarial-traverser"
+      },
+      {
+        "name": "ask-codex",
+        "source": "skills/authored/ask-codex"
+      },
+      {
+        "name": "ask-opencode",
+        "source": "skills/authored/ask-opencode"
+      },
+      {
+        "name": "constellation-individuator",
+        "source": "skills/authored/constellation-individuator"
+      },
+      {
+        "name": "contextual-mentorship",
+        "source": "skills/authored/contextual-mentorship--antigravity"
+      },
+      {
+        "name": "dialogo-sombra",
+        "source": "skills/authored/dialogo-sombra"
+      },
+      {
+        "name": "graph-grounding",
+        "source": "skills/authored/graph-grounding"
+      },
+      {
+        "name": "horizon-deliberator",
+        "source": "skills/authored/horizon-deliberator"
+      },
+      {
+        "name": "integrar-temenos",
+        "source": "skills/authored/integrar-temenos"
+      },
+      {
+        "name": "level-graduator",
+        "source": "skills/authored/level-graduator"
+      },
+      {
+        "name": "refusal-discipline",
+        "source": "skills/authored/refusal-discipline"
+      },
+      {
+        "name": "skill-contract-attestor",
+        "source": "skills/authored/skill-contract-attestor"
+      },
+      {
+        "name": "temenos",
+        "source": "skills/authored/temenos"
+      },
+      {
+        "name": "union-tracer",
+        "source": "skills/authored/union-tracer"
+      }
+    ]
+  },
+  "third_party_skills": [
+    "cavecrew",
+    "caveman",
+    "caveman-commit",
+    "caveman-compress",
+    "caveman-discover",
+    "caveman-evidence-review",
+    "caveman-explore",
+    "caveman-help",
+    "caveman-learn",
+    "caveman-manage",
+    "caveman-optimize",
+    "caveman-review",
+    "caveman-setup",
+    "caveman-stats",
+    "investigate-first",
+    "lean-build",
+    "megacave",
+    "migration",
+    "safe-refactor",
+    "surgical-patch",
+    "ultracave",
+    "verify-and-stop"
+  ],
+  "note": "Unresolved Jev snapshots are preserved but disabled until provenance review."
+}

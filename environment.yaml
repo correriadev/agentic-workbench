@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "name": "ai-dev-environment",
+  "python_min": "3.12",
+  "agents": [
+    "codex",
+    "antigravity",
+    "opencode"
+  ],
+  "default_profile": "personal",
+  "sources": [
+    "rtk",
+    "caveman",
+    "ponytail"
+  ],
+  "binaries": [
+    "node",
+    "rtk",
+    "antigravity"
+  ],
+  "npm": [
+    "codex",
+    "opencode"
+  ],
+  "mcp_default": [],
+  "mcp_optional": [
+    "codebase-memory-upstream",
+    "codebase-memory-fork",
+    "open-graph"
+  ],
+  "policy": {
+    "preserve_conflicts": true,
+    "telemetry": "do-not-track",
+    "secrets": "external",
+    "unresolved_skills": "disabled"
+  }
+}

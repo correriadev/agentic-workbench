@@ -1,0 +1,4 @@
+interface:
+  display_name: "Contextual Mentorship"
+  short_description: "Build understanding and judgment through real situations"
+  default_prompt: "Use $contextual-mentorship to help me understand my situation, reason through my options, and prepare to act."
