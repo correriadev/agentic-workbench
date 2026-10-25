@@ -37,13 +37,13 @@ Both `.yaml` manifests use JSON syntax, a YAML 1.2 subset, to avoid bootstrap de
 | Module | Responsibility | Location |
 |---|---|---|
 | Environment | Fetch, render, plan, apply, doctor and rollback | `scripts/environment.py` |
-| Profile | Map retained variants to agents; exclude unresolved Jev at deployment | `profiles/personal.json` |
+| Profile | Share canonical skills across all agents; exclude unresolved Jev at deployment | `profiles/personal.json` |
 | Local assets | Preserve personal or locally customized content | `skills/authored/`, `integrations/` |
 | Dependency locks | Pin Git revisions, binary digests, npm transitive dependencies | root manifests, `integrations/node/` |
 
 ## PATTERNS
 
-REQUIRED: Keep one canonical copy of byte-identical local skill trees; retain differing variants explicitly.
+REQUIRED: Keep one provider-neutral canonical copy of each skill; exclude `agents/openai.yaml` metadata and consolidate identical trees.
 REQUIRED: Treat `authored` as a local-asset namespace, not proof of copyright ownership.
 REQUIRED: Template only the discovered home prefix as `__HOME__`; preserve other asset content.
 REQUIRED: Deploy copies where agent discovery roots differ; hashes track those deployment copies.

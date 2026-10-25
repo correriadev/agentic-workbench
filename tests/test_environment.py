@@ -182,6 +182,14 @@ class InstallerTests(unittest.TestCase):
         self.assertIn("model_reasoning_effort", data)
         self.assertIn("codebase-memory-mcp", data["mcp_servers"])
 
+    def test_all_agents_share_the_provider_neutral_skill_catalog(self):
+        files, _ = self.env.desired(["codex", "antigravity", "opencode"])
+        expected = {item["name"] for item in self.env.profile["skills"] if not item["name"].startswith("jev-")}
+        for root in [".codex/skills", ".config/opencode/skills", ".gemini/config/skills", ".gemini/antigravity-cli/skills"]:
+            deployed = {p.parent.name for p in files if p.name == "SKILL.md" and p.is_relative_to(self.home / root)}
+            self.assertTrue(expected.issubset(deployed))
+        self.assertFalse(any(p.name == "openai.yaml" for p in files))
+
 
 if __name__ == "__main__":
     unittest.main()

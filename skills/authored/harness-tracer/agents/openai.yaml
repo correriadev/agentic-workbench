@@ -1,5 +1,0 @@
-interface:
-  display_name: "Harness Tracer"
-  short_description: "Execution trace recorder. Captures structured logs of skill sessions"
-policy:
-  allow_implicit_invocation: false

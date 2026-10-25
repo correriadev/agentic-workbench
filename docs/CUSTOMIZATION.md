@@ -2,14 +2,14 @@
 
 ## PERSONAL ASSETS
 
-Use `profiles/personal.json` to select one retained variant per agent.
+Use the shared `skills` catalog in `profiles/personal.json` for every supported agent.
 `docs/research/local-assets.json` records original installation locations and
-hashes. Equal local trees share one repository source. Distinct local versions
-remain distinct; a larger/newer file is not automatically authoritative.
+hashes. Equal local trees share one repository source. Provider-specific `agents/openai.yaml`
+metadata is removed; skills with identical remaining files are consolidated.
 
 `skills/authored/` includes local customizations of uncertain authorship and
 quarantined Jev snapshots. It is not a licensing declaration. Jev is skipped by
-the installer until provenance review. Preserve metadata and references when
+the installer until provenance review. Preserve portable instructions and references when
 editing a skill; do not modify a downloaded source cache as the canonical copy.
 
 Home prefixes are stored as `__HOME__` and rendered to the target home. Other

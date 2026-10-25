@@ -25,11 +25,21 @@ def verify():
             size = 64 if spec["algorithm"] == "sha256" else 128
             if not re.fullmatch(r"[0-9a-f]{" + str(size) + "}", spec["digest"]):
                 errors.append("invalid artifact digest: " + name)
-    for agent in manifest["agents"]:
-        for item in profile["agents"][agent]:
-            source = (ROOT / item["source"]).resolve()
-            if not source.is_relative_to(ROOT) or not (source / "SKILL.md").exists():
-                errors.append("invalid skill source: " + item["source"])
+    for item in profile["skills"]:
+        source = (ROOT / item["source"]).resolve()
+        if not source.is_relative_to(ROOT) or not (source / "SKILL.md").exists():
+            errors.append("invalid skill source: " + item["source"])
+    skill_signatures = {}
+    for folder in sorted((ROOT / "skills/authored").iterdir()):
+        if not folder.is_dir():
+            continue
+        files = sorted(p for p in folder.rglob("*") if p.is_file() and "__pycache__" not in p.parts)
+        if any(p.name == "openai.yaml" for p in files):
+            errors.append("provider-specific skill metadata: " + folder.name)
+        signature = hashlib.sha256(b"".join(p.relative_to(folder).as_posix().encode() + b"\0" + p.read_bytes() for p in files)).hexdigest()
+        if signature in skill_signatures:
+            errors.append("duplicate skill trees: " + skill_signatures[signature] + ", " + folder.name)
+        skill_signatures[signature] = folder.name
     npm = read("integrations/node/package-lock.json")
     for entry, package in npm["packages"].items():
         if entry and ("integrity" not in package or not package.get("resolved", "").startswith("https://registry.npmjs.org/")):

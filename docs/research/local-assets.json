@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-23",
+  "date": "2026-10-24",
   "skills": [
     {
       "name": "adversarial-qa",
@@ -597,7 +597,7 @@
       "sha256": "341535d4ef0a0d3af26e8c0a493e9f2723ae06607b8c4bc480f987e95ae7c7a3",
       "files": 1,
       "classification": "local-customization-authorship-unverified",
-      "canonical": "skills/authored/contextual-mentorship--antigravity"
+      "canonical": "skills/authored/contextual-mentorship"
     },
     {
       "name": "dialogo-sombra",
@@ -687,7 +687,7 @@
       "sha256": "01552b336eb1e0c1575dd6f07a8f8634058d3fa408bfcd452fd8e4a94189c61a",
       "files": 1,
       "classification": "local-customization-authorship-unverified",
-      "canonical": "skills/authored/adversarial-qa--opencode"
+      "canonical": "skills/authored/adversarial-qa"
     },
     {
       "name": "adversarial-traverser",
@@ -705,7 +705,7 @@
       "sha256": "a1b2897390941a533de1a8b7f04a83870cb56a42c506d2abe8efe5048ba1c60e",
       "files": 6,
       "classification": "local-customization-authorship-unverified",
-      "canonical": "skills/authored/autonomous-orchestrator--opencode"
+      "canonical": "skills/authored/autonomous-orchestrator"
     },
     {
       "name": "cavecrew",
@@ -820,7 +820,7 @@
       "sha256": "47f1ca8585ae2ad207e52dbb2041db24abd373e7876ddd6d8c51b89a5b5c3ca2",
       "files": 1,
       "classification": "local-customization-authorship-unverified",
-      "canonical": "skills/authored/harness-evaluator--opencode"
+      "canonical": "skills/authored/harness-evaluator"
     },
     {
       "name": "harness-tracer",
@@ -829,7 +829,7 @@
       "sha256": "4ebd47fb828b9de8f04a27a4a6ec2a6e869093d99949c3b271e169b262e897dd",
       "files": 1,
       "classification": "local-customization-authorship-unverified",
-      "canonical": "skills/authored/harness-tracer--opencode"
+      "canonical": "skills/authored/harness-tracer"
     },
     {
       "name": "horizon-deliberator",
@@ -884,7 +884,7 @@
       "sha256": "c95dd0dbdfac75bc897da665bb60fd0ef60004502156ae5a054ef2eda5c9b2eb",
       "files": 1,
       "classification": "local-customization-authorship-unverified",
-      "canonical": "skills/authored/meta-harness--opencode"
+      "canonical": "skills/authored/meta-harness"
     },
     {
       "name": "pbb-design",
@@ -902,7 +902,7 @@
       "sha256": "be65ebe10717e1da7f1ba05b9bdb3ffd22824f1b7162426a5d005ed18a5918f1",
       "files": 11,
       "classification": "local-customization-authorship-unverified",
-      "canonical": "skills/authored/project-memory--opencode"
+      "canonical": "skills/authored/project-memory"
     },
     {
       "name": "qa-orchestrator",
@@ -938,7 +938,7 @@
       "sha256": "e6f60e4b44f332a1c3b8b288a656fff2fa5a67c28b7671a56a5ec4bb9b668605",
       "files": 5,
       "classification": "local-customization-authorship-unverified",
-      "canonical": "skills/authored/scope-refinement--opencode"
+      "canonical": "skills/authored/scope-refinement"
     },
     {
       "name": "skill-contract-attestor",
@@ -956,7 +956,7 @@
       "sha256": "be1412de3101e179e28b21a4ae11cd3c37f67ddc0dbcc67900a9758c33f5c82e",
       "files": 1,
       "classification": "local-customization-authorship-unverified",
-      "canonical": "skills/authored/tdd-orchestrator--opencode"
+      "canonical": "skills/authored/tdd-orchestrator"
     },
     {
       "name": "temenos",
@@ -974,7 +974,7 @@
       "sha256": "6ef92536f69e2457529c879ece431b1293cf33e9fdae7b875feef0d94571c75f",
       "files": 1,
       "classification": "local-customization-authorship-unverified",
-      "canonical": "skills/authored/the-grumpy-tech-lead--opencode"
+      "canonical": "skills/authored/the-grumpy-tech-lead"
     },
     {
       "name": "ultracave",
@@ -1020,7 +1020,7 @@
       "sha256": "341535d4ef0a0d3af26e8c0a493e9f2723ae06607b8c4bc480f987e95ae7c7a3",
       "files": 1,
       "classification": "local-customization-authorship-unverified",
-      "canonical": "skills/authored/contextual-mentorship--antigravity"
+      "canonical": "skills/authored/contextual-mentorship"
     },
     {
       "name": "dialogo-sombra",
@@ -1266,5 +1266,32 @@
     "node_modules",
     "built-in .system skills"
   ],
-  "path_template": "__HOME__"
+  "path_template": "__HOME__",
+  "normalization": {
+    "removed_metadata": "agents/openai.yaml",
+    "merged_trees": {
+      "skills/authored/adversarial-qa--opencode": "skills/authored/adversarial-qa",
+      "skills/authored/autonomous-orchestrator--opencode": "skills/authored/autonomous-orchestrator",
+      "skills/authored/contextual-mentorship--antigravity": "skills/authored/contextual-mentorship",
+      "skills/authored/harness-evaluator--opencode": "skills/authored/harness-evaluator",
+      "skills/authored/harness-tracer--opencode": "skills/authored/harness-tracer",
+      "skills/authored/meta-harness--opencode": "skills/authored/meta-harness",
+      "skills/authored/project-memory--opencode": "skills/authored/project-memory",
+      "skills/authored/scope-refinement--opencode": "skills/authored/scope-refinement",
+      "skills/authored/tdd-orchestrator--opencode": "skills/authored/tdd-orchestrator",
+      "skills/authored/the-grumpy-tech-lead--opencode": "skills/authored/the-grumpy-tech-lead"
+    },
+    "canonical_skill_count": 39,
+    "deployment": "one shared catalog for every supported agent; unresolved Jev remains disabled",
+    "original_hashes": "sha256/files describe original captured installations before normalization"
+  },
+  "imported_skills": [
+    {
+      "name": "brainstorming",
+      "repository": "https://github.com/obra/superpowers.git",
+      "path": "skills/brainstorming",
+      "commit": "2ce8aa15d05bd57213e6f746f953aafb7ded7a8b",
+      "canonical": "skills/authored/brainstorming"
+    }
+  ]
 }

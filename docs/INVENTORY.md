@@ -27,21 +27,24 @@ are not silently installed as mandatory dependencies.
 
 | Root | Skill installations | Treatment |
 |---|---:|---|
-| `~/.codex/skills` | 37 | Retain variants; known community sources referenced |
+| `~/.codex/skills` | 38 | Retain variants; known community sources referenced |
 | `~/.agents/skills` | 22 | Retain variants; known community sources referenced |
-| `~/.gemini/config/skills` | 14 | Retain variants; known community sources referenced |
-| `~/.config/opencode/skills` | 34 | Retain variants; known community sources referenced |
-| `~/.gemini/antigravity-cli/skills` | 12 | Retain variants; known community sources referenced |
+| `~/.gemini/config/skills` | 15 | Retain variants; known community sources referenced |
+| `~/.config/opencode/skills` | 35 | Retain variants; known community sources referenced |
+| `~/.gemini/antigravity-cli/skills` | 13 | Retain variants; known community sources referenced |
 
-There are **119 observed skill installations**, including duplicates, and **49
-canonical retained local trees**. Shared Caveman skills are reinstalled from
+There are **123 skill installations** across these observed roots, including duplicates,
+and **40 canonical local catalog entries**. At initial capture there were 119
+installations and 39 retained trees. The shared catalog now includes
+Superpowers `brainstorming` at commit `2ce8aa15d05bd57213e6f746f953aafb7ded7a8b`,
+making 40 skills. Shared Caveman skills are reinstalled from
 4.0.1; Ponytail is pinned to 5.3.2. Built-in `.system` and cached plugin skills
-remain product-distributed. Tree hashes identify exact duplicates; different
-metadata/reference files keep a tree distinct. No claim of author ownership is
+remain product-distributed. Provider-specific `agents/openai.yaml` files were removed. Tree hashes identify
+exact duplicates after that normalization; ten redundant variants were consolidated. No claim of author ownership is
 inferred solely from its installed location.
 
-The Codex version is the observed authoritative deployment copy for its own
-profile. Antigravity and OpenCode differences remain mapped independently.
+One shared skill catalog now serves Codex, Antigravity and OpenCode. Original
+installation paths and hashes remain historical provenance, not separate deployment sources.
 `__HOME__` substitution, UTF-8 BOM removal and LF normalization are declared
 capture transformations. Original tree hashes precede those transformations.
 Jev snapshots retain uncertain third-party provenance and remain disabled.

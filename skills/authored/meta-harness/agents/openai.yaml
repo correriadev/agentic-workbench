@@ -1,5 +1,0 @@
-interface:
-  display_name: "Meta Harness"
-  short_description: "Autonomous Meta-Harness proposer. Inspects harness history and proposes targe..."
-policy:
-  allow_implicit_invocation: false

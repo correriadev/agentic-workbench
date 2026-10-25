@@ -2,6 +2,12 @@
   "schema": 1,
   "verified": "2026-10-23",
   "sources": {
+    "superpowers": {
+      "url": "https://github.com/obra/superpowers.git",
+      "ref": "2ce8aa15d05bd57213e6f746f953aafb7ded7a8b",
+      "commit": "2ce8aa15d05bd57213e6f746f953aafb7ded7a8b",
+      "default": false
+    },
     "rtk": {
       "url": "https://github.com/rtk-ai/rtk.git",
       "ref": "v1.0.1",

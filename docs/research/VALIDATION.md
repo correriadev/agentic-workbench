@@ -49,6 +49,15 @@ JSONC refusal, native MCP schemas, process-home isolation and protocol-probe bou
   runtime execution and the no-Python PowerShell fallback branch remain untested
   end-to-end; the fallback's downloaded Python itself was executed successfully.
 
+## SHARED SKILL CATALOG FOLLOW-UP
+
+Removed 13 provider-specific `agents/openai.yaml` files and consolidated ten
+otherwise identical skill trees into 39 canonical skills. All supported agents
+now consume the same profile catalog; Jev quarantine remains in place.
+The follow-up offline suite passes 21 tests, including shared deployment roots;
+repository integrity checks pass. The earlier runtime counts above describe the
+initial acceptance run, before this catalog normalization.
+
 ## REPRODUCE THE CHECKS
 
 CORRECT, from the repository root:

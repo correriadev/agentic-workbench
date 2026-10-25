@@ -1,5 +1,0 @@
-interface:
-  display_name: "Adversarial Qa"
-  short_description: "Autonomous Adversarial QA agent. Reads machine-readable specs and code to exe..."
-policy:
-  allow_implicit_invocation: false

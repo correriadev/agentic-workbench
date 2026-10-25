@@ -302,7 +302,7 @@ class Environment:
             skill_roots = {"codex": [".codex/skills"], "opencode": [".config/opencode/skills"],
                            "antigravity": [".gemini/config/skills", ".gemini/antigravity-cli/skills"]}[agent]
             for skills in skill_roots:
-                for item in self.profile["agents"][agent]:
+                for item in self.profile["skills"]:
                     if item["name"].startswith("jev-"):
                         continue
                     tree(ROOT / item["source"], pathlib.Path(skills) / item["name"])
