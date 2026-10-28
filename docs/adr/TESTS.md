@@ -1,55 +1,47 @@
 ---
 doc_type: adr
 domain: testing
-stack: [python, unittest]
+stack: [python, powershell, unittest]
 node_id: "adr:tests"
-tags: [testing, recovery, security]
-edges: []
-updated: 2026-10-23
+tags: [testing, validation, ontology]
+edges:
+  - relation: references
+    target: "adr:architecture"
+updated: 2026-10-28
 ---
 # Testing Protocol
 
 ## OVERVIEW
 
-Use Python standard-library unittest with temporary homes. Separate filesystem
-safety proof from real downloaded CLI validation and authenticated agent use.
+Verification covers documentation ontology integrity (`project-memory` scripts), unit tests for graph generation and validation, and PowerShell CLI wrapper tests.
 
 ## COMMANDS
 
-| Type | Command | Evidence |
+| Type | Command | Purpose |
 |---|---|---|
-| Offline | `python -m unittest discover -s tests -v` | Conflict, recovery, integrity and path boundaries |
-| Repository | `python scripts/verify_repository.py` | Source pins, npm lock, asset hashes and credential patterns |
-| Runtime | `python scripts/environment.py doctor` | Installed executable versions and deployed-file hashes |
-| MCP | `python scripts/check_mcp.py ABSOLUTE_EXECUTABLE_PATH` | Initialize and tools/list only |
+| Ontology Validation | `python skills/project-memory/scripts/validate_ontology.py docs` | Validates ADR frontmatter, `.digest.md`, `.graph.json`, and size limits |
+| Graph Generation | `python skills/project-memory/scripts/generate_docs_graph.py docs` | Rebuilds `docs/.graph.json` from ADR/feature frontmatter |
+| CLI Wrapper Tests | `powershell -NoProfile -File skills/ask-antigravity/scripts/Test-Invoke-Antigravity.ps1` | Tests argument normalization and headless CLI invocation |
 
 ## MINIMUM COVERAGE
 
-No percentage coverage threshold is configured. CI gates on all offline tests
-and repository validation passing. Native runtime evidence exists only for
-Windows x64; CI configuration alone is not evidence that remote jobs ran.
+CI gates on 100% pass rate for the `project-memory` unit test suite and zero ontology validation errors in `docs/`.
 
 ## PATTERNS & BEST PRACTICES
 
-REQUIRED: Run filesystem changes inside disposable homes.
-REQUIRED: Test failed writes, corrupt backups, edited files, traversal and checksums.
-REQUIRED: Mock network only at the download boundary.
-PROHIBITED: Treat a version probe as proof of model access or plugin execution.
+- **REQUIRED:** Run `generate_docs_graph.py` and `validate_ontology.py` after modifying any file under `docs/`.
+- **REQUIRED:** Keep unit tests deterministic and isolated using temporary directories.
+- **PROHIBITED:** Depend on live external API keys or active LLM sessions in automated CI tests.
 
 ## TOOLING
 
-- **Framework:** Python 3.12+ unittest.
-- **Assertions:** standard unittest assertions.
-- **Mocks:** unittest.mock for download failures and simulated write failures.
-- **Coverage:** no percentage collection configured.
-- **CI:** GitHub Actions matrix for Windows, Linux and macOS offline checks.
+- **Framework:** Python 3.12+ `unittest` and PowerShell test assertions.
+- **CI:** GitHub Actions matrix (`.github/workflows/validate.yml`).
 
 ## TROUBLESHOOTING
 
-Use `-v` for the failing test name. Retain failed install transaction IDs and
-inspect the journal before recovery. See runtime results in the validation log.
+If `validate_ontology.py` reports a stale graph, run `python skills/project-memory/scripts/generate_docs_graph.py --root docs` first, then re-run validation.
 
 ## REFERENCES
 
-- [Validation](../research/VALIDATION.md): checks actually executed.
-- [Recovery](../RECOVERY.md): safe rollback and update procedures.
+- [Architecture](ARCHITECTURE.md): Repository structure and skill layers.

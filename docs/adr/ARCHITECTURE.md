@@ -1,71 +1,61 @@
 ---
 doc_type: adr
-domain: workstation
-stack: [python, powershell, git]
+domain: workbench
+stack: [markdown, python, powershell, bash]
 node_id: "adr:architecture"
-tags: [architecture, provisioning, adapters]
+tags: [architecture, skills, pipeline]
 edges:
   - relation: references
     target: "adr:tests"
-updated: 2026-10-23
+updated: 2026-10-28
 ---
-# Workstation Architecture
+# Agentic Workbench Architecture
 
 ## FOLDER STRUCTURE
 
 ```text
-ai-dev-environment/
-  skills/authored/   # canonical local skill trees, with ownership qualifications
-  integrations/     # agent instructions, definitions, plugin inventory, npm lock
-  profiles/         # deployment mapping and asset integrity hashes
-  scripts/          # installer, bootstrap, validation, MCP probe
-  tests/            # isolated filesystem and trust-boundary tests
-  docs/             # procedures, evidence, compatibility and unresolved items
+agentic-workbench/
+  skills/           # Self-contained provider-neutral skills (one folder per skill)
+  docs/             # Navigation index, digest, graph, and architectural records (adr/)
+  scripts/          # Repository cleanup and maintenance scripts (cleanup.ps1, cleanup.sh)
+  AGENTS.md         # Universal agent operating rules
+  CLAUDE.md         # Claude Code operating rules
+  README.md         # Overview, third-party plugins, and skill catalog
 ```
 
 ## LAYERS
 
-- **Intent:** `environment.yaml` selects the core packages and profile.
-- **Resolution:** `environment.lock.yaml` pins immutable commits and artifact hashes.
-- **Adapters:** `scripts/environment.py` renders per-agent files.
-- **Transactions:** the local state directory records prior bytes and ownership.
-
-Both `.yaml` manifests use JSON syntax, a YAML 1.2 subset, to avoid bootstrap dependencies.
+- **Discovery & Product Layer:** `brainstorming`, `pbb-design`, and `read-ui-prototype` translate human intent and visual prototypes into structured problem spaces and frontend specs.
+- **Specification Layer (Intent):** `scope-refinement` inspects `docs/` and codebase evidence to emit the atomic tripartite contract (`SCOPE.md`, `tasks.json`, `qa.json`).
+- **Construction Layer (Maker):** `tdd-orchestrator` executes Red-Green-Refactor cycles over the `tasks.json` DAG within strict `files_allowed` boundaries.
+- **Verification Layer (Checker):** `adversarial-qa` audits system invariants and security against `qa.json`, while `the-grumpy-tech-lead` performs Socratic systemic code review.
+- **Knowledge & Delegation Layer:** `project-memory` maintains `docs/`, `codebase-memory` queries the AST graph, `contextual-mentorship` guides decisions, and `ask-*` skills delegate to local CLIs.
 
 ## MODULES
 
 | Module | Responsibility | Location |
 |---|---|---|
-| Environment | Fetch, render, plan, apply, doctor and rollback | `scripts/environment.py` |
-| Profile | Share canonical skills across all agents; exclude unresolved Jev at deployment | `profiles/personal.json` |
-| Local assets | Preserve personal or locally customized content | `skills/authored/`, `integrations/` |
-| Dependency locks | Pin Git revisions, binary digests, npm transitive dependencies | root manifests, `integrations/node/` |
+| Core Pipeline Skills | Specification, TDD execution, adversarial QA, and tech-lead review | `skills/scope-refinement/`, `skills/tdd-orchestrator/`, `skills/adversarial-qa/`, `skills/the-grumpy-tech-lead/` |
+| Discovery & UI Skills | Product backlog building, brainstorming, and UI prototype analysis | `skills/pbb-design/`, `skills/brainstorming/`, `skills/read-ui-prototype/` |
+| Project Memory | Documentation graph generation and ontology validation | `skills/project-memory/` |
+| Multi-Agent CLI Wrappers | Headless delegation to Antigravity, Codex, and OpenCode CLIs | `skills/ask-antigravity/`, `skills/ask-codex/`, `skills/ask-opencode/` |
+| Maintenance Scripts | Structural repository cleanup | `scripts/cleanup.ps1`, `scripts/cleanup.sh` |
 
 ## PATTERNS
 
-REQUIRED: Keep one provider-neutral canonical copy of each skill; exclude `agents/openai.yaml` metadata and consolidate identical trees.
-REQUIRED: Treat `authored` as a local-asset namespace, not proof of copyright ownership.
-REQUIRED: Template only the discovered home prefix as `__HOME__`; preserve other asset content.
-REQUIRED: Deploy copies where agent discovery roots differ; hashes track those deployment copies.
-REQUIRED: Preflight all configuration conflicts; journal backups before writes.
-PROHIBITED: Overwrite user edits during rollback or copy credential stores into Git.
-PROHIBITED: Infer custom-fork equivalence from an upstream project name.
+- **REQUIRED:** Keep every skill in `skills/<name>/SKILL.md` self-contained, lightweight, and free of external orchestrator coupling.
+- **REQUIRED:** Enforce strict Maker-Checker isolation (`tdd-orchestrator` never edits `qa.json`; `adversarial-qa` never edits production code or `tasks.json`).
+- **PROHIBITED:** Store credentials, temporary `.work/` artifacts, or provider-locked metadata inside `skills/`.
 
 ## INTEGRATIONS
 
 | Component | Purpose | Connection |
 |---|---|---|
-| GitHub | Pinned Caveman, Ponytail and RTK source | HTTPS Git; no credentials stored |
-| npm | Codex and OpenCode with exact optional platform packages | `npm ci`, integrity-locked |
-| Official release hosts | Node, Antigravity, RTK, optional upstream CBM | HTTPS + recorded digest |
-| MCP | Optional code intelligence | Native stdio configuration per agent |
-
-No dependency injection framework or daemon is introduced. Dependencies remain
-version-addressed in a user-owned state directory. Configuration rollback does
-not delete cached binaries, source checkouts, authentication, or directories.
+| Caveman & Ponytail | Concise output style and YAGNI minimal-diff discipline | Agent rules / plugins |
+| Codebase Memory MCP | Structural AST graph indexing and Cypher/trace queries | MCP stdio server |
+| Open Graph MCP | Concurrent repository change governance and cell locking | MCP stdio server |
+| RTK | CLI output compression for token efficiency | Shell wrapper |
 
 ## REFERENCES
 
-- [Tests](TESTS.md): executable verification strategy.
-- [Install](../INSTALL.md): deployment and bootstrap.
-- [Research](../research/COMPATIBILITY_MATRIX.md): capability boundaries.
+- [Tests](TESTS.md): Verification strategy and executable checks.

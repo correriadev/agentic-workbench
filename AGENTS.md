@@ -1,52 +1,32 @@
-# Install this workstation
+# Agentic Workbench — Agent Instructions (`AGENTS.md`)
 
-Treat "Read AGENTS.md and install my development environment" as authorization
-to execute the safe installation below. Finish configuration and verification;
-do not stop at a proposal. Never copy credentials from another machine.
+Este repositório contém o catálogo canônico de skills de engenharia assistida por IA (`skills/`) e sua documentação arquitetural (`docs/`).
 
-1. Read `docs/INSTALL.md`, `environment.yaml`, `environment.lock.yaml`,
-   `docs/research/COMPATIBILITY_MATRIX.md`, and `docs/research/UNRESOLVED.md`.
-   Inspect OS and CPU. Windows x64 is runtime-tested; macOS/Linux adapters have
-   locked artifacts and offline tests, but require a native acceptance run.
-2. Ensure Git and Python 3.12+. On Windows use
-   `powershell -NoProfile -File scripts/bootstrap.ps1 -Command plan`, then
-   `-Command install`; the wrapper can bootstrap verified Python for Windows x64.
-   On other systems install Python from the official OS package manager or
-   python.org, then use `sh scripts/bootstrap.sh plan` and `install`.
-3. Run `python scripts/verify_repository.py` and
-   `python -m unittest discover -s tests -v` before installing. Run
-   `python scripts/environment.py plan`; it makes no writes or network requests.
-4. Run `python scripts/environment.py install`. This installs pinned Node, RTK,
-   Antigravity CLI, Codex CLI, OpenCode and curated skill sources in the user's
-   `~/.local/share/ai-dev-environment`. It deploys the personal profile through
-   separate agent adapters. It does not replace system installations or edit
-   shell profiles. Source the generated `env.ps1` or `env.sh` before launching.
-5. Preserve existing conflicts. Inspect exact differences before using
-   `--replace`; every replaced file receives a checksummed local backup.
-   Existing RTK/Caveman/Ponytail registrations require a migration review to
-   avoid duplicate hooks. JSONC comments are a manual merge boundary.
-6. Resolve MCP explicitly. The original Codebase Memory executable is a custom
-   fork, not the upstream release. Prefer `--custom-cbm ABSOLUTE_BINARY_PATH`
-   if the original binary is available; its SHA-256 must match the lock. If it
-   is unavailable, explain the unresolved build provenance. Ask which behavior
-   the user wants before selecting `--upstream-cbm`. Never claim equivalent
-   behavior. Open Graph requires its separate pinned project and Bun setup.
-7. Run `python scripts/environment.py doctor`. Authenticate each agent through
-   its official login UI. Review and trust Codex hooks with `/hooks`, and inspect
-   Antigravity Customizations for active RTK hooks. Test each MCP server with
-   `python scripts/check_mcp.py ABSOLUTE_EXECUTABLE_PATH`. These are separate
-   acceptance checks; a passing offline test is not proof of authentication.
-8. Restore app-distributed plugins through the Codex app using
-   `integrations/codex/plugins.json`. Do not copy cached app runtimes or the
-   app's `node_repl` configuration. Follow `docs/CUSTOMIZATION.md` for native
-   plugin alternatives. Use only one integration mode per tool and agent.
-9. Report installed versions, configuration changes, transaction IDs, checks
-   actually run, and every unresolved dependency. Full baseline reproduction is
-   incomplete while the custom CBM artifact/build, Open Graph integration,
-   Jev provenance, app plugins, or authentication remain unresolved.
+## 1. Princípios de Operação
 
-Never enable YOLO, unrestricted terminal permissions, telemetry services, or
-cloud proxy routing merely to reproduce local convenience settings. Preserve
-the running workstation during maintenance: test with `--home` in an isolated
-directory first. Use `docs/RECOVERY.md` for rollback, interrupted operations,
-and updates. Do not run unknown installer scripts from a mutable branch.
+- **Auto-suficiência das Skills:** Cada skill em `skills/<nome>/SKILL.md` deve ser auto-contida, leve, objetiva e independente de provedor. Não adicione dependências em orquestradores externos removidos nem metadados proprietários.
+- **Docs-First Orientation:** Antes de modificar a estrutura do repositório ou skills de documentação, leia `docs/.digest.md`, `docs/adr/ARCHITECTURE.md` e `docs/adr/TESTS.md`.
+- **Estilo e Postura (Plugins Terceiros):**
+  - **Caveman:** Respostas diretas, sem cerimônia ou *fluff*, preservando toda substância técnica.
+  - **Ponytail:** Menor diff funcional que resolve o problema completo (YAGNI estrito).
+  - **Codebase Memory MCP:** Prefira ferramentas de grafo (`search_graph`, `trace_path`, `get_code_snippet`, `check_index_coverage`) antes de `grep`/busca bruta.
+
+## 2. Pipeline Core de Engenharia
+
+Quando executar tarefas de desenvolvimento de software usando as skills deste repositório:
+
+1. **Descoberta (Opcional):** Use `skills/brainstorming/SKILL.md` ou `skills/pbb-design/SKILL.md` para clarificar escopo aberto.
+2. **Especificação Tripartite:** Use `skills/scope-refinement/SKILL.md` para inspecionar `docs/` e código-fonte e gerar `docs/specs/<change_id>/{SCOPE.md, tasks.json, qa.json}`.
+3. **Construção (Maker):** Use `skills/tdd-orchestrator/SKILL.md` para implementar o DAG de `tasks.json` via Red-Green-Refactor estrito.
+4. **Verificação Independente (Checker):** Use `skills/adversarial-qa/SKILL.md` para validar invariantes e segurança em `qa.json`, e `skills/the-grumpy-tech-lead/SKILL.md` para revisão socrática de impactos sistêmicos.
+5. **Memória do Projeto:** Use `skills/project-memory/SKILL.md` para sincronizar `docs/` (`.digest.md`, `.graph.json`, ADRs).
+
+## 3. Comandos de Verificação do Repositório
+
+```powershell
+# Regenerar grafo de documentação (project-memory)
+python skills/project-memory/scripts/generate_docs_graph.py docs
+
+# Validar ontologia e documentos em docs/
+python skills/project-memory/scripts/validate_ontology.py docs
+```
