@@ -26,7 +26,8 @@ REQUIRED: Answer every item below by inspecting the repository before writing a 
 | Test types present | Test file naming, folder structure (`unit/`, `e2e/`, etc.) | `## COMMANDS` |
 | Run commands | `package.json` scripts, `Makefile`, CI pipeline | `## COMMANDS` |
 | Coverage tool and thresholds | Coverage config files, CI gates | `## MINIMUM COVERAGE` |
-| Mocking strategy | Test files, mock folders, MSW config | `## PATTERNS & BEST PRACTICES` |
+| Mocking and fake strategy | Test files, mock folders, MSW / testcontainers config | `## MOCK MATRIX` |
+| Anti-patterns and negative oracles | Common test smells, assertions on mocks | `## NEGATIVE ORACLES` |
 | Known flaky or debug procedures | CI logs, test helper files | `## TROUBLESHOOTING` |
 
 PROHIBITED: Inventing commands or coverage thresholds not found in the repository. Use only verified values.
@@ -72,11 +73,29 @@ REQUIRED: Maintain the following minimum coverage levels:
 | Infrastructure / Adapters | [X]% | External integrations and persistence |
 | Global | [X]% | Average total coverage |
 
+## MOCK MATRIX
+| Dependency Type | Unit Tests | Integration Tests | NEVER Mock |
+|---|---|---|---|
+| Time / Clock | In-memory fixed fake | In-memory fake | Real system clock |
+| Repositories / DB | In-memory fake / stub | Real DB / Testcontainers | SUT internal methods |
+| External APIs / HTTP | In-memory fake / Cassette | WireMock / Sandbox | Direct network calls in unit tests |
+
+## NEGATIVE ORACLES & ANTI-PATTERNS
+| Smell / Anti-Pattern | WRONG Example | Why it fails | Correct Fix |
+|---|---|---|---|
+| Assert on mock | `expect(mock.save).called(1)` | Counts calls, not actual state effect | Assert returned ID or fake store state |
+| Mock the SUT | `mock(service.calc)` | Tests nothing; creates green illusion | Never mock code inside `code_files[]` |
+| Tautological assert | `expect(res).toBeDefined()` | Passes even with invalid/empty payload | Assert exact domain invariants and fields |
+
 ## PATTERNS & BEST PRACTICES
 REQUIRED: [e.g., AAA (Arrange, Act, Assert) — one assertion per test]
 REQUIRED: [e.g., Mock only external boundaries, never internal domain logic]
 PROHIBITED: [e.g., Business logic inside test setup methods]
 PROHIBITED: [e.g., Tests that depend on execution order]
+
+## FAILURE PROTOCOL (RED-GREEN-REFACTOR)
+- REQUIRED: In RED phase, a test must fail strictly due to an unmet business invariant or contract assertion — never due to syntax errors, import errors, or uncaught setup crashes.
+- PROHIBITED: Weakening test assertions or deleting existing tests to turn CI green without an authorized defect rationale.
 
 ## TOOLING
 - **Framework:** [Name and version]
@@ -103,3 +122,5 @@ PROHIBITED: [e.g., Tests that depend on execution order]
 
 - REQUIRED: Verify every command against the project's actual configuration (e.g., `package.json` scripts, `Makefile`) before writing.
 - REQUIRED: Coverage levels must reflect actual CI gates — not aspirational values.
+- REQUIRED: Maintain tables for `## COMMANDS`, `## MINIMUM COVERAGE`, `## MOCK MATRIX`, and `## NEGATIVE ORACLES`.
+- REQUIRED: Explicitly define observable effect criteria (Domain = invariant state; Use Case = orchestration result; Adapter = real boundary contract).

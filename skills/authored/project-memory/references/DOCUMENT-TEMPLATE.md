@@ -13,6 +13,7 @@ Use this template for any `docs/feature/*.md` or `docs/adr/*.md` file that is no
 - REQUIRED: Cross-reference complementary ADRs back to `ARCHITECTURE.md`; apply the shared total size limit.
 - REQUIRED: Cross-reference section at the end listing related `docs/` files.
 - REQUIRED: For consequential domain or behavior claims in feature documents only, read [ONTOLOGY-RULES.md](./ONTOLOGY-RULES.md) and include `knowledge` inside the feature `graph` as specified there. Omit the entire graph for ADRs. Keep uncertainty and evidence status explicit, including when every source is LLM-generated.
+- REQUIRED: Connect invariant `rule` entities in `knowledge` to their verifying tests using `evidence[].kind: "test_definition"` with `source` and `locator` (exact test name/symbol).
 
 ---
 
@@ -108,6 +109,19 @@ wrong_code()
 REQUIRED: [Practice name] — [brief justification]
 REQUIRED: [Practice name] — [brief justification]
 PROHIBITED: [Anti-pattern] — [brief justification]
+
+## OUT OF SCOPE
+[Explicit boundaries: files, modules, or architectural layers that agents MUST NOT touch or refactor when working on this feature.]
+- PROHIBITED: Modifying [unrelated module or directory path]
+- PROHIBITED: Refactoring shared cross-cutting code outside the authorized change scope
+
+## NEGATIVE INPUTS & ORACLES
+[Contractual rejection cases: table defining what MUST fail and what side effects are strictly forbidden.]
+
+| Invalid Trigger / Input | Expected Error / Status Code | FORBIDDEN Side Effect |
+|---|---|---|
+| [e.g., Expired or forged token] | `[e.g., 401 Unauthorized]` | [e.g., Database write, proceeding to handler] |
+| [e.g., Negative item quantity] | `[e.g., 422 InvalidQuantity]` | [e.g., Payment authorization request] |
 
 ## TIPS
 [One actionable tip that saves time or avoids a common problem in this stack. Omit if there is nothing non-obvious to add.]

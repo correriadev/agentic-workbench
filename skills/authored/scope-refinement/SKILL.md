@@ -1,270 +1,202 @@
 ---
 name: scope-refinement
-description: DDD Scope Refinement Orchestrator — coordinates all Domain-Driven Design phases from business discovery to test scenario specification and machine-readable exports. Supports both interactive and autonomous headless execution.
+description: Evidence-based scope refinement — translates intent and codebase inspection into an atomic tripartite specification (SCOPE.md, tasks.json, qa.json) for Agentic TDD and Adversarial QA.
 ---
 
-<role>
+# Scope Refinement
 
-You are a **Senior Software Architect specialized in Domain-Driven Design (DDD)**. Your mission is to lead all DDD phases: from business discovery (Strategic Design) to tactical modeling and test scenario specification.
-
-</role>
-
----
-
-<execution_mode>
-
-## Mode Detection — Resolve Before Anything Else
-
-```
-IF invoked by autonomous-orchestrator:
-    mode = AUTONOMOUS
-    → Read ${scope}, ${projectPaths}, ${domain} from runtime context
-    → Set ${rules} = "No additional rules provided" (unless injected)
-    → Run the refinement interview without pausing; use each generated recommendation as its answer
-    → Skip human prompts and review pauses
-    → Run document phases sequentially in a single pass without stopping
-
-OTHERWISE (default):
-    mode = INTERACTIVE
-    → Execute Phase 0, the refinement interview, and verification gates normally
-```
-
-</execution_mode>
+Senior Software Architect role. Transform requirements and codebase evidence into an atomic tripartite change specification separating Intent (Human), Construction (TDD), and Verification (Adversarial QA).
 
 ---
 
-<phase id="0" name="Input Collection — INTERACTIVE only">
+## 1. Inputs
 
-> **AUTONOMOUS:** Skip Phase 0 entirely. All variables are injected by the orchestrator.
+Collect or receive these variables:
 
-<input id="0a" var="${scope}">
+| Variable | Description | Validation |
+|---|---|---|
+| `${scope}` | Business goal, bug description, or change intent | Non-empty text |
+| `${projectPaths}` | Local paths of relevant projects (one or more) | Must exist on filesystem |
+| `${change_id}` | Identifier for the change folder | `kebab-case` string |
+| `${rules}` | Optional constraints or execution guidelines | Defaults to `"Standard practices"` |
 
-> Describe the domain scope to be modeled with DDD.  
-> Provide the business context, expected features, main rules, and any relevant domain information.
-
-Wait for response. Store as `${scope}`.
-
-</input>
-
-<input id="0b" var="${projectPaths}">
-
-> Provide the local paths of all projects involved (one per line or comma-separated).  
-> Example:
-> ```
-> /home/user/projects/my-service
-> C:/Users/user/projects/other-service
-> ```
-> ⚠️ If using VS Code, ensure projects are in the workspace.
-
-Wait for response. Store as `${projectPaths}`.
-
-```
-Validate: each path exists in the filesystem.
-IF any path missing → inform user/orchestrator → request correction before proceeding
-```
-
-</input>
-
-<input id="0c" var="${domain}">
-
-> Define the `domain_name` for the spec folder.  
-> Use a Jira key (e.g., `abc-123`) or snake_case name (e.g., `user_registration`).  
-> This creates the folder: `docs/specs/${domain}/`
-
-Wait for response. Store as `${domain}`.
-
-```
-Validate: value is snake_case or Jira key format.
-IF invalid → suggest correction before proceeding
-```
-
-</input>
-
-<input id="0d" var="${rules}" optional="true">
-
-> What are your guidelines and rules for execution? *(Optional — press Enter to skip)*
-
-```
-IF empty → ${rules} = "No additional rules provided"
-```
-
-</input>
-
-</phase>
+Target spec directory: `docs/specs/${change_id}/`.
 
 ---
 
-<orientation>
+## 2. Grounding (Docs-First Inspection & Discrepancy Investigation)
 
-## Shared Project Orientation — Load Once
+Inspect documentation and codebase before modeling:
 
-Before Phase 1, load orientation once for each `${projectPaths}` entry:
+1. **Docs-First Fast-Path (if available):**
+   - Check if `${projectPaths}` contains a `docs/` directory with architectural context (e.g., `docs/.digest.md`, `docs/.graph.json`, ADRs in `docs/adr/`, or domain specs).
+   - Read these documents first to establish domain boundaries, invariants, and existing contracts without scanning raw code blindly.
+   - Record relevant architectural evidence with `kind: "doc"`.
 
-1. Read `docs/.digest.md` and `docs/.graph.json` when present.
-2. Select only nodes matching `${scope}` and `${domain}` by ID, title, path, or tags; include their one-hop edges.
-3. For each selected feature node:
-   - Resolve and read every `related_docs.must_read` document.
-   - Evaluate `related_docs.optional[].description` against `${scope}`, `${domain}`, and `${rules}`.
-   - Read only optional documents whose condition applies.
-4. For selected feature nodes, extract only frontmatter and top `graph` block.
-5. Build `${orientation}` with project path, digest summary, selected nodes, required documents, selected optional documents, document paths, and selected feature micrographs.
-6. Validate routed paths before Phases 3–4. Mark stale paths in `${orientation}`; do not create another routing artifact.
+2. **Codebase Inspection (Direct or Fallback):**
+   - Search and read source files around the affected domains using file read or search tools.
+   - If `docs/` is absent, direct source inspection serves as the primary ground truth.
+   - Validate current implementation details, integration points, and file paths with `kind: "code"`.
 
-Pass `${orientation}` to every phase agent. Agents must not reread global indexes when valid orientation is supplied. If orientation is absent, invalid, or stale, agents use their documented fallback.
+3. **Active Discrepancy Investigation (MANDATORY):**
+   - If a discrepancy is detected between documentation/assumptions and code implementation (e.g., doc states an invariant that code contradicts, or conflicting assumptions):
+     - Investigate the code to identify the exact divergence and impact.
+     - **NEVER resolve silently.**
+     - Escalate the discrepancy directly into the Clarification Interview (Section 4) as a priority question to inform the user.
 
-</orientation>
+4. **Record Evidence Items:**
+   - `id`: `E1`, `E2`, ...
+   - `kind`: `"doc"` | `"code"`
+   - `path`: Project-relative path to existing doc, config, or source file.
+   - `note`: Concrete fact, invariant, or contract observed.
 
 ---
 
-<phase id="0.5" name="Refinement Interview — BEFORE document generation">
+## 3. Strategic Discovery (Optional)
 
-Run this phase after `${orientation}` is loaded and before invoking any agent under `scope-refinement/agents/`. Do not create or modify any `001–004` document until this phase completes.
+Execute only when:
+- Boundaries or data ownership are unknown in existing code.
+- Terminology conflicts exist between involved projects.
 
-1. Classify each project as frontend, backend, or other from its architecture and routed files.
-2. Analyze `${scope}`, `${orientation}`, `${projectPaths}`, and `${rules}` for decision-changing gaps involving business outcomes, invariants, scope boundaries, architecture, data ownership, integrations, authorization, sensitive data, performance, concurrency, failures, maintainability, or acceptance criteria. Simulate relevant flows under production load and partial failure before selecting questions.
-3. Generate only relevant questions. Do not repeat supplied facts or ask about syntax, style, or decisions that cannot affect the specifications.
-4. For every question, record:
+When triggered, summarize bounded contexts and invariants in a short "Boundaries & Invariants" section inside `SCOPE.md`. Do not create separate files.
+
+---
+
+## 4. Clarification Interview
+
+Resolve ambiguity and discrepancies with minimal friction:
+- Limit to **0–5 blocking questions**. Ask only if a wrong assumption alters the DAG or acceptance criteria.
+- **Discrepancy Escalation:** Any discrepancy found between documentation/assumptions and code has **highest priority**. Inform the user clearly:
+  *"Discrepancy found: [Doc path] states [X], but [Code path] implements [Y]. Which takes precedence for this change?"*
+- Every question must include a grounded recommendation based on the investigation.
+- When human input is available, ask directly.
+- When running headless, adopt the recommendation and record it under `assumptions` (`"from": "Discrepancy Q1 default recommendation"`).
+
+Format:
+- Question: `Q1`, `Q2`, ...
+- Assumption: `S1`, `S2`, ... with `id`, `text`, and `from`.
+
+---
+
+## 5. Vertical Slicing & Test Pyramid Ownership
+
+Decompose the change by outcome and risk, adhering to the Maker-Checker separation:
+
+### Test Pyramid Segregation
+- **TDD Agent (Worker):** Owns construction-adjacent tests written *before* implementation.
+  - `tier: "unit"` — Local unit tests with isolated mocks.
+  - `tier: "integration"` — Narrow integration tests (single hop: service to local DB/API).
+- **Adversarial QA Agent (Judge):** Owns destruction-adjacent tests written against system boundaries.
+  - `type: "edge"` — Broad cross-component integration.
+  - `type: "e2e"` — End-to-end flows. TDD never writes E2E tests.
+  - `type: "property"` — Fuzzing, property invariants, and fault injection.
+  - `mock_policy: "real"` — QA attacks real integration seams; never reuses TDD mocks.
+
+### Traceability Closure Rule
+Every business acceptance criterion `A*` in `SCOPE.md` must map to:
+1. At least one task in `tasks.json` (`acceptance_ids: ["A*"]`).
+2. At least one blocking invariant in `qa.json` (`acceptance_ids: ["A*"]`).
+
+---
+
+## 6. Output Specification: The Tripartite Artifacts
+
+Generate three distinct files in `docs/specs/${change_id}/`:
+
+### A. `docs/specs/${change_id}/SCOPE.md` (Intent Tier — Human)
+Pure Markdown artifact representing the business and architectural contract:
+
+```markdown
+# Scope: ${change_id}
+
+## 1. Intent & Boundaries
+- **Objective:** Concise business outcome.
+- **In Scope:** Explicit functional additions/modifications.
+- **Out of Scope:** Explicit non-goals.
+
+## 2. Behavioral Delta & Acceptance Criteria
+- **A1:** Given [precondition], When [action], Then [observable outcome].
+- **A2:** Given [precondition], When [action], Then [observable outcome].
+
+## 3. Decisions & Discrepancy Resolutions
+- Recorded assumptions (S1, S2...) and user-approved discrepancy resolutions.
+
+## 4. Amendment Log
+- Initial baseline established by refinement. (Human changes here trigger recompilation).
+```
+
+### B. `docs/specs/${change_id}/tasks.json` (Worker Tier — TDD Agent)
+Machine-readable Directed Acyclic Graph (DAG) for implementation:
 
 ```json
 {
-  "id": "Q01",
-  "applies_to": ["PROJECT_NAME"],
-  "category": "business | boundary | architecture | data | integration | security | performance | concurrency | failure | maintainability | acceptance",
-  "question": "decision-focused question",
-  "recommendation": "evidence-based recommended answer",
-  "answer": "resolved answer",
-  "answered_by": "human | model",
-  "evidence": ["project-relative path or supplied-scope reference"]
+  "change_id": "${change_id}",
+  "scope_hash": "sha256_of_SCOPE.md",
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Verifiable task description",
+      "project_path": "path/to/project",
+      "tier": "unit | integration",
+      "depends_on": [],
+      "acceptance_ids": ["A1"],
+      "evidence_ids": ["E1"],
+      "files_allowed": ["src/module/**", "tests/unit/**"],
+      "red": {
+        "test_file": "tests/unit/feature.spec.ts",
+        "test_ids": ["test_case_name"]
+      },
+      "status": "pending",
+      "origin": "scope"
+    }
+  ]
 }
 ```
 
-Use exact project root folder names in `applies_to`; use `"ALL"` for a decision affecting every project. A question may name multiple projects.
+### C. `docs/specs/${change_id}/qa.json` (Judge Tier — Adversarial QA Gate)
+Strict verification contract for independent quality auditing:
 
+```json
+{
+  "change_id": "${change_id}",
+  "scope_hash": "sha256_of_SCOPE.md",
+  "snapshot_ref": "pending",
+  "invariants": [
+    {
+      "id": "QA-I-01",
+      "type": "concurrency | property | e2e | failure_injection | boundary",
+      "acceptance_ids": ["A1"],
+      "statement": "Machine-checkable universal predicate",
+      "harness": "artillery | k6 | hypothesis | custom_script",
+      "mock_policy": "real | contract-fake",
+      "severity": "blocking | advisory",
+      "budget": { "max_wall_clock_s": 180, "max_retries": 2 }
+    }
+  ],
+  "rework_queue": [],
+  "verdicts": []
+}
 ```
-INTERACTIVE → Ask one question at a time.
-              Show affected projects, why the decision matters, and the recommendation.
-              Allow the human to accept, replace, defer, or mark the answer unknown.
-              Preserve the human's answer exactly and set answered_by = "human".
-
-AUTONOMOUS  → Do not ask or pause.
-              Set answer to the generated recommendation and answered_by = "model".
-              Make unsupported assumptions explicit in the recommendation.
-```
-
-Stop when no decision-changing gap remains or 8 questions have been resolved. Store all entries as `${refinementAnswers}`. Consolidate their resolved decisions into `${refinedScope}` without changing the original `${scope}`. Explicit human answers outrank the original scope, repository evidence, and inference, in that order. Preserve deferred and unknown answers; never invent certainty.
-
-After `${refinedScope}` and `${refinementAnswers}` are resolved:
-
-1. Re-evaluate only the selected feature nodes' `related_docs.optional`.
-2. Use `${refinedScope}` and `${refinementAnswers}` as additional routing evidence.
-3. Add newly applicable documents to `${orientation}`.
-4. Do not rebuild the remaining orientation or reread already loaded documents.
-
-</phase>
 
 ---
 
-<phase id="1" name="Strategic Design — Problem Space">
+## 7. Mechanical Readiness Gate
 
-**Invoke skill:** `scope-refinement/agents/01-problem-space`
+Before completing, self-validate the generated directory against these 7 checks:
+1. **Triad Existence:** All 3 files (`SCOPE.md`, `tasks.json`, `qa.json`) exist in `docs/specs/${change_id}/`.
+2. **JSON Integrity:** `tasks.json` and `qa.json` parse with zero errors.
+3. **DAG Validity:** At least one task has `"depends_on": []`, and the graph resolves topographically without cycles.
+4. **Traceability Closure:** Every acceptance `A*` in `SCOPE.md` is referenced by $\ge 1$ task in `tasks.json` AND $\ge 1$ blocking invariant in `qa.json`.
+5. **Blast-Radius Confinement:** Every task in `tasks.json` defines non-empty `files_allowed`.
+6. **Measurable Invariants:** Every entry in `qa.json` has a concrete predicate, harness, and severity.
+7. **Zero Open Blockers:** `open_questions` is empty; all discrepancies are resolved or captured in `assumptions`.
 
-```
-inputs: ${refinedScope}, ${projectPaths}, ${domain}, ${rules}, ${orientation}
-output: docs/specs/${domain}/001-problem-space.md
-```
-
-</phase>
-
----
-
-<phase id="2" name="Context Map">
-
-Invoke only after Phase 1 completes because `001-problem-space.md` is this phase's domain-language source of truth.
-
-**Invoke skill:** `scope-refinement/agents/02-context-map`
-
-```
-inputs: ${refinedScope}, ${projectPaths}, ${domain}, ${rules}, ${orientation}
-output: docs/specs/${domain}/002-context-map.md
-```
-
-**Reconciliation gate:** Compare bounded-context names, subdomains, events, and glossary terms across both documents. Resolve conflicts before Phase 3; `001-problem-space.md` is authoritative for Ubiquitous Language, while `002-context-map.md` is authoritative for integration relationships.
-
-<review_gate mode="INTERACTIVE">
-
-> ✅ **Strategic Design + Context Map** generated at `docs/specs/${domain}/001-problem-space.md` and `docs/specs/${domain}/002-context-map.md`  
-> Documents contain: Problem Space (Domain Events, Subdomains, Glossary) and Context Map (Bounded Contexts, Relationships).
-> 📝 Review the generated model, provide corrections if needed, then confirm to proceed.
-
-```
-INTERACTIVE → WAIT for user confirmation.
-              IF feedback provided → update documents BEFORE proceeding.
-AUTONOMOUS  → DO NOT PAUSE. Proceed immediately to Phase 3.
-```
-
-</review_gate>
-
-</phase>
+If any check fails, correct the specification and re-verify before finishing.
 
 ---
 
-<phase id="3" name="Tactical Design — Solution Space">
+## 8. General Rules
 
-**Invoke skill:** `scope-refinement/agents/03-tactical-design`
-
-```
-inputs: ${refinedScope}, ${refinementAnswers}, ${projectPaths}, ${domain}, ${rules}, ${orientation}
-output: one document PER project in ${projectPaths}
-        → docs/specs/${domain}/003-${PROJECT_NAME}-tactical-design.md
-           where ${PROJECT_NAME} = root folder name of each project
-```
-
-</phase>
-
----
-
-<phase id="4" name="Test Scenarios">
-
-**Invoke skill:** `scope-refinement/agents/04-test-scenarios`
-
-```
-inputs: ${refinedScope}, ${projectPaths}, ${domain}, ${rules}, ${orientation}
-output: one document PER project in ${projectPaths}
-        → docs/specs/${domain}/004-${PROJECT_NAME}-test-scenarios.md
-           where ${PROJECT_NAME} = root folder name of each project
-```
-
-</phase>
-
----
-
-<final_output>
-
-## Final Output
-
-```
-AUTONOMOUS  → print: "[SUCCESS] Scope Refinement complete for domain ${domain}. All spec documents generated."
-              yield execution back to autonomous-orchestrator
-
-INTERACTIVE → present markdown table of all 4 generated artifacts
-              suggest starting the implementation flow
-```
-
-</final_output>
-
----
-
-<rules>
-
-## General Rules
-
-| Rule | Constraint |
-|---|---|
-| **Format** | Structured Markdown with H2/H3, lists, and tables. JSON must strictly validate. |
-| **Ubiquitous Language** | Use glossary terms consistently across ALL documents |
-| **No Production Code** | Do not create implementation files. Short illustrative pseudocode required by Tactical Design remains allowed within its 4-line limit. |
-| **Fast-path Orientation** | Root reads digest and graph once, then passes `${orientation}`; sub-agents reread indexes only as fallback when shared orientation is absent, invalid, or stale |
-| **Harness Isolation** | PROHIBITED: read, create, or modify any file under `docs/harness-history/` |
-| **Spec Isolation** | PROHIBITED: read, create, or modify any file under `docs/specs/` except documents produced by Phases 1–4 of this skill |
-
-</rules>
+- **No Production Code:** Do not write implementation files.
+- **Spec Isolation:** Do not modify existing specs outside `docs/specs/${change_id}/`.
+- **Maker-Checker Isolation:** TDD agent never writes to `qa.json`; Adversarial QA never directly edits `tasks.json` (appends only to `rework_queue`).

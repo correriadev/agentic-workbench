@@ -36,6 +36,8 @@ REQUIRED: Complete all three analyses by inspecting the repository before writin
 | Analysis item | Where to look | Feeds template section |
 |---|---|---|
 | Structure | Application root directory (e.g., `src/`, `app/`), organization by feature vs layer, global configs | `## FOLDER STRUCTURE` |
+| Dependencies & Boundaries | Layer imports, package boundaries, circular dependency linters | `## DEPENDENCY RULES` |
+| Shared Surface | Cross-cutting utilities (logging, clocks, errors, Result wrappers) | `## SHARED SURFACE` |
 | Patterns | Class/function definitions, naming conventions, DI, error handling, REQUIRED/FORBIDDEN constraints | `## LAYERS` and `## PATTERNS` |
 | Integrations | Registration logic (routes, services), external calls (DBs, APIs) | `## INTEGRATIONS` |
 
@@ -81,6 +83,22 @@ updated: YYYY-MM-DD
 - **[Layer 1]**: [Responsibility and constraints of this layer]
 - **[Layer 2]**: [Responsibility and constraints of this layer]
 
+## DEPENDENCY RULES
+| Layer | May import | FORBIDDEN |
+|---|---|---|
+| [e.g., domain/] | [stdlib only] | [e.g., application, adapters, infra, frameworks] |
+| [e.g., application/] | [domain] | [e.g., adapters, infra] |
+| [e.g., adapters/] | [domain, application] | [e.g., application logic of other domains] |
+
+REQUIRED: Any import violating these rules must fail CI verification via: `[e.g., npm run lint:arch or python -m pytest tests/arch]`
+
+## SHARED SURFACE
+| Cross-Cutting Need | Canonical Export / Symbol | Source Path | Scope & Mandatory Usage |
+|---|---|---|---|
+| Logging | `[e.g., logger]` | `[e.g., src/shared/logger.ts]` | Mandatory logger instance |
+| Time / Clock | `[e.g., IClock]` | `[e.g., src/shared/clock.ts]` | Injected clock; never call Date.now() inline |
+| Error Taxonomy | `[e.g., AppError]` | `[e.g., src/shared/errors.ts]` | Canonical application errors |
+
 ## MODULES
 | Module | Responsibility | Location |
 |--------|-----------------|-------------|
@@ -91,10 +109,10 @@ updated: YYYY-MM-DD
 
 <code_patterns>
 # REQUIRED: [Pattern name — e.g., Constructor dependency injection]
-[Code example demonstrating the correct pattern]
+[Code example demonstrating the correct pattern — max 8 lines]
 
 # PROHIBITED: [Anti-pattern name — e.g., Global state usage]
-[Code example demonstrating what NOT to do]
+[Code example demonstrating what NOT to do — max 8 lines]
 </code_patterns>
 
 ## INTEGRATIONS
@@ -114,5 +132,8 @@ updated: YYYY-MM-DD
 
 ## LLM OPTIMIZATION RULES (MANDATORY)
 
-- REQUIRED: Use tables for `## MODULES` and `## INTEGRATIONS` — never prose paragraphs for relational data.
+- REQUIRED: Use tables for `## DEPENDENCY RULES`, `## SHARED SURFACE`, `## MODULES`, and `## INTEGRATIONS` — never prose paragraphs for relational data.
 - REQUIRED: Annotate every directory in `## FOLDER STRUCTURE` with a `#` comment explaining where new files of each type should be created.
+- REQUIRED: Eliminate adjectives without thresholds (replace "clean/robust" with concrete linters or invariant rules).
+- REQUIRED: Omit historical narrative, design deliberations, or theoretical background; state only currently active decisions.
+- REQUIRED: Code examples in `## PATTERNS` must be concise (at most 8 lines per example).
