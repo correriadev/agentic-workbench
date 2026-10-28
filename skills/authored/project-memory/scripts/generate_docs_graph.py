@@ -330,8 +330,10 @@ def main():
     graph_data = build_docs_graph(docs_path)
     graph_data["related_projects"] = load_related_projects(output_file)
 
-    with open(output_file, "w", encoding="utf-8") as f:
+    temp_output = output_file.with_name(f"{output_file.name}.tmp")
+    with open(temp_output, "w", encoding="utf-8") as f:
         json.dump(graph_data, f, separators=(',', ':'), ensure_ascii=False)
+    temp_output.replace(output_file)
 
     print(f"Graph generated at {output_file} ({len(graph_data['nodes'])} nodes, {len(graph_data['edges'])} edges)")
 

@@ -63,7 +63,7 @@ class Validator:
             require(node["id"] not in self.paths, f"Duplicate document ID: {node['id']}")
             path = (self.project / node["path"]).resolve()
             allowed = any(path.is_relative_to(self.docs / folder) for folder in ("adr", "feature"))
-            require(allowed and path.suffix == ".md" and path.is_file(),
+            require(allowed and path.suffix == ".md",
                     f"Invalid document path: {node['path']}")
             self.paths[node["id"]] = path
         self.records = {}
@@ -74,6 +74,7 @@ class Validator:
         if document in self.records:
             return
         require(document in self.paths, f"Unknown document ID: {document}")
+        require(self.paths[document].is_file(), f"Document file missing: {self.paths[document]}")
         try:
             data = knowledge_block(self.paths[document].read_text(encoding="utf-8"))
             is_feature = self.paths[document].is_relative_to(self.docs / "feature")

@@ -1,0 +1,132 @@
+{
+  "environment": {
+    "python": "3.12.10",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "method": "Static source checks plus synthetic policy probes; no LLM execution or production validation.",
+  "source_sha256": {
+    "skills/authored/scope-refinement/agents/01-problem-space.md": "ce273c255aca005569711235603ffce487d94672a106e9bcb3f6ad75d1a89ccf",
+    "skills/authored/scope-refinement/agents/02-context-map.md": "2d11eceb402c72cf0a66c92b7b3b1dfbf0522d17177a38807953e4d80c798a74",
+    "skills/authored/scope-refinement/agents/03-tactical-design.md": "65d63a1d25806c6fcc0d24f944d95ae8f7f3330f0373abf808b62436f14f1747",
+    "skills/authored/scope-refinement/agents/04-test-scenarios.md": "cf92a882ed2e9d9ef664cccaf5ebcd196ee0b021ed02a789c17f615b9f5a550a",
+    "skills/authored/scope-refinement/SKILL.md": "497e02361996916ab8b193ededf5562dd67cc52535e56eded62dff58a40d4950"
+  },
+  "source_files": 5,
+  "source_characters": 42038,
+  "example_task_count": 4,
+  "example_scope_violations": [
+    {
+      "title": "Setup Checkout Design Tokens",
+      "scope_items": 1
+    }
+  ],
+  "documented_object_fallback_fails_on_two_task_array": true,
+  "pbb_documented_projection": {
+    "scope": "Export orders Export only visible orders",
+    "projectPaths": [
+      "fixture/api"
+    ],
+    "domain": "export_orders",
+    "rules": "No additional rules provided"
+  },
+  "omitted_pbb_fields": [
+    "id",
+    "source",
+    "assumptions",
+    "acceptance"
+  ],
+  "existence_gate_accepts_empty_files": true,
+  "duplicate_project_basenames": [
+    "service",
+    "service"
+  ],
+  "candidate_accepts_join": true,
+  "candidate_rejections": [
+    {
+      "name": "changed_revision",
+      "rejected_for": [
+        "stale_revision"
+      ]
+    },
+    {
+      "name": "stale_evidence",
+      "rejected_for": [
+        "evidence_requires_review"
+      ]
+    },
+    {
+      "name": "conflicted_evidence",
+      "rejected_for": [
+        "evidence_requires_review"
+      ]
+    },
+    {
+      "name": "provisional_blocking_answer",
+      "rejected_for": [
+        "blocking_question"
+      ]
+    },
+    {
+      "name": "dependency_cycle",
+      "rejected_for": [
+        "cycle"
+      ]
+    },
+    {
+      "name": "unknown_dependency",
+      "rejected_for": [
+        "cycle",
+        "dependency"
+      ]
+    },
+    {
+      "name": "missing_acceptance",
+      "rejected_for": [
+        "acceptance"
+      ]
+    },
+    {
+      "name": "duplicate_task",
+      "rejected_for": [
+        "dependency",
+        "task_identity"
+      ]
+    },
+    {
+      "name": "empty_planning_output",
+      "rejected_for": [
+        "not_ready",
+        "task_identity"
+      ]
+    }
+  ],
+  "required_artifact_counts": [
+    {
+      "projects": 1,
+      "current": 4,
+      "proposed_minimal": 1
+    },
+    {
+      "projects": 2,
+      "current": 6,
+      "proposed_minimal": 1
+    },
+    {
+      "projects": 10,
+      "current": 22,
+      "proposed_minimal": 1
+    },
+    {
+      "projects": 50,
+      "current": 102,
+      "proposed_minimal": 1
+    }
+  ],
+  "elapsed_ms": 129.98,
+  "limitations": [
+    "Candidate gate is partial and hand-written, not semantic validation.",
+    "PBB projection models documented fields, not full runtime context.",
+    "Artifact counts measure mandated structure, not quality or tokens.",
+    "Single run; elapsed time is a harness cost, not refinement performance."
+  ]
+}

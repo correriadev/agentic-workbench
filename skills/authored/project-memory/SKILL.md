@@ -19,7 +19,7 @@ Assume documents, code, datasets, and summaries may all be LLM-generated. Establ
    - REQUIRED: Read the corresponding `./references/<DOC>-RULES.md` before creating or updating each baseline document.
    - REQUIRED: Create any missing baseline document before proceeding with the user's request.
    - REQUIRED: Make it clear that `docs/adr/ARCHITECTURE.md` and `docs/adr/TESTS.md` are the ONLY mandatory ADR documents to be created. Additional ADR creation follows the single authorization rule in DOCUMENT ORGANIZATION below.
-4. **Read Harness Memory project hints** — check `.harness-kit/memory.toml` for `related_projects` on every invocation. Treat cached keys as candidates, not proof of relationship direction. Continue when the file or MCP connection is unavailable.
+4. **Inspect code structure via Codebase Memory (CBM)** — use codebase-memory MCP tools (`search_graph`, `trace_path`, `detect_changes`) when available to locate entrypoints, dependencies, and code changes before opening full files. If CBM is unindexed or unavailable, fall back to direct file inspection.
 
 ---
 
@@ -91,10 +91,10 @@ Assume documents, code, datasets, and summaries may all be LLM-generated. Establ
 - REQUIRED: Keep `when` at 300 characters maximum.
 - PROHIBITED: Add `when` to `read: must`.
 - PROHIBITED: Classify the same target as both `must` and `optional`.
-- REQUIRED: Keep Harness Memory project links in top-level `docs/.graph.json` `related_projects[]`, separate from document `nodes[]` and `edges[]`. Each entry contains only `key` and `relation`, such as `{"key":"ledger","relation":"depends_on"}`. Valid relations are `depends_on` and `provides_to`.
+- REQUIRED: Keep related project links in top-level `docs/.graph.json` `related_projects[]`, separate from document `nodes[]` and `edges[]`. Each entry contains only `key` and `relation`, such as `{"key":"ledger","relation":"depends_on"}`. Valid relations are `depends_on` and `provides_to`.
 - REQUIRED: Interpret relations from this project's perspective: `depends_on` means this project consumes or requires the related project's capability; `provides_to` means this project supplies a capability to it. Record both entries if both directions are supported.
-- REQUIRED: Confirm each new key against Harness Memory `search_projects` or an already confirmed cache entry. Determine direction from an explicit user statement, project documentation, or MCP relationship evidence. If direction is unclear, ask the user and omit the new entry until resolved.
-- PROHIBITED: Put external project keys in document `edges[]` or infer direction from project names alone. Preserve existing verified links when the cache or MCP is unavailable; remove a link only when its removal is established.
+- REQUIRED: Confirm each new key against verified project documentation or explicit user statement. Determine direction from verified architecture evidence. If direction is unclear, ask the user and omit the new entry until resolved.
+- PROHIBITED: Put external project keys in document `edges[]` or infer direction from project names alone. Preserve existing verified links when unavailable; remove a link only when its removal is established.
 
 ---
 
@@ -104,11 +104,11 @@ Use this table to determine which rules file to read and which constraints apply
 
 | Document | Rules file to read | Key constraint |
 |---|---|---|
-| `docs/README.md` | `./references/README-RULES.md` | Navigation index only — PROHIBITED: any technical content — MUST sync in Step 10 |
+| `docs/README.md` | `./references/README-RULES.md` | Navigation index only — PROHIBITED: any technical content — sync conditionally in Step 10 |
 | `docs/adr/ARCHITECTURE.md` | `./references/ARCHITECTURE-RULES.md` | Architecture, layers, patterns, integrations (max 10,000 chars; compact or decompose into `docs/adr/` when full) |
 | `docs/adr/TESTS.md` | `./references/TESTS-RULES.md` | Test strategies, standards, execution commands |
-| `docs/.digest.md` | N/A | Machine-readable orientation digest — MUST read in Step 1 and update in Step 8 |
-| `docs/.graph.json` | N/A | Macro document graph plus Harness Memory `related_projects` links — MUST update in Step 9 |
+| `docs/.digest.md` | N/A | Machine-readable orientation digest — MUST read in Step 1 and update conditionally in Step 8 |
+| `docs/.graph.json` | N/A | Macro document graph plus `related_projects` links — update conditionally in Step 9 |
 | Any other ADR (e.g., `SECURITY.md`, `DATABASE.md`, `API-DESIGN.md`, `OBSERVABILITY.md`, `TELEMETRY.md`) | `./references/DOCUMENT-TEMPLATE.md` | OPTIONAL: Specific architectural decisions, standards, or decomposed topics. MUST stay at or below 10,000 total characters |
 | Any feature document (e.g., `docs/feature/*.md`) | `./references/DOCUMENT-TEMPLATE.md` | One business domain or feature per file |
 | `docs/harness-history/**` | N/A | Reserved for harness history tools; see DOCUMENT ORGANIZATION. |
@@ -183,29 +183,29 @@ Execute steps in order. Do not skip steps.
 - Include scope coverage for full reviews: features assessed, with knowledge, omitted with reasons, and blocked by evidence gaps; ADRs inspected as evidence. Report which domain questions the records answer; never equate block count with understanding.
 - Do not deliver yet; Steps 8–10 must complete first.
 
-**Step 8 — Generate project digest**
-- REQUIRED: After every invocation, generate or update `docs/.digest.md` with a machine-readable summary.
+**Step 8 — Generate project digest (conditional)**
+- CONDITIONAL: Update `docs/.digest.md` only when `docs/adr/ARCHITECTURE.md` or `docs/adr/TESTS.md` have changed, or when `docs/.digest.md` does not yet exist. Skip this step if changes are limited to feature documents or targeted editorial updates.
 - Extract from `docs/adr/ARCHITECTURE.md`: main architectural pattern, layers list, DI strategy, key REQUIRED/FORBIDDEN constraints.
 - Extract from `docs/adr/TESTS.md`: test framework, run commands, coverage thresholds.
 - Preserve qualifications: label targets as targets, observations as observations, and unresolved claims as unresolved. Never convert a generated statement into an established fact during summarization.
 - REQUIRED: In `## DOCUMENTATION INDEX`, list only the baseline documents (`docs/adr/ARCHITECTURE.md`, `docs/adr/TESTS.md`) with one-line descriptions, followed by a note directing to `docs/.graph.json` with the text: "Required read `docs/.graph.json` for the complete document list, tags, and relations.".
 - PROHIBITED: Enumerating every `docs/feature/` and `docs/adr/` document in `## DOCUMENTATION INDEX` — this duplicates `docs/.graph.json` nodes[] and wastes tokens on every digest read.
 - REQUIRED: Reference every document path in `docs/.digest.md` as a plain relative path (e.g. `` `docs/adr/ARCHITECTURE.md` ``), never as a Markdown link, and never with an absolute filesystem path or a `file://` URI.
-- REQUIRED: Keep digest under 60 total lines and at most 3,000 total characters — this is an LLM orientation file, not a replacement for full docs.
-- REQUIRED: Include a `## LAST UPDATED` section with the current date.
+- REQUIRED: Keep digest under 60 total lines and at most 3,000 total characters — this is an orientation file, not a replacement for full docs.
+- REQUIRED: Include a `## LAST UPDATED` section with the current date when updating.
 - REQUIRED: Include a compact `## ROUTING` section: use an exact supplied path directly; otherwise use `.graph.json` to select one feature and extract its top `graph` block. For semantic questions, read its `graph.knowledge` and relevant evidence; for implementation tasks, read routed source files. Read other prose only when design context is needed.
-- Purpose: enables `tdd-orchestrator` and other skills to perform initial orientation without reading full documents.
+- Purpose: enables consumers and downstream agents to perform initial orientation without reading full documents.
 
-**Step 9 — Update macro document graph index**
+**Step 9 — Update macro document graph index (conditional)**
+- CONDITIONAL: Run `./scripts/generate_docs_graph.py <target_docs_dir>` only when documents are added/removed or when frontmatter/micrographs (`tags`, `edges`, routing file lists) have changed. Skip graph regeneration when changes are purely internal editorial edits or claim updates with unchanged routing.
 - REQUIRED: Update `docs/.graph.json` aggregating macro document nodes and all document-level relation types defined in LLM OPTIMIZATION & GRAPH TOPOLOGY.
 - REQUIRED: Execute the Python script `./scripts/generate_docs_graph.py <target_docs_dir>` (or embedded logic) to extract nodes/edges and generate `docs/.graph.json`.
 - REQUIRED: Write `docs/.graph.json` as **compact JSON** (no indentation, `separators=(',',':')`) — it is a machine-read routing index, not a human-diffed file.
-- REQUIRED: On every invocation, write top-level `related_projects` as an array, including `[]` when no direction is known. The generator preserves existing entries; after it runs, reconcile confirmed cache candidates and new relationship evidence. Sort entries by `key`, then `relation`, and keep each entry to the exact key and direction fields defined above.
-- REQUIRED: Keep an existing link unless explicit evidence changes it. Do not copy an unclassified cache hint into `related_projects`; ask for the direction when needed. Confirm new keys through Harness Memory before adding them.
+- REQUIRED: Preserve top-level `related_projects` as an array, including `[]` when no direction is known. The generator preserves existing entries; sort entries by `key`, then `relation`.
 - Feature nodes may include:
   - `related_docs.must_read`: Array of target `node_id` values marked `read: must`.
   - `related_docs.optional`: Array of `{target, description}` generated from edges marked `read: optional` (`description` comes from the edge `when` value).
-- Keep global `edges[]` unchanged as `{source,target,relation}`. Harness Memory project links stay outside document edges.
+- Keep global `edges[]` unchanged as `{source,target,relation}`.
 - Do not copy `read` or `when` into global edges.
 - REQUIRED: Sort nodes by `id` and edges by `source`, `relation`, then `target` for deterministic output.
 - REQUIRED: Fail generation when:
@@ -216,13 +216,14 @@ Execute steps in order. Do not skip steps.
   - duplicate `node_id` values or unresolved edge targets exist.
 - PROHIBITED: Adding feature `entrypoints`, `registration_files`, `reference_files`, `code_files`, or `test_files` to macro nodes. Read these only from the selected feature micrograph.
 - PROHIBITED: Copying ontology entities, claims, or evidence into the macro graph. Keep its existing schema compatible; load knowledge from the selected document only. A successful graph build validates routing, not the truth of generated content.
-- Purpose: macro graph routing for orchestrator without scanning individual code files.
-- REQUIRED: After generation, run `python ./scripts/validate_ontology.py <target_docs_dir>` for full reviews; for targeted work append `--document <node_id>` for each changed ADR/feature. The validator also follows their qualified references. Resolve structural errors before delivery; inspect factual support separately.
+- Purpose: macro graph routing for consumers without scanning individual code files.
+- REQUIRED: After graph generation or when validating targeted changes, run `python ./scripts/validate_ontology.py <target_docs_dir>` for full reviews; for targeted work append `--document <node_id>` for each changed ADR/feature. The validator also follows their qualified references. Resolve structural errors before delivery; inspect factual support separately.
 
-**Step 10 — Sync docs/README.md index**
-- REQUIRED: After updating `docs/.graph.json` (Step 9), reconcile `docs/README.md`'s index table against `nodes[]`: add a row for every node without one, remove rows whose file no longer exists, update descriptions that drifted.
+**Step 10 — Sync docs/README.md index (conditional)**
+- CONDITIONAL: Update `docs/README.md` only when documents are added or removed from `docs/`, or when document titles/descriptions have drifted. Skip this step if document existence and descriptions are unchanged.
+- REQUIRED: Reconcile `docs/README.md`'s index table against `nodes[]`: add a row for every node without one, remove rows whose file no longer exists, update descriptions that drifted.
 - REQUIRED: Treat `docs/.graph.json` `nodes[]` as the source of truth for *which* documents exist; `docs/README.md` adds the human-facing layer (`Mandatory`/`Optional`, 1–2 sentence description) on top of those same nodes.
-- Follow `./references/README-RULES.md` structure and prohibitions exactly — do not skip this step even when the user's request only targeted one specific document.
-- Purpose: prevents `docs/README.md` from drifting out of sync while `docs/.digest.md`/`docs/.graph.json` are kept current every invocation.
+- Follow `./references/README-RULES.md` structure and prohibitions exactly.
+- Purpose: prevents `docs/README.md` from drifting out of sync while avoiding unnecessary writes on localized content updates.
 - Final validation: confirm `docs/.digest.md` is under 60 total lines and at most 3,000 total characters, contains only relative plain-text paths, and lists only baseline docs plus the `.graph.json` pointer. Confirm `.graph.json` topology resolves, `related_projects[]` contains exact keys and valid directions, and `docs/README.md` matches its nodes and total character limit.
 - Deliver only the concise Step 7 summary and changed file paths. Do not repeat full document contents unless the user asks.
