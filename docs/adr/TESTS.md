@@ -21,6 +21,7 @@ Verification covers documentation ontology integrity (`project-memory` scripts),
 |---|---|---|
 | Ontology Validation | `python skills/project-memory/scripts/validate_ontology.py docs` | Validates ADR frontmatter, `.digest.md`, `.graph.json`, and size limits |
 | Graph Generation | `python skills/project-memory/scripts/generate_docs_graph.py docs` | Rebuilds `docs/.graph.json` from ADR/feature frontmatter |
+| Skill Sync Dry-Run | `python scripts/sync_skills.py --dry-run` | Simulates skill mirror-sync across all 4 coding agents |
 | CLI Wrapper Tests | `powershell -NoProfile -File skills/ask-antigravity/scripts/Test-Invoke-Antigravity.ps1` | Tests argument normalization and headless CLI invocation |
 
 ## MINIMUM COVERAGE

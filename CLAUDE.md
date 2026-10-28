@@ -4,13 +4,13 @@ Guia de contexto e instruções operacionais para o Claude Code neste repositór
 
 ## Visão Geral
 
-O **Agentic Workbench** mantém uma coleção enxuta de 13 skills auto-contidas em `skills/<nome>/SKILL.md` para engenharia de software assistida por IA, cobrindo desde descoberta de produto até especificação tripartite, TDD, QA adversarial e memória arquitetural.
+O **Agentic Workbench** mantém uma coleção enxuta de 14 skills auto-contidas em `skills/<nome>/SKILL.md` para engenharia de software assistida por IA, cobrindo desde descoberta de produto até especificação tripartite, TDD, QA adversarial e memória arquitetural.
 
 ## Estrutura do Repositório
 
-- `skills/` — Skills canônicas independentes de provedor (`scope-refinement`, `tdd-orchestrator`, `adversarial-qa`, `project-memory`, `the-grumpy-tech-lead`, `brainstorming`, `pbb-design`, `read-ui-prototype`, `codebase-memory`, `contextual-mentorship`, `ask-antigravity`, `ask-codex`, `ask-opencode`).
+- `skills/` — Skills canônicas independentes de provedor (`scope-refinement`, `tdd-orchestrator`, `adversarial-qa`, `project-memory`, `the-grumpy-tech-lead`, `brainstorming`, `pbb-design`, `prompt-generator`, `read-ui-prototype`, `codebase-memory`, `contextual-mentorship`, `ask-antigravity`, `ask-codex`, `ask-opencode`).
 - `docs/` — Memória arquitetural do repositório (`README.md`, `.digest.md`, `.graph.json`, `adr/ARCHITECTURE.md`, `adr/TESTS.md`).
-- `scripts/` — Scripts de limpeza e manutenção estrutural (`cleanup.ps1`, `cleanup.sh`).
+- `scripts/` — Scripts de limpeza e sincronização (`cleanup.ps1`, `cleanup.sh`, `sync_skills.py`).
 
 ## Diretrizes de Edição
 
@@ -22,6 +22,11 @@ O **Agentic Workbench** mantém uma coleção enxuta de 13 skills auto-contidas 
 ## Comandos Úteis
 
 ```bash
+# Sincronizar skills para os 4 coding agents (Antigravity, Codex, OpenCode, Claude)
+python scripts/sync_skills.py
+python scripts/sync_skills.py --dry-run
+python scripts/sync_skills.py --skill <nome-da-skill>
+
 # Regenerar grafo de documentos em docs/.graph.json
 python skills/project-memory/scripts/generate_docs_graph.py docs
 

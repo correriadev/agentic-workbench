@@ -30,3 +30,23 @@ python skills/project-memory/scripts/generate_docs_graph.py docs
 # Validar ontologia e documentos em docs/
 python skills/project-memory/scripts/validate_ontology.py docs
 ```
+
+## 4. Sincronização de Skills para Coding Agents
+
+Quando o usuário solicitar instalar, atualizar ou propagar skills para seus ambientes locais (Antigravity, Codex, OpenCode ou Claude), utilize o script dedicado:
+
+```powershell
+# Simular alterações sem modificar o disco
+python scripts/sync_skills.py --dry-run
+
+# Sincronizar todas as skills canônicas para todos os 4 ambientes
+python scripts/sync_skills.py
+
+# Sincronizar apenas uma skill específica
+python scripts/sync_skills.py --skill <nome-da-skill>
+
+# Sincronizar para um agente específico (ex: antigravity, codex, opencode, claude)
+python scripts/sync_skills.py --target <agente>
+```
+
+Não use git hooks automáticos para deploy de skills; a sincronização deve ser sempre uma ação intencional.

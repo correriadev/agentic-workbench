@@ -47,7 +47,8 @@ O fluxo principal de engenharia separa **Intenção (Humano)**, **Construção (
 
 #### Produto, Design e Descoberta
 - **`brainstorming`**: Exploração colaborativa de problemas, restrições e alternativas arquiteturais antes de escrever código.
-- **`pbb-design`**: Estruturação de Product Backlog via metodologia PBB (*Problema → Expectativa → Persona → Funcionalidade → PBI*) com matriz de rastreabilidade.
+- **`pbb-design`**: Avaliação crítica de produto (Product CTO/PM), corte implacável de escopo, calibração epistêmica e estruturação de Product Backlog rastreável via PBB (*Problema → Expectativa → Persona → Funcionalidade → PBI*).
+- **`prompt-generator`**: Engenharia reversa e geração estruturada de meta-prompts, personas e system instructions para LLMs.
 - **`read-ui-prototype`**: Analisa protótipos visuais (telas, imagens, Figma) e gera especificação estrutural e semântica de frontend sem inventar valores visuais (HEX/px).
 
 #### Navegação, Mentoria e Delegação CLI
@@ -71,9 +72,8 @@ agentic-workbench/
 ├── scripts/
 │   ├── cleanup.ps1             # Higienização estrutural do repositório (PowerShell)
 │   ├── cleanup.sh              # Higienização estrutural do repositório (Bash)
-│   ├── dry_run_install.py      # Dry-run de instalação nos ambientes
-│   └── install_skills.py       # Sincronização e espelhamento das skills
-├── skills/                     # 13 skills auto-contidas (1 pasta por skill com SKILL.md)
+│   └── sync_skills.py          # Sincronização e espelhamento intencional para coding agents
+├── skills/                     # 14 skills auto-contidas (1 pasta por skill com SKILL.md)
 │   ├── adversarial-qa/
 │   ├── ask-antigravity/
 │   ├── ask-codex/
@@ -83,6 +83,7 @@ agentic-workbench/
 │   ├── contextual-mentorship/
 │   ├── pbb-design/
 │   ├── project-memory/
+│   ├── prompt-generator/
 │   ├── read-ui-prototype/
 │   ├── scope-refinement/
 │   ├── tdd-orchestrator/
@@ -91,3 +92,37 @@ agentic-workbench/
 ├── CLAUDE.md                   # Regras operacionais equivalentes para Claude Code
 └── README.md                   # Este documento
 ```
+
+---
+
+## 4. Sincronização de Skills entre Coding Agents
+
+A distribuição de skills para os ambientes de execução locais é **intencional e sob demanda** através de `scripts/sync_skills.py` (sem hooks automáticos em git commit para prevenir quebras acidentais durante desenvolvimento).
+
+### Ambientes Atendidos:
+- **Google Antigravity:** `~/.gemini/config/skills/`
+- **OpenAI Codex:** `~/.codex/skills/`
+- **OpenCode:** `~/.config/opencode/skills/`
+- **Claude Code:** `~/.claude/skills/`
+
+### Comandos de Sincronização:
+
+```bash
+# Simular mudanças em todos os agentes (dry-run seguro)
+python scripts/sync_skills.py --dry-run
+
+# Sincronizar todas as skills canônicas para todos os 4 agentes
+python scripts/sync_skills.py
+
+# Sincronizar apenas uma skill específica (ex: nova ou alterada)
+python scripts/sync_skills.py --skill prompt-generator
+
+# Sincronizar para apenas um agente específico
+python scripts/sync_skills.py --target claude
+python scripts/sync_skills.py --target codex
+python scripts/sync_skills.py --target antigravity
+python scripts/sync_skills.py --target opencode
+```
+
+O script realiza **espelhamento completo de diretórios** (`shutil.rmtree` + `shutil.copytree`), garantindo zero resíduos órfãos, e purga automaticamente skills obsoletas.
+
