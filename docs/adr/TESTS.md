@@ -25,18 +25,18 @@ Verification covers documentation ontology integrity (`project-memory` scripts),
 
 ## MINIMUM COVERAGE
 
-CI gates on 100% pass rate for the `project-memory` unit test suite and zero ontology validation errors in `docs/`.
+Verification requires 100% pass rate for the `project-memory` unit test suite and zero ontology validation errors in `docs/`.
 
 ## PATTERNS & BEST PRACTICES
 
 - **REQUIRED:** Run `generate_docs_graph.py` and `validate_ontology.py` after modifying any file under `docs/`.
 - **REQUIRED:** Keep unit tests deterministic and isolated using temporary directories.
-- **PROHIBITED:** Depend on live external API keys or active LLM sessions in automated CI tests.
+- **PROHIBITED:** Depend on live external API keys or active LLM sessions in automated tests.
 
 ## TOOLING
 
 - **Framework:** Python 3.12+ `unittest` and PowerShell test assertions.
-- **CI:** GitHub Actions matrix (`.github/workflows/validate.yml`).
+- **CI:** None (local verification commands only).
 
 ## TROUBLESHOOTING
 

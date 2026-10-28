@@ -61,8 +61,6 @@ O fluxo principal de engenharia separa **Intenção (Humano)**, **Construção (
 
 ```text
 agentic-workbench/
-├── .github/
-│   └── workflows/validate.yml  # CI leve para validação dos scripts e grafo de docs
 ├── docs/
 │   ├── .digest.md              # Resumo de orientação rápida para agentes
 │   ├── .graph.json             # Grafo de documentos do repositório
@@ -72,7 +70,9 @@ agentic-workbench/
 │       └── TESTS.md            # Estratégia e comandos de verificação
 ├── scripts/
 │   ├── cleanup.ps1             # Higienização estrutural do repositório (PowerShell)
-│   └── cleanup.sh              # Higienização estrutural do repositório (Bash)
+│   ├── cleanup.sh              # Higienização estrutural do repositório (Bash)
+│   ├── dry_run_install.py      # Dry-run de instalação nos ambientes
+│   └── install_skills.py       # Sincronização e espelhamento das skills
 ├── skills/                     # 13 skills auto-contidas (1 pasta por skill com SKILL.md)
 │   ├── adversarial-qa/
 │   ├── ask-antigravity/
