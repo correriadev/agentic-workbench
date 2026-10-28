@@ -9,8 +9,7 @@ CANONICAL_SKILLS = sorted([d.name for d in REPO_SKILLS.iterdir() if d.is_dir()])
 TARGETS = {
     "codex": pathlib.Path(r"C:\Users\User\.codex\skills"),
     "opencode": pathlib.Path(r"C:\Users\User\.config\opencode\skills"),
-    "antigravity_global": pathlib.Path(r"C:\Users\User\.gemini\config\skills"),
-    "antigravity_harness_kit": pathlib.Path(r"C:\Users\User\.gemini\config\plugins\harness-kit\skills")
+    "antigravity": pathlib.Path(r"C:\Users\User\.gemini\config\skills")
 }
 
 OBSOLETE_SKILLS = {

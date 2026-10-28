@@ -7,10 +7,9 @@ import difflib
 REPO_SKILLS = pathlib.Path(r"C:\Users\User\Documents\agentic-workbench\skills")
 
 TARGETS = {
-    "antigravity_global": pathlib.Path(r"C:\Users\User\.gemini\config\skills"),
-    "antigravity_plugin_harness_kit": pathlib.Path(r"C:\Users\User\.gemini\config\plugins\harness-kit\skills"),
     "codex": pathlib.Path(r"C:\Users\User\.codex\skills"),
-    "opencode": pathlib.Path(r"C:\Users\User\.config\opencode\skills")
+    "opencode": pathlib.Path(r"C:\Users\User\.config\opencode\skills"),
+    "antigravity": pathlib.Path(r"C:\Users\User\.gemini\config\skills")
 }
 
 def analyze():
