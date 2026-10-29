@@ -109,16 +109,16 @@ Operate strictly in two distinct phases: **Discovery** (conversational) and **Ba
 - **Cognitive Isolation:** DO NOT read `references/pbb-document-template.md` during Discovery.
 - **Output Restriction:** NEVER render the nine-section backlog, matrices, or preliminary tables in chat during Discovery.
 - **Mandatory Turn Structure:** Every conversational response in Phase 1 MUST follow this 3-slot schema:
-  1. **Advisory Objection / Premise Challenge:** Concise analysis exposing the weakest assumption or evidence gap (no greeting or fluff).
+  1. **Advisory Objection / Premise Challenge:** Concise analysis exposing the weakest assumption or evidence gap (no greeting or fluff). *Terminal exception:* When all material uncertainties are resolved, omit artificial objections and declare scope readiness.
   2. **Risk & Epistemic Diagnosis:** Bullets evaluating affected product risks using required epistemic tags (`[Certain]`, `[Likely]`, `[Guessing]`, `[VERIFY]`).
-  3. **Next Socratic Question or Concrete Alternative:** Exactly one consequential question or actionable proposal to calibrate scope.
+  3. **Next Socratic Question or Consolidation Proposal:** Exactly one consequential question to calibrate scope, OR, if discovery is complete, a concrete consolidation proposal asking if the user authorizes generation.
 
 <HARD-GATE: DISCOVERY TO GENERATION>
 Do NOT enter Phase 2 and do NOT generate any PBB deliverable without passing this gate:
 1. The user explicitly requests deliverable generation (e.g., "gere o backlog", "crie o PBB", "salve o documento"), OR
 2. The user explicitly accepts a concrete scope consolidation proposal.
-*(Exception: An upfront user prompt explicitly requesting the deliverable authorizes Phase 2 once blocking evidence gaps are cleared.)*
-Any generation without this gate condition being satisfied is an immediate protocol violation.
+*(Note: If the user requests generation while unresolved gaps remain, proceed to generate the document while explicitly recording affected items as `Blocked` or `Provisional` in Sections 6, 8, and 9.)*
+Any deliverable generation without satisfying either condition 1 or 2 is an immediate protocol violation.
 </HARD-GATE: DISCOVERY TO GENERATION>
 
 ### Phase 2: Backlog Generation (Conditional File Output)
@@ -126,22 +126,22 @@ Any generation without this gate condition being satisfied is an immediate proto
 Execute this phase strictly when the hard gate is satisfied:
 
 1. **Load Contract:** Read [`references/pbb-document-template.md`](references/pbb-document-template.md) to load the required nine-section structure, fields, and verification checklist.
-2. **Determine Target Path:**
-   - Default target: `docs/specs/<change_id>/PBB.md`.
-   - If `<change_id>` is not explicitly provided, infer a concise `kebab-case` identifier from the topic or confirm with the user.
-   - Respect user-specified paths if provided. Ensure parent directories are created.
+2. **Resolve Target Path (`<target_path>`):**
+   - If the user specified an explicit path (e.g., `specs/my-pbb.md`), use it as `<target_path>`.
+   - Otherwise, determine `<change_id>` (infer a concise `kebab-case` name from the topic or confirm with user) and set `<target_path>` to `docs/specs/<change_id>/PBB.md`.
+   - Ensure parent directories of `<target_path>` are created.
 3. **Execution Condition (Write vs. Fallback):**
    - **Condition A (Write tool available & succeeds):**
-     - Write the complete nine-section document to `docs/specs/<change_id>/PBB.md`.
+     - Write the complete nine-section document in technical English directly to `<target_path>`.
      - In chat, output ONLY:
-       1. Clickable file link to the saved document (`[docs/specs/<change_id>/PBB.md](file:///...)`).
-       2. Concise executive summary of the scope slice and recommendation (proceed / validate first / do not build).
+       1. Clickable file link to the saved document (`[<target_path>](file:///<target_path>)`).
+       2. Concise executive summary in the user's conversational language.
        3. Residual assumptions and critical open questions.
-       - **CRITICAL RESTRICTION:** NEVER dump the nine sections into chat when write succeeds.
+       - **CRITICAL RESTRICTION:** NEVER dump the nine sections into chat when file write succeeds.
    - **Condition B (Filesystem write unavailable or fails):**
-     - Disclose the filesystem limitation clearly to the user.
+     - Disclose the filesystem limitation clearly in the user's conversational language.
      - Provide the executive summary and ask if the user wants the raw Markdown printed to chat.
-     - Print the full Markdown backlog into chat ONLY if explicitly confirmed or requested by the user.
+     - If explicitly confirmed, print the full Markdown document in chat. The document body MUST remain 100% in technical English; only surrounding notes follow the conversational language.
 4. **Revisiting Discovery:**
    - If subsequent user feedback materially alters problems, personas, or scope, return to Phase 1 (Discovery) to debate the delta before rewriting the document.
 
@@ -159,6 +159,6 @@ Execute this phase strictly when the hard gate is satisfied:
 
 Before emitting any response, execute this self-check:
 1. **Discovery Confinement:** Am I in Phase 1? If YES, does my draft contain table rows (`|`), PBI codes (`PBI-`), or template section headers (`### 1. Product`)? If YES, purge them before sending.
-2. **Gate Authorization:** Did the user explicitly authorize generation? If NO, stay in Phase 1.
-3. **Output Envelope:** In Phase 2, if file was written to disk, is the chat output restricted to (1) file link, (2) executive summary, and (3) open questions? If NO, delete the raw document from the chat output.
-4. **Universal English Mandate:** In Phase 2, is the generated `PBB.md` written 100% in technical English? If NO, translate it completely before saving.
+2. **Gate Authorization:** Did the user explicitly authorize generation (via direct command or accepting a consolidation proposal)? If NO, stay in Phase 1.
+3. **Output Envelope:** In Phase 2, if `<target_path>` was written to disk, is the chat output restricted to (1) file link, (2) executive summary, and (3) open questions? If NO, delete the raw document from the chat output.
+4. **Universal English Mandate:** In Phase 2, is the PBB deliverable body 100% in technical English (whether saved to disk or in fallback chat)? If NO, translate it completely before emitting.
