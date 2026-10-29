@@ -1,18 +1,20 @@
 # Project Documentation
 
-Index of technical documentation for **Agentic Workbench**.
+Index of project technical documentation for **Agentic Workbench**. Use the links below to navigate the available documents and graph map topology.
 
 ## Documentation Index
 
 | Document | Description | Reading |
-|---|---|---|
-| [**.digest.md**](.digest.md) | Compact AI orientation digest. | **Mandatory** |
-| [**.graph.json**](.graph.json) | Document routing graph. | **Mandatory** |
-| [**ARCHITECTURE.md**](adr/ARCHITECTURE.md) | Repository structure, skill architecture, and boundaries. | **Mandatory** |
-| [**TESTS.md**](adr/TESTS.md) | Verification strategy and commands. | **Mandatory** |
+|----------|-------------|----------|
+| [**.digest.md**](./.digest.md) | Fast-path machine-readable orientation digest (stack, test commands, rules). | **Mandatory** |
+| [**.graph.json**](./.graph.json) | Macro relation graph index for agent topology navigation and 1-hop routing. | **Mandatory** |
+| [**ARCHITECTURE.md**](./adr/ARCHITECTURE.md) | Architecture, folder organization, and code patterns for the project. | **Mandatory** |
+| [**TESTS.md**](./adr/TESTS.md) | Testing strategies, patterns, and execution commands. | **Mandatory** |
 
 ## Recommended Reading Order
 
-1. [**.digest.md**](.digest.md) for fast orientation.
-2. [**.graph.json**](.graph.json) for document topology.
-3. [**ARCHITECTURE.md**](adr/ARCHITECTURE.md) and [**TESTS.md**](adr/TESTS.md) for architecture and validation rules.
+If an exact path is supplied, read it directly. Otherwise use this order:
+
+1. **.digest.md** — fast AI orientation (architecture pattern, stack, test commands).
+2. **.graph.json** — macro relation graph index for 1-hop document lookup.
+3. Selected ADR or feature documents only when their design context is required.
