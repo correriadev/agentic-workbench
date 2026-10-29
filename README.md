@@ -46,6 +46,7 @@ O fluxo principal de engenharia separa **Intenção (Humano)**, **Construção (
 - **`tdd-maker`**: Worker de construção RED-GREEN-REFACTOR estrito dentro de `files_allowed`. Gera commits candidatos sem ler ou alterar `qa.json` nem atualizar `tasks.json`.
 - **`adversarial-qa`**: Juiz independente de QA. Executa testes destrutivos, de fronteira, concorrência, propriedades e segurança contra `qa.json`, sem reutilizar mocks do TDD.
 - **`the-grumpy-tech-lead`**: Tech Lead revisor focado em impactos sistêmicos (queries N+1, *memory leaks*, *race conditions*, quebra de contratos de camadas) via perguntas socráticas baseadas em evidências (`arquivo:linha`).
+- **`triad-mediator`**: Árbitro forense independente de apelação (*read-only*). Acionado exclusivamente no estado `blocked` para diagnosticar causas-raiz (conflito de spec, harness flaky, barreira de escopo ou capacidade de modelo) e emitir menu acionável para decisão humana.
 - **`project-memory`**: Cria e mantém documentação estruturada em `docs/` (`README.md`, `adr/ARCHITECTURE.md`, `adr/TESTS.md`, `.digest.md`, `.graph.json`) para orientação rápida de agentes.
 
 #### Produto, Design e Descoberta
@@ -91,7 +92,8 @@ agentic-workbench/
 │   ├── scope-refinement/
 │   ├── tdd-maker/
 │   ├── tdd-orchestrator/
-│   └── the-grumpy-tech-lead/
+│   ├── the-grumpy-tech-lead/
+│   └── triad-mediator/
 ├── AGENTS.md                   # Regras operacionais para agentes (Codex, Antigravity, OpenCode)
 ├── CLAUDE.md                   # Regras operacionais equivalentes para Claude Code
 └── README.md                   # Este documento

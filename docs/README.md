@@ -10,6 +10,7 @@ Index of project technical documentation for **Agentic Workbench**. Use the link
 | [**.graph.json**](./.graph.json) | Macro relation graph index for agent topology navigation and 1-hop routing. | **Mandatory** |
 | [**ARCHITECTURE.md**](./adr/ARCHITECTURE.md) | Architecture, folder organization, and code patterns for the project. | **Mandatory** |
 | [**TESTS.md**](./adr/TESTS.md) | Testing strategies, patterns, and execution commands. | **Mandatory** |
+| [**TDD_TRIAD_BLUEPRINT.md**](./adr/TDD_TRIAD_BLUEPRINT.md) | Portable architectural blueprint for reproducing the TDD Triad (`tdd-orchestrator`, `tdd-maker`, `adversarial-qa`) in external contexts. | **Optional** |
 
 ## Recommended Reading Order
 

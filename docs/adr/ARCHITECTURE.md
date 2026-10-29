@@ -7,6 +7,8 @@ tags: [architecture, design-patterns, folder-structure]
 edges:
   - relation: references
     target: "adr:tests"
+  - relation: references
+    target: "adr:tdd-triad-blueprint"
 updated: 2026-10-29
 ---
 # Project Architecture
@@ -62,6 +64,7 @@ REQUIRED: Any import violating these rules must fail CI verification via: `pytho
 | `tdd-maker` | Strict Red-Green-Refactor test-driven construction | `skills/tdd-maker/` |
 | `adversarial-qa` | Independent adversarial verification against invariants | `skills/adversarial-qa/` |
 | `the-grumpy-tech-lead` | Socratic architectural review and systemic risk detection | `skills/the-grumpy-tech-lead/` |
+| `triad-mediator` | Independent read-only forensic autopsy and operator escalation arbiter | `skills/triad-mediator/` |
 | `project-memory` | Architecture, test protocols, and graph index maintenance | `skills/project-memory/` |
 | `brainstorming` | Collaborative discovery and architectural trade-off analysis | `skills/brainstorming/` |
 | `pbb-design` | Product backlog building and scope slicing | `skills/pbb-design/` |
@@ -104,3 +107,4 @@ import external_orchestrator                     # FORBIDDEN: provider-agnostic 
 
 - [**README.md**](../README.md): Main documentation index.
 - [**TESTS.md**](./TESTS.md): Testing strategies and commands.
+- [**TDD_TRIAD_BLUEPRINT.md**](./TDD_TRIAD_BLUEPRINT.md): Portable architectural blueprint for reproducing the `tdd-orchestrator -> tdd-maker -> adversarial-qa` triad in other contexts.

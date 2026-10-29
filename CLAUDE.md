@@ -8,7 +8,7 @@ O **Agentic Workbench** mantém uma coleção enxuta de skills auto-contidas em 
 
 ## Estrutura do Repositório
 
-- `skills/` — Skills canônicas independentes de provedor (`scope-refinement`, `tdd-orchestrator`, `tdd-maker`, `adversarial-qa`, `project-memory`, `the-grumpy-tech-lead`, `brainstorming`, `pbb-design`, `prompt-generator`, `read-ui-prototype`, `codebase-memory`, `contextual-mentorship`, `ask-antigravity`, `ask-codex`, `ask-opencode`).
+- `skills/` — Skills canônicas independentes de provedor (`scope-refinement`, `tdd-orchestrator`, `tdd-maker`, `adversarial-qa`, `triad-mediator`, `project-memory`, `the-grumpy-tech-lead`, `brainstorming`, `pbb-design`, `prompt-generator`, `read-ui-prototype`, `codebase-memory`, `contextual-mentorship`, `ask-antigravity`, `ask-codex`, `ask-opencode`).
 - `docs/` — Memória arquitetural do repositório (`README.md`, `.digest.md`, `.graph.json`, `adr/ARCHITECTURE.md`, `adr/TESTS.md`).
 - `scripts/` — Scripts de limpeza e sincronização (`cleanup.ps1`, `cleanup.sh`, `sync_skills.py`).
 
