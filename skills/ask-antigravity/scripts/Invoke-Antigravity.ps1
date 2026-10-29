@@ -6,7 +6,7 @@ param(
     [ValidateSet('ReadOnly', 'Review', 'WorkspaceWrite')]
     [string]$Mode = 'ReadOnly',
     [string]$WorkingDirectory = (Get-Location).Path,
-    [string]$Model,
+    [string]$Model = 'gemini-4-argon',
     [string]$ReasoningEffort,
     [string]$OutputSchema,
     [string]$OutputFile,
@@ -37,6 +37,8 @@ if ($ReasoningEffort) {
         throw "Esforço não suportado: $ReasoningEffort"
     }
 }
+
+if (-not $ReasoningEffort) { $ReasoningEffort = 'low' }
 
 $cliArgs = @('--output-format', 'json', '--sandbox', '--disable-slash-commands', '--print-timeout', "${TimeoutSeconds}s")
 if ($Mode -eq 'WorkspaceWrite') {

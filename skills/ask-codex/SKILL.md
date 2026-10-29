@@ -33,7 +33,7 @@ Quando o usuário pedir interação com o Codex, analise a intenção e selecion
 O usuário pode opcionalmente especificar qual modelo ou perfil de raciocínio o Codex deve utilizar para a tarefa.
 
 ### Valores Padrão do Ambiente
-* **Modelo Padrão:** Definido no arquivo `~/.codex/config.toml` (atualmente `gpt-6.1-sol`).
+* **Modelo Padrão:** `gpt-6.1-sol`, passado explicitamente pelo helper.
 * **Esforço de Raciocínio Padrão:** `low`.
 
 ### Modelos Disponíveis
@@ -49,7 +49,7 @@ O Codex e a API da OpenAI suportam 7 níveis nativos. A skill mapeia e normaliza
 | :--- | :--- | :--- |
 | `none` | Desativa o raciocínio estendido | `none`, `nenhum`, `zero`, `off` |
 | `minimal` | Raciocínio mínimo para resposta rápida | `minimal`, `minimo`, `mínimo`, `min` |
-| `low` *(Padrão atual)* | Raciocínio leve (configurado no seu `config.toml`) | `low`, `baixo` |
+| `low` *(Padrão atual)* | Raciocínio leve (padrão explícito do helper) | `low`, `baixo` |
 | `medium` | Raciocínio equilibrado | `medium`, `medio`, `médio`, `med` |
 | `high` | Raciocínio aprofundado para problemas complexos | `high`, `alto` |
 | `xhigh` | Raciocínio extra-alto para tarefas de alta precisão | `xhigh`, `extra-high`, `extra_high`, `extra-alto`, `extra_alto`, `extra` |

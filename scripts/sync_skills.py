@@ -59,6 +59,25 @@ OBSOLETE_SKILLS = {
     "jev-social-research"
 }
 
+POLICY_TOKEN = b"{{PROVIDER_SUBAGENTS_POLICY}}"
+PROVIDER_POLICIES = {
+    "antigravity": (
+        "Dispatch both `tdd-maker` and `adversarial-qa` via `invoke_subagent` with "
+        "`Model: flash`. The Model enum accepts only `inherit`, `flash_lite`, `flash`, "
+        "and `pro`. Do not pass reasoning effort: the tool schema has no effort parameter."
+    ),
+    **{
+        target: (
+            f"Dispatch `tdd-maker` with `model: {model}`, `effort: extra-high`; "
+            f"dispatch `adversarial-qa` with `model: {model}`, `effort: extra-high`. "
+            "Use explicit invocation parameters rather than inheriting session defaults."
+        )
+        for target, model in {
+            "codex": "gpt-6-luna", "claude": "haiku-5.5", "opencode": "haiku-5.5"
+        }.items()
+    },
+}
+
 
 def get_available_skills():
     if not REPO_SKILLS.exists():
@@ -66,14 +85,32 @@ def get_available_skills():
     return sorted([d.name for d in REPO_SKILLS.iterdir() if d.is_dir() and (d / "SKILL.md").exists()])
 
 
-def sync_single_skill(src_dir: pathlib.Path, dst_dir: pathlib.Path, dry_run: bool = False):
+def sync_single_skill(src_dir: pathlib.Path, dst_dir: pathlib.Path, dry_run: bool = False,
+                      target_name: str = None):
+    transformations = [
+        path.relative_to(src_dir) for path in sorted(src_dir.rglob("*"))
+        if path.is_file() and POLICY_TOKEN in path.read_bytes()
+    ]
+    if transformations and target_name not in PROVIDER_POLICIES:
+        raise ValueError("A known target_name is required to render provider policy tokens")
     existed = dst_dir.exists()
     action = "Substituir (mirror)" if existed else "Criar"
+    if transformations:
+        action += (
+            f"; transformar {POLICY_TOKEN.decode()} para {target_name} em "
+            + ", ".join(str(path) for path in transformations)
+            + f" [{PROVIDER_POLICIES[target_name]}]"
+        )
     if dry_run:
         return action
     if existed:
         shutil.rmtree(dst_dir)
     shutil.copytree(src_dir, dst_dir)
+    for relative_path in transformations:
+        destination = dst_dir / relative_path
+        destination.write_bytes(destination.read_bytes().replace(
+            POLICY_TOKEN, PROVIDER_POLICIES[target_name].encode("utf-8")
+        ))
     return action
 
 
@@ -130,7 +167,7 @@ def main():
         for skill_name in skills_to_sync:
             src = REPO_SKILLS / skill_name
             dst = target_dir / skill_name
-            action = sync_single_skill(src, dst, dry_run=args.dry_run)
+            action = sync_single_skill(src, dst, dry_run=args.dry_run, target_name=target_name)
             prefix = "[PLAN] " if args.dry_run else "[OK]   "
             print(f"   {prefix}{action}: {skill_name}")
 

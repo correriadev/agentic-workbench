@@ -74,6 +74,11 @@ Operate exactly two persistent worktrees per change under `<git-common-dir>/tria
   ```
 
 ### 2. Blind Batch Dispatch to `tdd-maker`
+- Default invocation policy (rendered during skill synchronization):
+
+  {{PROVIDER_SUBAGENTS_POLICY}}
+
+- Apply this policy to the worker dispatched in this section. If the token remains unresolved, sync for the active host before dispatch; do not guess parameters. Preserve detached slot isolation and all scope constraints.
 - Dispatch topological batch in `maker-slot`. Rework starts from previous candidate.
 - Provide full task records: `task_ids`, topological order, `acceptance_ids`, `files_allowed`, `red`, `contract_delta`, and construction test commands.
 - Parse `<maker_result>` JSON: validate `protocol: "triad.maker.result.v1"`, matching `batch_id`, and existing OIDs. If unparseable, request re-emission of JSON without rerunning code.
@@ -87,6 +92,11 @@ Operate exactly two persistent worktrees per change under `<git-common-dir>/tria
 - Rollback Rule: If commit $k$ violates scope, truncate slot to `commit_{k-1}` (or `dispatch_base_oid`), charge 1 retry, and redispatch only remaining tasks.
 
 ### 4. QA Handoff, Overlay & Reconciled Ingestion
+- Default invocation policy (rendered during skill synchronization):
+
+  {{PROVIDER_SUBAGENTS_POLICY}}
+
+- Apply this policy to the worker dispatched in this section. If the token remains unresolved, sync for the active host before dispatch; do not guess parameters. Preserve detached slot isolation and all scope constraints.
 - Pin ref: `git update-ref refs/triad/candidates/${change_id}/${batch_id}-${attempt} <candidate-oid>`.
 - Prepare `qa-slot` detached at `candidate_oid`.
 - Overlay: Copy canonical `SCOPE.md`, `qa.json`, and all archived harnesses from `<git-common-dir>/triad/${change_id}/qa-harnesses/` to their relative paths in `qa-slot`. Record paths for post-run cleanup.

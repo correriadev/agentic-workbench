@@ -45,7 +45,7 @@ param(
     [string]$Mode = 'ReadOnly',
 
     [Parameter()]
-    [string]$Model,
+    [string]$Model = 'gpt-6.1-sol',
 
     [Parameter()]
     [string]$ReasoningEffort,
@@ -94,6 +94,8 @@ if ($ReasoningEffort) {
     }
 }
 
+if (-not $ReasoningEffort) { $ReasoningEffort = 'low' }
+
 # Verificar se estamos dentro de um repositório git
 $isGitRepo = $false
 try {
@@ -118,6 +120,7 @@ try {
             throw "O modo 'Review' exige que o diretório atual seja um repositório Git válido."
         }
         $argsList = @('review')
+        $argsList += @('-c', "model=`"$Model`"", '-c', "model_reasoning_effort=`"$ReasoningEffort`"")
         if ($ReviewTarget) {
             $argsList += $ReviewTarget
         }

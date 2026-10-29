@@ -16,6 +16,8 @@ A premissa fundamental desta skill é a **transparência total para o usuário c
 
 ## 1. Catálogo Completo de Modelos e Esforços (Reasoning Efforts)
 
+Sem escolha explícita, o helper usa `glm-5.3` com esforço `high`. Para `glm-5.3`, `opencode-go` aceita somente `low`, `high`, `max`; `medium` não é suportado. Overrides explícitos prevalecem.
+
 O OpenCode no seu ambiente está conectado aos provedores **`opencode-go`** e **`opencode`** (free). Abaixo está o catálogo completo de todos os modelos disponíveis e suas respectivas variantes de raciocínio suportadas:
 
 ### Modelos do Provedor `opencode-go`

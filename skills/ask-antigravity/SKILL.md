@@ -28,7 +28,7 @@ Permite ao Codex ou outro agente delegar tarefas ao **Antigravity CLI (`agy`)** 
 
 ## Modelos e esforço
 
-Descubra modelos com `agy models`. Sem escolha explícita, mantenha os padrões do CLI; não fixe catálogo ou modelo nesta skill.
+Sem escolha explícita, use `gemini-4-argon` com esforço `low`. O helper passa esses padrões explicitamente. Overrides do usuário prevalecem; consulte `agy models` para verificar disponibilidade.
 
 O helper aceita `-Model <slug>`, `-ReasoningEffort low|medium|high|xhigh|max` e a notação `-Model <slug>/extra-high`. Normalize `baixo`, `médio`, `alto`, `extra-high`, `extra-alto` e `máximo`. Um esforço separado prevalece sobre o sufixo. A disponibilidade depende do modelo e da versão instalada; não substitua silenciosamente uma escolha rejeitada.
 

@@ -37,7 +37,7 @@ param(
     [string]$Prompt,
 
     [Parameter(Position = 1)]
-    [string]$Model = 'glm-5.3-flash',
+    [string]$Model = 'glm-5.3',
 
     [Parameter(Position = 2)]
     [string]$Variant,
@@ -88,6 +88,8 @@ if ($Model -match '^(.*?)/([^/]+)$' -and -not $Variant) {
         $Variant = $secondPart
     }
 }
+
+if (-not $Variant) { $Variant = 'high' }
 
 # Normalizar Variant (reasoning effort)
 if ($Variant) {
