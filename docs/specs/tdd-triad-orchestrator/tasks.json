@@ -1,0 +1,137 @@
+{
+  "change_id": "tdd-triad-orchestrator",
+  "scope_hash": "c6f6bf02f5ee4b610ca5fb28c450d1b0e9cd201c90789d3b4225af5cc3517063",
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Create tdd-maker skill contract",
+      "description": "Author skills/tdd-maker/SKILL.md defining the worker-tier construction agent contract. Enforces strict RED-GREEN-REFACTOR execution within files_allowed and produces immutable candidate commits.",
+      "project_path": ".",
+      "tier": "unit",
+      "depends_on": [],
+      "contract_delta": {
+        "skills/tdd-maker/SKILL.md": {
+          "tdd-maker": "added — new skill contract for TDD Red-Green-Refactor construction worker"
+        }
+      },
+      "technical_steps": [
+        "Create skills/tdd-maker/SKILL.md with standard YAML frontmatter",
+        "Specify Maker-Checker isolation forbidding qa.json inspection or mutation",
+        "Define strict RED-GREEN-REFACTOR execution and candidate commit generation"
+      ],
+      "acceptance_ids": ["A1"],
+      "evidence_ids": ["E1"],
+      "files_allowed": ["skills/tdd-maker/**"],
+      "red": {
+        "test_file": "tests/test_triad_contracts.py",
+        "test_ids": ["test_tdd_maker_contract_isolation"]
+      },
+      "status": "pending",
+      "origin": "scope"
+    },
+    {
+      "id": "T3",
+      "title": "Implement Git worktree slot manager",
+      "description": "Implement scripts/triad_runner.py to manage persistent worktree slots (maker-slot and qa-slot). Provides slot acquisition, process tree termination, and clean resets with detached HEAD.",
+      "project_path": ".",
+      "tier": "unit",
+      "depends_on": [],
+      "contract_delta": {
+        "scripts/triad_runner.py": {
+          "ensure_slots(repo_dir: Path, slots_dir: Path) -> dict[str, Path]": "added — provisions persistent maker and qa slots",
+          "prepare_slot(slot_path: Path, target_commit: str) -> None": "added — switches slot to detached HEAD at target commit",
+          "clean_slot(slot_path: Path, base_commit: str) -> None": "added — terminates processes, hard resets, and cleans untracked files"
+        }
+      },
+      "technical_steps": [
+        "Create tests/test_triad_runner.py with unit tests covering slot provisioning, process termination, and hygiene",
+        "Implement scripts/triad_runner.py using Python 3.12 standard library only",
+        "Run unit tests to verify zero leftover handles and clean working trees"
+      ],
+      "acceptance_ids": ["A3"],
+      "evidence_ids": ["E2"],
+      "files_allowed": ["scripts/triad_runner.py", "tests/test_triad_runner.py"],
+      "red": {
+        "test_file": "tests/test_triad_runner.py",
+        "test_ids": ["test_slot_provisioning_and_cleanup"]
+      },
+      "status": "pending",
+      "origin": "scope"
+    },
+    {
+      "id": "T2",
+      "title": "Refactor tdd-orchestrator skill to supervisor role",
+      "description": "Refactor skills/tdd-orchestrator/SKILL.md into a pure supervisory coordinator. Delegates tasks to tdd-maker, gates commits with adversarial-qa, and manages tasks.json rework loops.",
+      "project_path": ".",
+      "tier": "integration",
+      "depends_on": [
+        {
+          "task": "T1",
+          "reason": "orchestrator dispatches construction tasks to the tdd-maker contract defined in T1"
+        },
+        {
+          "task": "T3",
+          "reason": "orchestrator leverages slot management commands provided by triad_runner in T3"
+        }
+      ],
+      "contract_delta": {
+        "skills/tdd-orchestrator/SKILL.md": {
+          "tdd-orchestrator": "modified — stripped of raw code writing; converted to supervisor and gatekeeper"
+        }
+      },
+      "technical_steps": [
+        "Strip raw code editing instructions from skills/tdd-orchestrator/SKILL.md",
+        "Add dispatch protocol for tdd-maker subagent with files_allowed boundaries",
+        "Add verification gate protocol invoking adversarial-qa and handling rework loop"
+      ],
+      "acceptance_ids": ["A2", "A4"],
+      "evidence_ids": ["E1", "E2"],
+      "files_allowed": ["skills/tdd-orchestrator/**"],
+      "red": {
+        "test_file": "tests/test_triad_contracts.py",
+        "test_ids": ["test_tdd_orchestrator_supervisory_protocol"]
+      },
+      "status": "pending",
+      "origin": "scope"
+    },
+    {
+      "id": "T4",
+      "title": "Update workbench documentation and architecture graph",
+      "description": "Document the TDD Triad in docs/adr/ARCHITECTURE.md and update sync scripts. Regenerates docs/.graph.json and validates workbench ontology.",
+      "project_path": ".",
+      "tier": "integration",
+      "depends_on": [
+        {
+          "task": "T1",
+          "reason": "documents tdd-maker in workbench architecture and catalog"
+        },
+        {
+          "task": "T2",
+          "reason": "documents refactored supervisory tdd-orchestrator"
+        }
+      ],
+      "contract_delta": {
+        "docs/adr/ARCHITECTURE.md": {
+          "TDD Triad": "added — architectural specification of orchestrator-maker-checker triad"
+        },
+        "scripts/sync_skills.py": {
+          "sync_skills": "modified — ensures tdd-maker is synced to all local coding agent environments"
+        }
+      },
+      "technical_steps": [
+        "Update docs/adr/ARCHITECTURE.md with Triad definitions and relationships",
+        "Verify scripts/sync_skills.py includes tdd-maker in available skill list",
+        "Run validate_ontology.py and generate_docs_graph.py to refresh graph"
+      ],
+      "acceptance_ids": ["A1", "A2"],
+      "evidence_ids": ["E1"],
+      "files_allowed": ["docs/adr/ARCHITECTURE.md", "docs/.graph.json", "scripts/sync_skills.py"],
+      "red": {
+        "test_file": "tests/test_triad_contracts.py",
+        "test_ids": ["test_architecture_triad_registration"]
+      },
+      "status": "pending",
+      "origin": "scope"
+    }
+  ]
+}

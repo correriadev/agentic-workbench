@@ -4,11 +4,11 @@ Guia de contexto e instruções operacionais para o Claude Code neste repositór
 
 ## Visão Geral
 
-O **Agentic Workbench** mantém uma coleção enxuta de 14 skills auto-contidas em `skills/<nome>/SKILL.md` para engenharia de software assistida por IA, cobrindo desde descoberta de produto até especificação tripartite, TDD, QA adversarial e memória arquitetural.
+O **Agentic Workbench** mantém uma coleção enxuta de skills auto-contidas em `skills/<nome>/SKILL.md` para engenharia de software assistida por IA, cobrindo desde descoberta de produto até especificação tripartite, TDD, QA adversarial e memória arquitetural.
 
 ## Estrutura do Repositório
 
-- `skills/` — Skills canônicas independentes de provedor (`scope-refinement`, `tdd-orchestrator`, `adversarial-qa`, `project-memory`, `the-grumpy-tech-lead`, `brainstorming`, `pbb-design`, `prompt-generator`, `read-ui-prototype`, `codebase-memory`, `contextual-mentorship`, `ask-antigravity`, `ask-codex`, `ask-opencode`).
+- `skills/` — Skills canônicas independentes de provedor (`scope-refinement`, `tdd-orchestrator`, `tdd-maker`, `adversarial-qa`, `project-memory`, `the-grumpy-tech-lead`, `brainstorming`, `pbb-design`, `prompt-generator`, `read-ui-prototype`, `codebase-memory`, `contextual-mentorship`, `ask-antigravity`, `ask-codex`, `ask-opencode`).
 - `docs/` — Memória arquitetural do repositório (`README.md`, `.digest.md`, `.graph.json`, `adr/ARCHITECTURE.md`, `adr/TESTS.md`).
 - `scripts/` — Scripts de limpeza e sincronização (`cleanup.ps1`, `cleanup.sh`, `sync_skills.py`).
 
@@ -16,7 +16,7 @@ O **Agentic Workbench** mantém uma coleção enxuta de 14 skills auto-contidas 
 
 1. **Orientação Rápida:** Leia `docs/.digest.md` antes de explorar arquivos manualmente.
 2. **Skills Leves e Auto-contidas:** Ao editar qualquer `skills/<nome>/SKILL.md`, mantenha instruções diretas, verificáveis e sem acoplamento a orquestradores externos.
-3. **Isolamento Maker-Checker:** Preserve a separação estrita entre quem especifica (`scope-refinement`), quem implementa (`tdd-orchestrator`) e quem audita (`adversarial-qa`, `the-grumpy-tech-lead`).
+3. **Isolamento Maker-Checker:** Preserve a separação estrita entre quem especifica (`scope-refinement`), quem supervisiona (`tdd-orchestrator`), quem implementa (`tdd-maker`) e quem audita (`adversarial-qa`, `the-grumpy-tech-lead`).
 4. **Plugins Integrados:** Respeite as diretrizes do **Caveman** (respostas concisas, zero *fluff*), **Ponytail** (menor mudança completa, YAGNI) e **Codebase Memory MCP** (consultas de grafo antes de grep).
 
 ## Comandos Úteis

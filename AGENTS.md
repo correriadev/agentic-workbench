@@ -17,7 +17,7 @@ Quando executar tarefas de desenvolvimento de software usando as skills deste re
 
 1. **Descoberta (Opcional):** Use `skills/brainstorming/SKILL.md` ou `skills/pbb-design/SKILL.md` para clarificar escopo aberto.
 2. **Especificação Tripartite:** Use `skills/scope-refinement/SKILL.md` para inspecionar `docs/` e código-fonte e gerar `docs/specs/<change_id>/{SCOPE.md, tasks.json, qa.json}`.
-3. **Construção (Maker):** Use `skills/tdd-orchestrator/SKILL.md` para implementar o DAG de `tasks.json` via Red-Green-Refactor estrito.
+3. **Supervisão e Construção:** Use `skills/tdd-orchestrator/SKILL.md` para supervisionar o DAG e despachar lotes a `skills/tdd-maker/SKILL.md`. O Maker executa Red-Green-Refactor estrito e gera candidatos; o supervisor valida diffs e gerencia os slots persistentes `maker-slot` e `qa-slot` com HEAD detached.
 4. **Verificação Independente (Checker):** Use `skills/adversarial-qa/SKILL.md` para validar invariantes e segurança em `qa.json`, e `skills/the-grumpy-tech-lead/SKILL.md` para revisão socrática de impactos sistêmicos.
 5. **Memória do Projeto:** Use `skills/project-memory/SKILL.md` para sincronizar `docs/` (`.digest.md`, `.graph.json`, ADRs).
 

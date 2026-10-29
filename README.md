@@ -27,9 +27,11 @@ O fluxo principal de engenharia separa **Intenção (Humano)**, **Construção (
             ↓
    [scope-refinement]  ──► gera docs/specs/<change_id>/{SCOPE.md, tasks.json, qa.json}
             ↓
-   [tdd-orchestrator]  ──► executa Red-Green-Refactor no DAG de tasks.json
+   [tdd-orchestrator]  ──► supervisiona DAG, lotes, candidatos e retrabalho em tasks.json
             ↓
-    [adversarial-qa]   ──► valida invariantes, bordas, concorrência e segurança (qa.json)
+       [tdd-maker]     ──► executa Red-Green-Refactor em maker-slot e gera commit candidato
+            ↓
+    [adversarial-qa]   ──► verifica o candidato em qa-slot; PASS libera integração fast-forward
             ↓
 [the-grumpy-tech-lead] ──► revisão socrática de impactos sistêmicos e arquitetura
             ↓
@@ -40,7 +42,8 @@ O fluxo principal de engenharia separa **Intenção (Humano)**, **Construção (
 
 #### Engenharia Core
 - **`scope-refinement`**: Traduz intenção de negócio e inspeção do código (`docs/` + código-fonte) em uma especificação tripartite atômica (`SCOPE.md`, `tasks.json`, `qa.json`).
-- **`tdd-orchestrator`**: Executa ciclos autônomos de TDD (Red-Green-Refactor) respeitando a topologia do DAG em `tasks.json`, confinamento de *blast-radius* (`files_allowed`) e loop de retrabalho com QA.
+- **`tdd-orchestrator`**: Supervisiona o DAG e despacha lotes ao Maker. Valida diffs, mantém dois slots persistentes com HEAD detached, gerencia retrabalho `RW-*` com retries limitados e integra candidatos aprovados por QA.
+- **`tdd-maker`**: Worker de construção RED-GREEN-REFACTOR estrito dentro de `files_allowed`. Gera commits candidatos sem ler ou alterar `qa.json` nem atualizar `tasks.json`.
 - **`adversarial-qa`**: Juiz independente de QA. Executa testes destrutivos, de fronteira, concorrência, propriedades e segurança contra `qa.json`, sem reutilizar mocks do TDD.
 - **`the-grumpy-tech-lead`**: Tech Lead revisor focado em impactos sistêmicos (queries N+1, *memory leaks*, *race conditions*, quebra de contratos de camadas) via perguntas socráticas baseadas em evidências (`arquivo:linha`).
 - **`project-memory`**: Cria e mantém documentação estruturada em `docs/` (`README.md`, `adr/ARCHITECTURE.md`, `adr/TESTS.md`, `.digest.md`, `.graph.json`) para orientação rápida de agentes.
@@ -73,7 +76,7 @@ agentic-workbench/
 │   ├── cleanup.ps1             # Higienização estrutural do repositório (PowerShell)
 │   ├── cleanup.sh              # Higienização estrutural do repositório (Bash)
 │   └── sync_skills.py          # Sincronização e espelhamento intencional para coding agents
-├── skills/                     # 14 skills auto-contidas (1 pasta por skill com SKILL.md)
+├── skills/                     # Skills auto-contidas (1 pasta por skill com SKILL.md)
 │   ├── adversarial-qa/
 │   ├── ask-antigravity/
 │   ├── ask-codex/
@@ -86,6 +89,7 @@ agentic-workbench/
 │   ├── prompt-generator/
 │   ├── read-ui-prototype/
 │   ├── scope-refinement/
+│   ├── tdd-maker/
 │   ├── tdd-orchestrator/
 │   └── the-grumpy-tech-lead/
 ├── AGENTS.md                   # Regras operacionais para agentes (Codex, Antigravity, OpenCode)

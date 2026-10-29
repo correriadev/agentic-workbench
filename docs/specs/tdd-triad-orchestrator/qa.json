@@ -1,0 +1,89 @@
+{
+  "change_id": "tdd-triad-orchestrator",
+  "scope_hash": "c6f6bf02f5ee4b610ca5fb28c450d1b0e9cd201c90789d3b4225af5cc3517063",
+  "snapshot_ref": "pending",
+  "metrics": [
+    {
+      "name": "triad_runner_unit_coverage",
+      "eval_command": "python -m unittest discover -s tests",
+      "eval_discovered_from": "tests/test_triad_runner.py",
+      "target": "100% pass rate",
+      "or": "unavailable: repo lacks coverage tooling"
+    },
+    {
+      "name": "ontology_integrity",
+      "eval_command": "python skills/project-memory/scripts/validate_ontology.py docs",
+      "eval_discovered_from": "docs/adr/TESTS.md",
+      "target": "0 validation errors",
+      "or": "0 validation errors"
+    }
+  ],
+  "invariants": [
+    {
+      "id": "QA-I-01",
+      "type": "boundary",
+      "acceptance_ids": ["A1"],
+      "statement": "skills/tdd-maker/SKILL.md defines strict Maker-Checker isolation and prohibits reading or modifying qa.json or tasks outside files_allowed",
+      "eval_command": "python -m unittest tests.test_triad_contracts.TestTriadContracts.test_tdd_maker_contract_isolation",
+      "eval_discovered_from": "tests/test_triad_contracts.py",
+      "assert_regex": "OK",
+      "manual_gate": false,
+      "mock_policy": "real",
+      "severity": "blocking",
+      "budget": {
+        "max_wall_clock_s": 60,
+        "max_retries": 2
+      }
+    },
+    {
+      "id": "QA-I-02",
+      "type": "property",
+      "acceptance_ids": ["A2"],
+      "statement": "skills/tdd-orchestrator/SKILL.md delegates construction to tdd-maker and retains exclusive governance of tasks.json and rework loops",
+      "eval_command": "python -m unittest tests.test_triad_contracts.TestTriadContracts.test_tdd_orchestrator_supervisory_protocol",
+      "eval_discovered_from": "tests/test_triad_contracts.py",
+      "assert_regex": "OK",
+      "manual_gate": false,
+      "mock_policy": "real",
+      "severity": "blocking",
+      "budget": {
+        "max_wall_clock_s": 60,
+        "max_retries": 2
+      }
+    },
+    {
+      "id": "QA-I-03",
+      "type": "boundary",
+      "acceptance_ids": ["A3"],
+      "statement": "scripts/triad_runner.py provisions persistent worktree slots, terminates lingering processes, and executes clean resets",
+      "eval_command": "python -m unittest tests.test_triad_runner",
+      "eval_discovered_from": "tests/test_triad_runner.py",
+      "assert_regex": "OK",
+      "manual_gate": false,
+      "mock_policy": "real",
+      "severity": "blocking",
+      "budget": {
+        "max_wall_clock_s": 120,
+        "max_retries": 2
+      }
+    },
+    {
+      "id": "QA-I-04",
+      "type": "e2e",
+      "acceptance_ids": ["A4"],
+      "statement": "Candidate commits approved by QA are merged via fast-forward only while retaining candidate refs under refs/triad/candidates",
+      "eval_command": "python -m unittest tests.test_triad_contracts.TestTriadContracts.test_candidate_ref_and_fast_forward_merge",
+      "eval_discovered_from": "tests/test_triad_contracts.py",
+      "assert_regex": "OK",
+      "manual_gate": false,
+      "mock_policy": "real",
+      "severity": "blocking",
+      "budget": {
+        "max_wall_clock_s": 60,
+        "max_retries": 2
+      }
+    }
+  ],
+  "rework_queue": [],
+  "verdicts": []
+}
