@@ -9,6 +9,13 @@ Senior Software Architect role. Transform requirements and codebase evidence int
 
 ---
 
+## 0. Universal Language Mandate
+
+- **Strict English Only:** All generated artifacts (`SCOPE.md`, `tasks.json`, `qa.json`) MUST be written 100% in technical English, regardless of the user's conversational language.
+- **Exception for Verbatim Quotes:** Stakeholder requirements or domain terms may be quoted verbatim in their source language if immediately followed by an exact English gloss.
+
+---
+
 ## 1. Inputs
 
 Collect or receive these variables:
@@ -29,17 +36,18 @@ Target spec directory: `docs/specs/${change_id}/`.
 Inspect documentation and codebase before modeling:
 
 1. **Docs-First Fast-Path (if available):**
-   - Check if `${projectPaths}` contains a `docs/` directory with architectural context (e.g., `docs/.digest.md`, `docs/.graph.json`, ADRs in `docs/adr/`, or domain specs).
-   - Read these documents first to establish domain boundaries, invariants, and existing contracts without scanning raw code blindly.
+   - Check if `${projectPaths}` contains a `docs/` directory with architectural context (`docs/.digest.md`, `docs/.graph.json`, ADRs in `docs/adr/`, or domain specs).
+   - Read these documents first to establish domain boundaries, invariants, and existing contracts.
    - Record relevant architectural evidence with `kind: "doc"`.
 
 2. **Codebase Inspection (Direct or Fallback):**
-   - Search and read source files around the affected domains using file read or search tools.
-   - If `docs/` is absent, direct source inspection serves as the primary ground truth.
+   - Search and read source files around affected domains (`grep`/`read`).
+   - If `docs/` is absent, direct source inspection serves as primary ground truth.
+   - Discover test commands, runners, and build scripts from `package.json`, `Makefile`, or `pyproject.toml` to power `qa.json`.
    - Validate current implementation details, integration points, and file paths with `kind: "code"`.
 
 3. **Active Discrepancy Investigation (MANDATORY):**
-   - If a discrepancy is detected between documentation/assumptions and code implementation (e.g., doc states an invariant that code contradicts, or conflicting assumptions):
+   - If a discrepancy is detected between documentation/assumptions and code implementation:
      - Investigate the code to identify the exact divergence and impact.
      - **NEVER resolve silently.**
      - Escalate the discrepancy directly into the Clarification Interview (Section 4) as a priority question to inform the user.
@@ -68,7 +76,7 @@ Resolve ambiguity and discrepancies with minimal friction:
 - Limit to **0–5 blocking questions**. Ask only if a wrong assumption alters the DAG or acceptance criteria.
 - **Discrepancy Escalation:** Any discrepancy found between documentation/assumptions and code has **highest priority**. Inform the user clearly:
   *"Discrepancy found: [Doc path] states [X], but [Code path] implements [Y]. Which takes precedence for this change?"*
-- Every question must include a grounded recommendation based on the investigation.
+- Every question must include a grounded recommendation based on investigation.
 - When human input is available, ask directly.
 - When running headless, adopt the recommendation and record it under `assumptions` (`"from": "Discrepancy Q1 default recommendation"`).
 
@@ -78,9 +86,9 @@ Format:
 
 ---
 
-## 5. Vertical Slicing & Test Pyramid Ownership
+## 5. Vertical Slicing, Test Pyramid & Anti-Linear DAG
 
-Decompose the change by outcome and risk, adhering to the Maker-Checker separation:
+Decompose the change by outcome and risk, adhering to Maker-Checker separation:
 
 ### Test Pyramid Segregation
 - **TDD Agent (Worker):** Owns construction-adjacent tests written *before* implementation.
@@ -91,6 +99,16 @@ Decompose the change by outcome and risk, adhering to the Maker-Checker separati
   - `type: "e2e"` — End-to-end flows. TDD never writes E2E tests.
   - `type: "property"` — Fuzzing, property invariants, and fault injection.
   - `mock_policy: "real"` — QA attacks real integration seams; never reuses TDD mocks.
+
+### Anti-Linear DAG Enforcement
+- **Strict Linear Chains are FORBIDDEN:** Artificial serial chains ($T1 \to T2 \to T3 \dots$) where `edges == tasks - 1` are invalid unless the change is inherently single-threaded.
+- Independent modules, config updates, and standalone endpoints MUST be modeled as parallel roots (`depends_on: []`) or parallel branches.
+- Every `depends_on` entry MUST be an object declaring the target task and the exact shared contract reason:
+  ```json
+  "depends_on": [
+    { "task": "T1", "reason": "consumes AuthenticatedUser type exported by T1" }
+  ]
+  ```
 
 ### Traceability Closure Rule
 Every business acceptance criterion `A*` in `SCOPE.md` must map to:
@@ -103,30 +121,22 @@ Every business acceptance criterion `A*` in `SCOPE.md` must map to:
 
 Generate three distinct files in `docs/specs/${change_id}/`:
 
-### A. `docs/specs/${change_id}/SCOPE.md` (Intent Tier — Human)
-Pure Markdown artifact representing the business and architectural contract:
-
-```markdown
-# Scope: ${change_id}
-
-## 1. Intent & Boundaries
-- **Objective:** Concise business outcome.
-- **In Scope:** Explicit functional additions/modifications.
-- **Out of Scope:** Explicit non-goals.
-
-## 2. Behavioral Delta & Acceptance Criteria
-- **A1:** Given [precondition], When [action], Then [observable outcome].
-- **A2:** Given [precondition], When [action], Then [observable outcome].
-
-## 3. Decisions & Discrepancy Resolutions
-- Recorded assumptions (S1, S2...) and user-approved discrepancy resolutions.
-
-## 4. Amendment Log
-- Initial baseline established by refinement. (Human changes here trigger recompilation).
-```
+### A. `docs/specs/${change_id}/SCOPE.md` (Intent Tier — Human, 80–150 lines)
+Pure Markdown artifact. Depth is triggered by architectural coupling:
+- **`## 1. Intent & Boundaries`**: Objective, In Scope, Out of Scope (explicit non-goals).
+- **`## 2. Architectural Flow & Contracts`**:
+  - *Sequence Diagram (Mermaid)*: Mandatory IF the flow crosses $\ge 2$ modules or agents.
+  - *State Diagram (Mermaid)*: Mandatory IF a state machine is introduced or modified.
+  - *Contract Table*: Exact touched routes, CLI commands, env vars, or events with parameters and return types.
+- **`## 3. Behavioral Delta & Acceptance Criteria`**:
+  - Gherkin format (`A1`, `A2`...) covering happy paths, negative paths, and edge cases.
+- **`## 4. Decisions & Discrepancy Resolutions`**:
+  - Architectural choices (`D1`, `D2`...) and resolved doc/code discrepancies (`S1`, `S2`...).
+- **`## 5. Amendment Log`**:
+  - Initial baseline date and human modification log.
 
 ### B. `docs/specs/${change_id}/tasks.json` (Worker Tier — TDD Agent)
-Machine-readable Directed Acyclic Graph (DAG) for implementation:
+Dense, anti-bloat DAG with explicit contract deltas ($\le 30$ lines per task):
 
 ```json
 {
@@ -135,16 +145,28 @@ Machine-readable Directed Acyclic Graph (DAG) for implementation:
   "tasks": [
     {
       "id": "T1",
-      "title": "Verifiable task description",
+      "title": "Short action title",
+      "description": "What and why in <= 2 sentences. No implementation details.",
       "project_path": "path/to/project",
       "tier": "unit | integration",
-      "depends_on": [],
+      "depends_on": [
+        { "task": "T0", "reason": "consumes InterfaceX defined in T0" }
+      ],
+      "contract_delta": {
+        "src/module/service.ts": {
+          "executeAction(id: string, opts: ActionOpts): Promise<ActionResult>": "modified — arity 2",
+          "ActionError": "added type — { kind: 'not_found' | 'timeout', message: string }"
+        }
+      },
+      "technical_steps": [
+        "Optional: max 5 imperative lines only when ordering or hazards exist"
+      ],
       "acceptance_ids": ["A1"],
       "evidence_ids": ["E1"],
       "files_allowed": ["src/module/**", "tests/unit/**"],
       "red": {
         "test_file": "tests/unit/feature.spec.ts",
-        "test_ids": ["test_case_name"]
+        "test_ids": ["test_action_rejects_invalid_opts"]
       },
       "status": "pending",
       "origin": "scope"
@@ -154,20 +176,32 @@ Machine-readable Directed Acyclic Graph (DAG) for implementation:
 ```
 
 ### C. `docs/specs/${change_id}/qa.json` (Judge Tier — Adversarial QA Gate)
-Strict verification contract for independent quality auditing:
+Executable verification contract with discovered commands and measurable metrics:
 
 ```json
 {
   "change_id": "${change_id}",
   "scope_hash": "sha256_of_SCOPE.md",
   "snapshot_ref": "pending",
+  "metrics": [
+    {
+      "name": "unit_test_coverage",
+      "eval_command": "npm test -- --coverage",
+      "eval_discovered_from": "package.json:scripts.test",
+      "target": ">= 80%",
+      "or": "unavailable: repo lacks coverage tooling — cited evidence E1"
+    }
+  ],
   "invariants": [
     {
       "id": "QA-I-01",
       "type": "concurrency | property | e2e | failure_injection | boundary",
       "acceptance_ids": ["A1"],
       "statement": "Machine-checkable universal predicate",
-      "harness": "artillery | k6 | hypothesis | custom_script",
+      "eval_command": "npm test -- --filter idempotency.spec.ts",
+      "eval_discovered_from": "package.json:scripts.test",
+      "assert_regex": "1 charge persisted.*409 Conflict",
+      "manual_gate": false,
       "mock_policy": "real | contract-fake",
       "severity": "blocking | advisory",
       "budget": { "max_wall_clock_s": 180, "max_retries": 2 }
@@ -182,21 +216,63 @@ Strict verification contract for independent quality auditing:
 
 ## 7. Mechanical Readiness Gate
 
-Before completing, self-validate the generated directory against these 7 checks:
-1. **Triad Existence:** All 3 files (`SCOPE.md`, `tasks.json`, `qa.json`) exist in `docs/specs/${change_id}/`.
-2. **JSON Integrity:** `tasks.json` and `qa.json` parse with zero errors.
-3. **DAG Validity:** At least one task has `"depends_on": []`, and the graph resolves topographically without cycles.
-4. **Traceability Closure:** Every acceptance `A*` in `SCOPE.md` is referenced by $\ge 1$ task in `tasks.json` AND $\ge 1$ blocking invariant in `qa.json`.
-5. **Blast-Radius Confinement:** Every task in `tasks.json` defines non-empty `files_allowed`.
-6. **Measurable Invariants:** Every entry in `qa.json` has a concrete predicate, harness, and severity.
-7. **Zero Open Blockers:** `open_questions` is empty; all discrepancies are resolved or captured in `assumptions`.
-
-If any check fails, correct the specification and re-verify before finishing.
+Before completing, self-validate the generated directory against these 8 checks:
+1. **Language Compliance:** 100% of prose in `SCOPE.md`, `tasks.json`, and `qa.json` is English.
+2. **Triad Existence:** All 3 files (`SCOPE.md`, `tasks.json`, `qa.json`) exist in `docs/specs/${change_id}/`.
+3. **JSON Integrity:** `tasks.json` and `qa.json` parse with zero errors.
+4. **Contract Density:** Every task defines `description` ($\le 2$ sentences) and non-empty `contract_delta`.
+5. **Anti-Linear DAG:** If `tasks >= 4`, verify `edges != tasks - 1` unless strictly justified; every `depends_on` has `reason`.
+6. **Executable Invariants:** Every invariant defines `eval_command` (discovered from repo) or explicit `manual_gate: true`.
+7. **Traceability Closure:** Every acceptance `A*` in `SCOPE.md` is referenced by $\ge 1$ task in `tasks.json` AND $\ge 1$ blocking invariant in `qa.json`.
+8. **Automated Validator Script:** Run validator:
+   ```powershell
+   python skills/scope-refinement/scripts/validate_spec.py docs/specs/${change_id}
+   ```
+   Must exit with code 0 before concluding.
 
 ---
 
 ## 8. General Rules
 
-- **No Production Code:** Do not write implementation files.
+- **English Only:** All spec artifacts must be written in English.
+- **No Production Code:** Do not write implementation code.
 - **Spec Isolation:** Do not modify existing specs outside `docs/specs/${change_id}/`.
 - **Maker-Checker Isolation:** TDD agent never writes to `qa.json`; Adversarial QA never directly edits `tasks.json` (appends only to `rework_queue`).
+
+---
+
+## Appendix: Golden Exemplar (Few-Shot Reference)
+
+### `docs/specs/auth-session-refresh/SCOPE.md`
+```markdown
+# Scope: auth-session-refresh
+
+## 1. Intent & Boundaries
+- **Objective:** Add sliding-window token refresh on active user interactions without full re-login.
+- **In Scope:** Refresh endpoint POST /auth/refresh, 15m expiration extension, rotation lock.
+- **Out of Scope:** OAuth2 social login providers or biometric login.
+
+## 2. Architectural Flow & Contracts
+```mermaid
+sequenceDiagram
+    Client->>AuthService: POST /auth/refresh (RefreshToken)
+    AuthService->>Redis: Atomic Lock & Invalidate Old Token
+    Redis-->>AuthService: OK
+    AuthService-->>Client: 200 OK (NewAccessToken, NewRefreshToken)
+```
+
+| Route | Method | Payload | Success | Error |
+|---|---|---|---|---|
+| `/auth/refresh` | POST | `{ refreshToken: string }` | 200 `{ accessToken, refreshToken }` | 401 `{ kind: 'revoked' }` |
+
+## 3. Behavioral Delta & Acceptance Criteria
+- **A1:** Given valid refresh token R, When POST /auth/refresh invoked, Then returns new token pair and revokes R.
+- **A2:** Given already revoked token R, When POST /auth/refresh invoked, Then returns 401 and logs security event.
+
+## 4. Decisions & Discrepancy Resolutions
+- **D1:** Adopted 15-minute sliding TTL based on ADR-003.
+- **S1:** Code had no token revocation table; adding Redis SETEX with 24h tombstone.
+
+## 5. Amendment Log
+- 2026-10-28: Initial baseline approved.
+```
