@@ -2,7 +2,11 @@
 
 This reference defines the required structure and content for the generated Product Backlog Building (PBB) specification document (`PBB.md`).
 
-When writing the deliverable, follow these nine sections in order. Translate section headings into the user's language while preserving IDs and traceability tags.
+<CRITICAL-LANGUAGE-MANDATE>
+The entire PBB deliverable MUST be written 100% in technical English, regardless of the conversational language used with the user. All headings, problem statements, persona descriptions, user stories, acceptance criteria, risk evaluations, and questions must be strictly in English. Domain terms in other languages may only be quoted verbatim if accompanied by an English translation.
+</CRITICAL-LANGUAGE-MANDATE>
+
+When writing the deliverable, follow these nine sections in order. Keep all section titles and prose strictly in English while preserving IDs and traceability tags.
 
 ---
 
@@ -93,6 +97,7 @@ Mark blocking questions. Record resolution source for resolved questions. State 
 ## Final Verification Checklist
 
 Before saving the document:
+- **Language Mandate:** Verify 100% of prose, headings, stories, and criteria are in technical English.
 - Verify complete traceability: Problem → Expectation → Persona → Functionality → PBI for every included item.
 - Confirm all four risks influence an explicit decision or have a stated rationale.
 - Check that scope exclusions do not contradict necessary acceptance criteria or dependencies.
