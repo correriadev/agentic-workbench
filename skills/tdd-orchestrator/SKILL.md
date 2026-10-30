@@ -35,23 +35,31 @@ Operate exactly two persistent worktrees per change under `.worktrees/slots/${ch
 - Ensure detached HEAD: Verify `git rev-parse HEAD` equals target OID and `git symbolic-ref -q HEAD` reports no branch.
 </slot_management>
 
+<batch_applicability_and_environment>
+- Before construction, map each batch to the acceptance criteria it can implement, its applicable independent QA checks, and relevant regressions. For intermediate batches, evaluate against the explicit map (`scope: "batch"`) and record unrelated full-scope checks as `PENDING` (never passed or waived). On the final batch (when no pending DAG tasks remain), the applicability map MUST be `full` (all blocking QA invariants, metrics, and manual gates).
+- A failed environmental capability probe is not evidence that a private file was accessed. Record the exact operation, error, environment, and reproducible evidence; distinguish agent instruction compliance, worktree isolation, and operating-system enforced access controls. Never claim that a worktree or a prompt proves OS isolation.
+- When a task needs an unavailable OS capability, preserve its blocker and evidence. Stop that task and invoke `triad-mediator` without burning implementation retries on unchanged environment failures. After mediation, the operator may authorize progressing independent ready tasks with separate execution records; do not mark the blocked task complete, bypass its dependencies, or waive final gates.
+- Ensure test fixtures and smoke-test output paths stay inside the assigned slot. Allow Maker-generated synthetic temporary fixtures named `qa.json` or `tasks.json` only for public contract tests; never share or expose actual private QA contents.
+</batch_applicability_and_environment>
+
 <state_machine_matrix>
 | State | Event / Guard | Action | Next State |
 |---|---|---|---|
 | `planning` | Spec valid (`SCOPE`, `tasks`, `qa` match hash & single-repo) | Record `execution` block; position `maker-slot` at `dispatch_base_oid` | `making` |
 | `making` | Dispatched to `tdd-maker`; awaits `<maker_result>` | Parse and validate `<maker_result>` envelope, protocol, and OIDs | `evaluating` |
 | `evaluating` | Scope valid; all commits match respective task's `files_allowed` | Pin ref `refs/triad/candidates/<change_id>/<batch_id>-<attempt>` | `checking` |
-| `evaluating` | Commit $k$ violates scope OR partial batch blocked AND `retries_used < retry_limit` | Truncate slot to valid ancestor `commit_{k-1}`; charge retry; redispatch | `making` |
-| `evaluating` | Scope violation OR partial batch blocked AND `retries_used >= retry_limit` | Freeze slot; transition to `blocked`; invoke `triad-mediator` | `blocked` |
+| `evaluating` | Commit $k$ violates scope OR partial batch blocked for a code-correctable reason AND `retries_used < retry_limit` | Truncate slot to valid ancestor `commit_{k-1}`; charge retry; redispatch | `making` |
+| `evaluating` | Scope violation OR code-correctable partial batch blocked AND `retries_used >= retry_limit` | Freeze slot; transition to `blocked`; invoke `triad-mediator` | `blocked` |
+| `evaluating` | Environment capability absent or unverified | Preserve the blocker and evidence; stop that task and invoke `triad-mediator` without repeating unchanged probes | `blocked` |
 | `checking` | Dispatched to `adversarial-qa`; awaits `<qa_result>` | Parse `<qa_result>`; reconcile with `qa.json` overlay; archive harnesses | `reconciled` |
-| `reconciled` | `status == "PASS"` AND target worktree clean AND HEAD at `batch_base_oid` | In target worktree, execute `git merge --ff-only <candidate_oid>` | `integrated` |
+| `reconciled` | Applicable batch gate `status == "PASS"` AND target worktree clean AND HEAD at `batch_base_oid` | In target worktree, execute `git merge --ff-only <candidate_oid>` | `integrated` |
 | `reconciled` | `status == "FAIL"` AND `reopens_used < 2` AND (P > 0 OR 1st attempt with P <= 0) AND retries remain | Append repair tasks `T*` (`origin: RW-*`); redispatch Maker | `rework` |
 | `rework` | Repair tasks prepared over `candidate_oid` | Position `maker-slot` at candidate; dispatch repair tasks | `making` |
 | `reconciled` | Non-code blocker (`manual_gate` / runner failure) AND `qa_reruns_used < 2` | Request operator acceptance or rerun QA on same OID; increment `qa_reruns_used` | `checking` |
 | `reconciled` | Non-code blocker AND `qa_reruns_used >= 2` | Freeze slots; transition to `blocked`; invoke `triad-mediator` | `blocked` |
 | `reconciled` | `reopens_used >= 2` OR $P \le 0$ across 2 consecutive attempts OR retries exhausted | Freeze slots; transition to `blocked`; invoke isolated `triad-mediator` | `blocked` |
 | `integrated` | Remaining DAG tasks exist | Advance `batch_base_oid = accepted_oid`; prepare next topological batch | `making` |
-| `integrated` | All DAG tasks completed with matching QA PASS | Report final deliverables, commit SHAs, and verification evidence | Final |
+| `integrated` | All DAG tasks completed with matching full-scope QA PASS | Report final deliverables, commit SHAs, and verification evidence | Final |
 </state_machine_matrix>
 
 <execution_protocol>
@@ -93,7 +101,7 @@ Operate exactly two persistent worktrees per change under `.worktrees/slots/${ch
   `git diff-tree --no-commit-id --name-status -r -z --no-renames <commit>`
 - Inspect cumulative batch diff:
   `git diff --name-status -z --no-renames <batch-base-oid> <candidate-oid>`
-- Reject absolute paths, `..`, symlinks, `.git/`, `SCOPE.md`, `tasks.json`, `qa.json`, and QA harnesses.
+- Reject absolute paths, `..`, symlinks, `.git/`, canonical spec files (`docs/specs/**/SCOPE.md`, `tasks.json`, `qa.json`), and QA harnesses (`tests/qa/**`). Any temporary synthetic fixtures created by Maker must be removed prior to commit.
 - Rollback Rule: If commit $k$ violates scope, truncate slot to `commit_{k-1}` (or `dispatch_base_oid`), charge 1 retry, and redispatch only remaining tasks.
 
 ### 4. QA Handoff, Overlay & Reconciled Ingestion
@@ -105,7 +113,7 @@ Operate exactly two persistent worktrees per change under `.worktrees/slots/${ch
 - Pin ref: `git update-ref refs/triad/candidates/${change_id}/${batch_id}-${attempt} <candidate-oid>`.
 - Prepare `qa-slot` (`.worktrees/slots/${change_id}/qa-slot`) detached at `candidate_oid`, passing the explicit slot directory as working directory (and instructing the worker to `cd` to the absolute slot directory before executing commands or tools).
 - Overlay: Copy canonical `SCOPE.md`, `qa.json`, and all archived harnesses from `.worktrees/slots/${change_id}/qa-harnesses/` to their relative paths in `qa-slot`. Record paths for post-run cleanup.
-- Dispatch `adversarial-qa` with explicit diff: `git diff <batch-base-oid> <candidate-oid>`.
+- Dispatch `adversarial-qa` with explicit diff: `git diff <batch-base-oid> <candidate-oid>` and the batch applicability map (`scope: "batch"` for intermediate batches; `scope: "full"` for the final batch before completion).
 - Parse `<qa_result>`: validate `protocol: "triad.qa.result.v1"`, matching `snapshot_ref == candidate_oid`, QA HEAD equal to candidate, and zero production file edits.
 - Reconcile Authority: Canonical truth resides in the verified output. Append `verdict` to `qa.json#.verdicts`, update `snapshot_ref`, and merge `rework_queue` (preserving run history) into canonical `qa.json`.
 - Archive any new or modified harnesses from `qa-slot` into `.worktrees/slots/${change_id}/qa-harnesses/` before cleaning overlays.
@@ -117,7 +125,7 @@ Operate exactly two persistent worktrees per change under `.worktrees/slots/${ch
 - Ambiguous Halts: On retries exhausted or loop-breaker triggers, transition to `phase: "blocked"` and invoke `triad-mediator` in an isolated read-only session to produce a forensic autopsy before halting.
 
 ### 6. Transactional Fast-Forward Integration & Recovery
-- On verified PASS with zero open blocking findings:
+- On verified applicable batch PASS with zero open blocking findings applicable to that batch:
   1. In the target worktree on `target_branch`, verify clean status and that HEAD equals `batch_base_oid`. If target advanced externally, stop and revalidate from new base.
   2. Integrate: `git merge --ff-only <candidate-oid>`.
   3. Mark batch tasks `completed` in `tasks.json`, update `accepted_oid = candidate_oid`, and set `phase: "integrated"`.
