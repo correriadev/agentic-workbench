@@ -10,7 +10,6 @@ Garante espelhamento completo de diretórios (sem resíduos) e purga de skills o
 """
 
 import argparse
-import os
 import pathlib
 import shutil
 import sys
@@ -27,7 +26,6 @@ TARGETS = {
 }
 
 OBSOLETE_SKILLS = {
-    # Skills do antigo ecossistema CBM/Harness
     "autonomous-orchestrator",
     "memory-context",
     "horizon-deliberator",
@@ -45,7 +43,6 @@ OBSOLETE_SKILLS = {
     "skill-contract-attestor",
     "temenos",
     "union-tracer",
-    # Snapshots Jev legados
     "jev-browser-use",
     "jev-compaction",
     "jev-computer-use",
@@ -60,28 +57,22 @@ OBSOLETE_SKILLS = {
 }
 
 POLICY_TOKEN = b"{{PROVIDER_SUBAGENTS_POLICY}}"
+_HAIKU_POLICY = (
+    "Dispatch both `tdd-maker` and `adversarial-qa` with explicit `model: haiku-5.5`, "
+    "`effort: extra-high`; never inherit session defaults."
+)
 PROVIDER_POLICIES = {
     "antigravity": (
-        "Dispatch both `tdd-maker` and `adversarial-qa` via `invoke_subagent` with "
-        "`Model: flash`. The Model enum accepts only `inherit`, `flash_lite`, `flash`, "
-        "and `pro`. Do not pass reasoning effort: the tool schema has no effort parameter."
+        "Dispatch both `tdd-maker` and `adversarial-qa` via `invoke_subagent` with `Model: flash` "
+        "(allowed: `inherit`, `flash_lite`, `flash`, `pro`; no effort parameter exists)."
     ),
     "codex": (
-        "Dispatch `tdd-maker` via `spawn_agent` with `model: gpt-6-luna`, `reasoning_effort: xhigh`, "
-        "`fork_turns: none`. Dispatch `adversarial-qa` with `model: gpt-6-luna`, `reasoning_effort: xhigh`, "
-        "`fork_turns: none`. Since `spawn_agent` lacks native `cwd`, pass the absolute slot directory and "
-        "instruct the worker to `cd <slot>` as its mandatory first action."
+        "Dispatch both `tdd-maker` and `adversarial-qa` via `spawn_agent` with `model: gpt-6-luna`, "
+        "`reasoning_effort: xhigh`, `fork_turns: none`. Since `spawn_agent` lacks native `cwd`, pass "
+        "the absolute slot directory and require `cd <slot>` as the worker's mandatory first action."
     ),
-    "claude": (
-        "Dispatch `tdd-maker` with `model: haiku-5.5`, `effort: extra-high`; "
-        "dispatch `adversarial-qa` with `model: haiku-5.5`, `effort: extra-high`. "
-        "Use explicit invocation parameters rather than inheriting session defaults."
-    ),
-    "opencode": (
-        "Dispatch `tdd-maker` with `model: haiku-5.5`, `effort: extra-high`; "
-        "dispatch `adversarial-qa` with `model: haiku-5.5`, `effort: extra-high`. "
-        "Use explicit invocation parameters rather than inheriting session defaults."
-    ),
+    "claude": _HAIKU_POLICY,
+    "opencode": _HAIKU_POLICY,
 }
 
 
@@ -103,9 +94,8 @@ def sync_single_skill(src_dir: pathlib.Path, dst_dir: pathlib.Path, dry_run: boo
     action = "Substituir (mirror)" if existed else "Criar"
     if transformations:
         action += (
-            f"; transformar {POLICY_TOKEN.decode()} para {target_name} em "
+            f"; transformar {POLICY_TOKEN.decode()} -> {target_name} em "
             + ", ".join(str(path) for path in transformations)
-            + f" [{PROVIDER_POLICIES[target_name]}]"
         )
     if dry_run:
         return action
@@ -147,9 +137,7 @@ def main():
     targets_to_process = TARGETS if args.target == "all" else {args.target: TARGETS[args.target]}
 
     mode_label = "[DRY-RUN] " if args.dry_run else ""
-    print(f"===========================================================")
     print(f"{mode_label}SINCRONIZAÇÃO DE SKILLS ({len(skills_to_sync)} canônica(s))")
-    print(f"===========================================================")
 
     for target_name, target_dir in targets_to_process.items():
         print(f"\n-> Destino: {target_name.upper()} ({target_dir})")
@@ -159,7 +147,6 @@ def main():
             else:
                 target_dir.mkdir(parents=True, exist_ok=True)
 
-        # 1. Prune de skills obsoletas
         if not args.no_prune and target_dir.exists():
             for item in target_dir.iterdir():
                 if item.is_dir() and item.name in OBSOLETE_SKILLS:
@@ -169,7 +156,6 @@ def main():
                         shutil.rmtree(item)
                         print(f"   [-] [PRUNED] Removida obsoleta: {item.name}")
 
-        # 2. Espelhamento de skills selecionadas
         for skill_name in skills_to_sync:
             src = REPO_SKILLS / skill_name
             dst = target_dir / skill_name
@@ -177,12 +163,7 @@ def main():
             prefix = "[PLAN] " if args.dry_run else "[OK]   "
             print(f"   {prefix}{action}: {skill_name}")
 
-    print("\n===========================================================")
-    if args.dry_run:
-        print("Dry-run concluído. Nenhuma alteração foi realizada no disco.")
-    else:
-        print("Sincronização concluída com sucesso em todos os alvos selecionados.")
-    print("===========================================================")
+    print("\nDry-run concluído." if args.dry_run else "\nSincronização concluída com sucesso.")
 
 
 if __name__ == "__main__":
