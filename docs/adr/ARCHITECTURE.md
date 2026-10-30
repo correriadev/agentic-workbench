@@ -69,6 +69,7 @@ REQUIRED: Any import violating these rules must fail CI verification via: `pytho
 | `brainstorming` | Collaborative discovery and architectural trade-off analysis | `skills/brainstorming/` |
 | `pbb-design` | Product backlog building and scope slicing | `skills/pbb-design/` |
 | `prompt-generator` | System prompt and persona engineering | `skills/prompt-generator/` |
+| `skill-creator` | Self-contained skill creation, token economy, and prompt-cache optimization | `skills/skill-creator/` |
 | `read-ui-prototype` | Semantic interface specification extraction | `skills/read-ui-prototype/` |
 | `codebase-memory` | AST knowledge graph querying and impact analysis | `skills/codebase-memory/` |
 | `contextual-mentorship` | Context-aware decision reasoning and mentorship | `skills/contextual-mentorship/` |

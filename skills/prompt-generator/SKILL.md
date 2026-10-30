@@ -55,6 +55,23 @@ For tool use, dependent stages, consequential decisions, or external actions:
 
 Complexity does not require every technique. Remove any section that adds no practical value.
 
+## Token Economy & Prompt Caching (Prefix Stability)
+
+Apply strict token discipline and KV-cache optimization whenever authoring or refactoring prompts, reusable templates, or multi-agent workflows:
+
+### 1. Exact-Prefix Layering (`Static -> Semi-Static -> Dynamic Suffix`)
+Modern LLM providers (OpenAI, Anthropic, Gemini, DeepSeek/GLM) match KV-caches on an **exact byte-for-byte prefix** (yielding 75–90% cached input discounts):
+- **Layer 1 — Static Prefix (First):** System role, immutable constraints, security boundaries, tool contracts, and output schemas. Never place timestamps, run IDs, or variable batch data before static instructions.
+- **Layer 2 — Semi-Static Context (Middle):** Session or change-scoped invariants (e.g., `change_id`, `scope_hash`, repository test commands, assigned task definitions in deterministic key order) that remain constant across retries.
+- **Layer 3 — Volatile Suffix (Always Last):** Per-attempt inputs, `attempt` counters, commit OIDs, delta rework queues, or user-supplied runtime payloads (`{{input_payload}}`). On retries, append deltas to the end rather than mutating earlier sections.
+
+### 2. Structural Deduplication & Single-Source Rules
+- **Single-Render Policy Tokens:** Render provider or subagent dispatch policies once in a shared protocol header rather than repeating them across every workflow step.
+- **Define Once, Reference by Name:** Define recurring state transitions, cleanup sequences, or halt procedures (e.g., `BLOCK`, `Slot Hygiene`) once and reference them by identifier in tables and steps.
+- **Pointer over Payload in Multi-Agent IPC:** When dispatching subagents that have local filesystem/git access, pass lightweight pointers (file paths, commit OIDs, diff commands) instead of pasting full files or raw `git diff` dumps into the prompt.
+- **Deterministic Turn-1 Warmup:** In tool-using subagents, prescribe a deterministic first action (e.g., `cd <workspace>`) so multi-turn prefix caches remain aligned across runs.
+- **Zero-Ceremony Output Contracts:** Request structured outputs directly inside a single delimiter tag (e.g., `<result>{...}</result>`) without outer Markdown code fences or conversational filler.
+
 ## Technique Selection
 
 ### Structure and Delimiters
@@ -108,7 +125,8 @@ Before delivery, check silently:
 
 - The prompt addresses the user's actual objective.
 - Supplied context and constraints are preserved.
-- Placeholders are intentional, named clearly, and limited to missing runtime inputs.
+- Static rules precede semi-static and dynamic placeholders (`Static -> Semi-Static -> Dynamic Suffix`) to preserve prompt-cache prefixes.
+- Redundant rules, duplicate policy expansions, and unnecessary wrapper prose are eliminated.
 - Instructions and examples do not contradict each other.
 - Output requirements are usable and proportionate.
 - Tools, authority, evidence, and execution results are not fabricated.
