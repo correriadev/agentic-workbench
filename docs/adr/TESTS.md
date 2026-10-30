@@ -20,6 +20,7 @@ Repository verification strategy combining structural ontology validation, graph
 | Unit | `powershell -File skills/ask-antigravity/scripts/Test-Invoke-Antigravity.ps1` | Runs offline contract tests for the Antigravity delegation wrapper |
 | Integration | `python skills/project-memory/scripts/generate_docs_graph.py docs` | Generates and verifies integrity of the documentation relation graph |
 | E2E | `python scripts/sync_skills.py --dry-run` | Validates skill mirroring plans across all 4 coding agent targets |
+| E2E | `python scripts/test_triad_slots_e2e.py` | Validates Triad Git worktree slot lifecycle, isolation, and recovery end-to-end |
 | Coverage | `python skills/project-memory/scripts/validate_ontology.py docs` | Validates document frontmatter, node references, and structural schemas |
 
 ## MINIMUM COVERAGE

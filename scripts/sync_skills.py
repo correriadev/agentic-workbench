@@ -66,16 +66,22 @@ PROVIDER_POLICIES = {
         "`Model: flash`. The Model enum accepts only `inherit`, `flash_lite`, `flash`, "
         "and `pro`. Do not pass reasoning effort: the tool schema has no effort parameter."
     ),
-    **{
-        target: (
-            f"Dispatch `tdd-maker` with `model: {model}`, `effort: extra-high`; "
-            f"dispatch `adversarial-qa` with `model: {model}`, `effort: extra-high`. "
-            "Use explicit invocation parameters rather than inheriting session defaults."
-        )
-        for target, model in {
-            "codex": "gpt-6-luna", "claude": "haiku-5.5", "opencode": "haiku-5.5"
-        }.items()
-    },
+    "codex": (
+        "Dispatch `tdd-maker` via `spawn_agent` with `model: gpt-6-luna`, `reasoning_effort: xhigh`, "
+        "`fork_turns: none`. Dispatch `adversarial-qa` with `model: gpt-6-luna`, `reasoning_effort: xhigh`, "
+        "`fork_turns: none`. Since `spawn_agent` lacks native `cwd`, pass the absolute slot directory and "
+        "instruct the worker to `cd <slot>` as its mandatory first action."
+    ),
+    "claude": (
+        "Dispatch `tdd-maker` with `model: haiku-5.5`, `effort: extra-high`; "
+        "dispatch `adversarial-qa` with `model: haiku-5.5`, `effort: extra-high`. "
+        "Use explicit invocation parameters rather than inheriting session defaults."
+    ),
+    "opencode": (
+        "Dispatch `tdd-maker` with `model: haiku-5.5`, `effort: extra-high`; "
+        "dispatch `adversarial-qa` with `model: haiku-5.5`, `effort: extra-high`. "
+        "Use explicit invocation parameters rather than inheriting session defaults."
+    ),
 }
 
 

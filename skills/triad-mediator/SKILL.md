@@ -25,7 +25,7 @@ Read-only inspection of frozen artifacts under `docs/specs/${change_id}/`:
 2. `tasks.json`: Execution block (`accepted_oid`, `candidate_oid`, retry counters, reopens) and task DAG.
 3. `qa.json`: Invariant definitions, execution budgets, full `verdicts` ledger, and `rework_queue` history.
 4. Git trace: Run `git log --oneline <batch_base_oid>..<candidate_oid>` and inspect commit diffs against task `files_allowed`.
-5. Archived QA artifacts: Inspect reproducers and execution logs in `<git-common-dir>/triad/${change_id}/qa-harnesses/`.
+5. Archived QA artifacts: Inspect reproducers and execution logs in `.worktrees/slots/${change_id}/qa-harnesses/` (fallback to legacy `<git-common-dir>/triad/${change_id}/qa-harnesses/`).
 </forensic_inputs>
 
 <diagnostic_framework>

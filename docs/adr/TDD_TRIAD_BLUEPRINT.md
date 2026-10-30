@@ -27,7 +27,7 @@ Quando um único contexto de LLM lê os requisitos, escreve o teste, implementa 
 ### Os 5 Pilares
 - **Zero-Knowledge Air-Gap:** `tdd-maker` nunca lê `qa.json` nem herda o histórico do supervisor.
 - **Single-Writer State Governance:** Apenas `tdd-orchestrator` grava em `tasks.json` e importa vereditos validados em `qa.json`.
-- **Slots Persistentes em `HEAD` Detached:** Construção e QA ocorrem em `<git-common-dir>/triad/<change_id>/{maker-slot,qa-slot}`, trocando *commit OIDs* imutáveis e preservando caches (`node_modules`, `.venv`).
+- **Slots Persistentes em `HEAD` Detached:** Construção e QA ocorrem em `.worktrees/slots/<change_id>/{maker-slot,qa-slot}`, trocando *commit OIDs* imutáveis e preservando caches (`node_modules`, `.venv`).
 - **Promoção Transacional (`--ff-only`):** A branch alvo só avança via `git merge --ff-only <candidate_oid>` após `PASS` determinístico.
 - **Mediação Forense Read-Only (`triad-mediator`):** Bloqueios ambíguos escalam para autópsia independente com diagnóstico diferencial sem poder de mutação.
 
@@ -43,10 +43,10 @@ flowchart LR
         QA_CANON["qa.json"]
     end
     ORCH["tdd-orchestrator (Supervisor)"]
-    subgraph MakerSlot[".git/triad/<id>/maker-slot (detached)"]
+    subgraph MakerSlot[".worktrees/slots/<id>/maker-slot (detached)"]
         MAKER["tdd-maker (Worker)"]
     end
-    subgraph QASlot[".git/triad/<id>/qa-slot (detached)"]
+    subgraph QASlot[".worktrees/slots/<id>/qa-slot (detached)"]
         JUDGE["adversarial-qa (Judge)"]
     end
     MED["triad-mediator (Árbitro Forense)"]
@@ -130,17 +130,24 @@ Define `In Scope` / `Out of Scope`, fluxo arquitetural, tabela de contratos e cr
 
 ## 4. Topologia Física de Slots Git e Refs
 
-Os worktrees residem em `<git-common-dir>/triad/<change_id>/` (`git rev-parse --path-format=absolute --git-common-dir`), fora da árvore rastreada:
+Os worktrees residem em `.worktrees/slots/<change_id>/` (com `.worktrees/` devidamente registrado em `.git/info/exclude`), mantendo os slots dentro do workspace para compatibilidade com sandboxes de agentes, mas isolados do status do git:
 - `maker-slot/`: worktree *detached* exclusivo do `tdd-maker`.
 - `qa-slot/`: worktree *detached* exclusivo do `adversarial-qa`.
 - `qa-harnesses/`: arquivo persistente dos reproducers gerados pelo QA entre tentativas.
 
 ```bash
-git worktree add --detach "<git-common-dir>/triad/<change_id>/maker-slot" <accepted_oid>
-git worktree add --detach "<git-common-dir>/triad/<change_id>/qa-slot" <accepted_oid>
+# Bash: Garantir exclusão local (não versionada) para não sujar a raiz
+grep -qxF ".worktrees/" "$(git rev-parse --git-common-dir)/info/exclude" 2>/dev/null || echo ".worktrees/" >> "$(git rev-parse --git-common-dir)/info/exclude"
+
+# PowerShell:
+# $ex = Join-Path (git rev-parse --git-common-dir) "info/exclude"
+# if (-not (Select-String -Path $ex -Pattern "^\.worktrees/" -Quiet -ErrorAction SilentlyContinue)) { Add-Content -Path $ex -Value ".worktrees/" }
+
+git worktree add --detach ".worktrees/slots/<change_id>/maker-slot" <accepted_oid>
+git worktree add --detach ".worktrees/slots/<change_id>/qa-slot" <accepted_oid>
 git update-ref refs/triad/candidates/<change_id>/<batch_id>-<attempt> <candidate_oid>
 ```
-*Higienização:* Nunca usar `git clean -fdx` cego (preservar caches ignorados). Remover apenas artefatos/overlays registrados pela rodada antes de `git switch --detach <oid>`.
+*Higienização e Recuperação:* Nunca usar `git clean -fdx` cego (preservar caches ignorados). Na inicialização ou recuperação de lote interrompido, rodar `git reset --hard <oid>` e `git clean -fd` dentro do slot afetado para purgar edições parciais não rastreadas antes de posicionar em `HEAD` detached.
 
 ---
 
