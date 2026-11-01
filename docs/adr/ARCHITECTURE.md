@@ -34,7 +34,7 @@ agentic-workbench/
 </folder_structure>
 
 ## LAYERS
-- **Core Engineering Skills**: Specification, test-driven implementation, independent adversarial QA, and architecture review (`scope-refinement`, `tdd-orchestrator`, `tdd-maker`, `adversarial-qa`, `the-grumpy-tech-lead`, `project-memory`).
+- **Core Engineering Skills**: Specification, test-driven implementation, independent adversarial QA, rapid prototyping, and architecture review (`scope-refinement`, `fast-scope`, `tdd-orchestrator`, `fast-code`, `tdd-maker`, `adversarial-qa`, `the-grumpy-tech-lead`, `project-memory`).
 - **Product & Discovery Skills**: Problem framing, backlog refinement, meta-prompt generation, and UI prototype parsing (`brainstorming`, `pbb-design`, `prompt-generator`, `read-ui-prototype`).
 - **Navigation, Mentorship & Delegation**: AST graph discovery, contextual reasoning, and CLI delegation wrappers (`codebase-memory`, `contextual-mentorship`, `ask-antigravity`, `ask-codex`, `ask-opencode`).
 - **Operational Infrastructure**: Repository cleanup scripts and intentional local agent synchronization (`scripts/sync_skills.py`, `scripts/cleanup.ps1`, `scripts/cleanup.sh`).
@@ -60,7 +60,9 @@ REQUIRED: Any import violating these rules must fail CI verification via: `pytho
 | Module | Responsibility | Location |
 |--------|-----------------|-------------|
 | `scope-refinement` | Tripartite specification refinement (SCOPE, tasks, qa) | `skills/scope-refinement/` |
+| `fast-scope` | Lean prototype scope refinement (bipartite spec for fast-code) | `skills/fast-scope/` |
 | `tdd-orchestrator` | Task DAG supervision and batch dispatch | `skills/tdd-orchestrator/` |
+| `fast-code` | Fast prototype orchestrator (zero git, zero tests, DAG execution) | `skills/fast-code/` |
 | `tdd-maker` | Strict Red-Green-Refactor test-driven construction | `skills/tdd-maker/` |
 | `adversarial-qa` | Independent adversarial verification against invariants | `skills/adversarial-qa/` |
 | `the-grumpy-tech-lead` | Socratic architectural review and systemic risk detection | `skills/the-grumpy-tech-lead/` |

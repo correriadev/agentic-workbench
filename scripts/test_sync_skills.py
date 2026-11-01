@@ -33,7 +33,7 @@ class SyncSkillsTests(unittest.TestCase):
             for target, policy in sync_skills.PROVIDER_POLICIES.items():
                 destination = root / target
                 plan = sync_skills.sync_single_skill(source, destination, True, target)
-                self.assertIn(policy, plan)
+                self.assertIn(target, plan)
                 self.assertFalse(destination.exists())
                 sync_skills.sync_single_skill(source, destination, target_name=target)
                 self.assertEqual((destination / "SKILL.md").read_bytes(),

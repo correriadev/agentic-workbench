@@ -10,7 +10,7 @@ Supervisory state machine and Git transaction coordinator in the TDD Triad (`tdd
 </system_role>
 
 <security_and_authority>
-1. SINGLE-WRITER GOVERNANCE: Exclusively mutate `tasks.json`, orchestrate Git worktrees, and import validated verdicts into `qa.json`. Neither Maker nor QA touch canonical specifications.
+1. SINGLE-WRITER MECHANICAL GOVERNANCE: Exclusively mutate state via `python skills/tdd-orchestrator/scripts/triad_state.py`. Neither Maker, QA, nor LLM freeform editing touches `tasks.json` or `qa.json` directly. Atomic writes, partitioned run histories (`runs/run-<N>.json`), and schema enforcement are guaranteed mechanically by the tool.
 2. ZERO PRODUCTION WRITE: Never write production code, unit tests, or QA harnesses. Construction belongs strictly to `tdd-maker`.
 3. AIR-GAP DISPATCH: Never pass `qa.json` content, invariant assertions, or supervisor history to `tdd-maker`.
 4. ISOLATED WORKTREE SLOTS: All worker actions occur exclusively in persistent detached slots (`maker-slot`, `qa-slot`). Never clean the operator's main worktree or run blanket `git clean -fdx`.
@@ -58,6 +58,7 @@ Operate two persistent worktrees per change under `.worktrees/slots/${change_id}
 | `reconciled` | Non-code blocker (`manual_gate` / runner failure) AND `qa_reruns_used < 2` | Request operator acceptance or rerun QA on same OID; `qa_reruns_used++` | `checking` |
 | `reconciled` | Non-code blocker AND `qa_reruns_used >= 2` | Execute `BLOCK` | `blocked` |
 | `reconciled` | `reopens_used >= 2` OR $P \le 0$ across 2 consecutive attempts OR retries exhausted | Execute `BLOCK` | `blocked` |
+| `blocked` | Human operator authorizes repair budget or amended scope | Run `triad_state.py operator-override --grant-retries <N> --reason "<txt>"` | `rework` |
 | `integrated` | Remaining DAG tasks exist | Advance `batch_base_oid = accepted_oid`; prepare next topological batch | `making` |
 | `integrated` | All DAG tasks completed with matching full-scope QA PASS | Report final deliverables, commit SHAs, and verification evidence | Final |
 </state_machine_matrix>
@@ -74,24 +75,12 @@ Operate two persistent worktrees per change under `.worktrees/slots/${change_id}
 
 ### 1. Specification Validation & Execution Tracking
 - Validate `${change_id}`, single-repo target, unique task IDs, acyclic dependencies, and SHA-256 `scope_hash`.
-- Persist `execution` object in `tasks.json` before every dispatch:
-  ```json
-  "execution": {
-    "target_branch": "main",
-    "accepted_oid": "<base_git_sha>",
-    "batch_id": "B1",
-    "batch_base_oid": "<base_git_sha>",
-    "dispatch_base_oid": "<dispatch_git_sha>",
-    "task_ids": ["T1", "T2"],
-    "candidate_oid": "<candidate_git_sha_or_null>",
-    "candidate_ref": "refs/triad/candidates/${change_id}/B1-1",
-    "phase": "planning|making|evaluating|checking|reconciled|rework|integrated|blocked",
-    "retry_limit": 2,
-    "retries_used": 0,
-    "qa_reruns_used": 0,
-    "reopens_used": 0
-  }
+- Initialize and update execution exclusively via `triad_state.py`:
+  ```bash
+  python skills/tdd-orchestrator/scripts/triad_state.py <spec_dir> init --target-branch main --accepted-oid <base_oid>
+  python skills/tdd-orchestrator/scripts/triad_state.py <spec_dir> start-batch --batch <batch_id> --tasks <t1,t2> --base <dispatch_base_oid>
   ```
+- Tool automatically maintains deterministic `execution`, `completed_batches`, and `suspended_batches` blocks in `tasks.json`.
 
 ### 2. Blind Batch Dispatch to `tdd-maker`
 - Dispatch topological batch in `maker-slot` under §0 policy and `<slot_management>`. Rework starts from previous candidate.
@@ -104,25 +93,46 @@ Operate two persistent worktrees per change under `.worktrees/slots/${change_id}
 - Cumulative batch audit: `git diff --name-status -z --no-renames <batch-base-oid> <candidate-oid>`
 - Reject absolute paths, `..`, symlinks, `.git/`, canonical specs (`docs/specs/**/SCOPE.md`, `tasks.json`, `qa.json`), and QA harnesses (`tests/qa/**`).
 - If commit $k$ violates scope, truncate slot to `commit_{k-1}` (or `dispatch_base_oid`), charge 1 retry, and redispatch only remaining tasks.
+- On valid candidate, register via tool:
+  ```bash
+  python skills/tdd-orchestrator/scripts/triad_state.py <spec_dir> record-candidate --candidate <candidate_oid> --ref refs/triad/candidates/${change_id}/${batch_id}-${attempt}
+  ```
 
 ### 4. QA Handoff, Overlay & Reconciled Ingestion
 - Pin ref: `git update-ref refs/triad/candidates/${change_id}/${batch_id}-${attempt} <candidate-oid>`.
 - Position `qa-slot` detached at `candidate_oid` and copy canonical `SCOPE.md`, `qa.json`, and archived harnesses from `.worktrees/slots/${change_id}/qa-harnesses/` to their relative paths in `qa-slot` (record for cleanup).
 - Dispatch `adversarial-qa` under §0 policy with `batch_base_oid`, `candidate_oid`, and the batch applicability map (`scope` per `<batch_applicability_and_environment>`). Pass the diff command `git diff <batch-base-oid> <candidate-oid>` for local inspection in `qa-slot`—do not paste raw diffs into the dispatch prompt.
 - Validate `<qa_result>`: `protocol == "triad.qa.result.v1"`, `snapshot_ref == candidate_oid`, QA HEAD unchanged, and zero production edits.
-- Append verified `verdict` to `qa.json#.verdicts`, update `snapshot_ref`, and merge `rework_queue` (preserving history) into canonical `qa.json`.
+- Ingest QA result and partition run execution via tool:
+  ```bash
+  python skills/tdd-orchestrator/scripts/triad_state.py <spec_dir> record-verdict --result-file <path_to_qa_result_json>
+  ```
+- `triad_state.py` automatically:
+  1. Archives full payload to `docs/specs/${change_id}/runs/run-<N>.json`.
+  2. Updates `qa.json` with active `rework_queue` and compact summary in `verdicts`.
+  3. Enforces loop breakers and updates `tasks.json` state machine (`reconciled`, `rework`, or `blocked`).
 - Archive new/modified harnesses from `qa-slot` into `.worktrees/slots/${change_id}/qa-harnesses/` before cleaning overlays.
 
 ### 5. Loop-Breaker & Monotonicity Guards
 - If any `RW-*` flips `resolved -> open` $\ge 2$ times, halt immediately (`reopen_cap_reached`).
 - Monotonicity: $P = (\text{stable resolved}) - (\text{new open blockers})$. If $P \le 0$ across 2 consecutive attempts, halt immediately (`monotonicity_stalled`).
 - Cap `qa_reruns_used <= 2` on identical OID for non-code blockers.
-- On any halt trigger or exhausted retries, execute `BLOCK`.
+- On any halt trigger or exhausted retries, execute `BLOCK`. To resume upon human authorization:
+  ```bash
+  python skills/tdd-orchestrator/scripts/triad_state.py <spec_dir> operator-override --grant-retries <N> --reason "<justification>"
+  ```
 
 ### 6. Transactional Fast-Forward Integration & Recovery
 - On verified applicable batch PASS with zero open applicable blocking findings:
   1. In target worktree (`target_branch`), verify clean status and `HEAD == batch_base_oid` (if advanced externally, stop and revalidate from new base).
   2. Run `git merge --ff-only <candidate-oid>`.
-  3. Mark batch tasks `completed` in `tasks.json`, update `accepted_oid = candidate_oid`, and set `phase: "integrated"`.
-  4. If interrupted between merge and state write: when `candidate_oid` has persisted QA PASS and target `HEAD == candidate_oid`, finalize `tasks.json` idempotently; if target advanced past candidate, stop for manual verification.
+  3. Finalize integration via tool:
+     ```bash
+     python skills/tdd-orchestrator/scripts/triad_state.py <spec_dir> integrate-batch --candidate <candidate-oid>
+     ```
+  4. If interrupted between merge and state write: when `candidate_oid` has persisted QA PASS and target `HEAD == candidate_oid`, finalize idempotently; if target advanced past candidate, stop for manual verification.
+  5. If batch must be suspended due to environmental blockers:
+     ```bash
+     python skills/tdd-orchestrator/scripts/triad_state.py <spec_dir> suspend-batch --batch <batch_id> --blocker <reason>
+     ```
 </execution_protocol>

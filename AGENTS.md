@@ -16,8 +16,12 @@ Este repositório contém o catálogo canônico de skills de engenharia assistid
 Quando executar tarefas de desenvolvimento de software usando as skills deste repositório:
 
 1. **Descoberta (Opcional):** Use `skills/brainstorming/SKILL.md` ou `skills/pbb-design/SKILL.md` para clarificar escopo aberto.
-2. **Especificação Tripartite:** Use `skills/scope-refinement/SKILL.md` para inspecionar `docs/` e código-fonte e gerar `docs/specs/<change_id>/{SCOPE.md, tasks.json, qa.json}`.
-3. **Supervisão e Construção:** Use `skills/tdd-orchestrator/SKILL.md` para supervisionar o DAG e despachar lotes a `skills/tdd-maker/SKILL.md`. O Maker executa Red-Green-Refactor estrito e gera candidatos; o supervisor valida diffs e gerencia os slots persistentes `maker-slot` e `qa-slot` com HEAD detached.
+2. **Especificação:**
+   - **Produção / TDD (Tripartite):** Use `skills/scope-refinement/SKILL.md` para inspecionar `docs/` e código e gerar `docs/specs/<change_id>/{SCOPE.md, tasks.json, qa.json}`.
+   - **Protótipo / MVP Rápido (Bipartite):** Use `skills/fast-scope/SKILL.md` para gerar headless `docs/specs/<change_id>/{SCOPE.md, tasks.json}` (sem `qa.json` nem testes).
+3. **Supervisão e Construção:**
+   - **Produção (TDD Triad):** Use `skills/tdd-orchestrator/SKILL.md` para supervisionar o DAG e despachar lotes a `skills/tdd-maker/SKILL.md` nos slots detached `maker-slot` e `qa-slot`.
+   - **Protótipo Rápido (Zero Git):** Use `skills/fast-code/SKILL.md` para executar o DAG diretamente na working tree sem testes, sem worktrees e sem comandos git.
 4. **Verificação Independente (Checker):** Use `skills/adversarial-qa/SKILL.md` para validar invariantes executáveis e segurança em `qa.json`. Use `skills/the-grumpy-tech-lead/SKILL.md` como revisor arquitetural socrático e desacoplado para desenvolvedores humanos (gerando `tech-lead.json` caso haja specs atreladas).
 5. **Memória do Projeto:** Use `skills/project-memory/SKILL.md` para sincronizar `docs/` (`.digest.md`, `.graph.json`, ADRs).
 

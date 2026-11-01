@@ -57,6 +57,8 @@ OBSOLETE_SKILLS = {
 }
 
 POLICY_TOKEN = b"{{PROVIDER_SUBAGENTS_POLICY}}"
+FAST_CODE_POLICY_TOKEN = b"{{FAST_CODE_SUBAGENTS_POLICY}}"
+
 _HAIKU_POLICY = (
     "Dispatch both `tdd-maker` and `adversarial-qa` with explicit `model: haiku-5.5`, "
     "`effort: extra-high`; never inherit session defaults."
@@ -75,6 +77,23 @@ PROVIDER_POLICIES = {
     "opencode": _HAIKU_POLICY,
 }
 
+_FAST_CODE_HAIKU_POLICY = (
+    "Dispatch inline builder subagent with explicit `model: haiku-5.5`, `effort: extra-high`; "
+    "never inherit session defaults."
+)
+FAST_CODE_PROVIDER_POLICIES = {
+    "antigravity": (
+        "Dispatch inline builder subagent via `invoke_subagent` with `Model: flash` "
+        "(allowed: `inherit`, `flash_lite`, `flash`, `pro`; no effort parameter exists)."
+    ),
+    "codex": (
+        "Dispatch inline builder subagent via `spawn_agent` with `model: gpt-6-luna`, "
+        "`reasoning_effort: xhigh`, `fork_turns: none`."
+    ),
+    "claude": _FAST_CODE_HAIKU_POLICY,
+    "opencode": _FAST_CODE_HAIKU_POLICY,
+}
+
 
 def get_available_skills():
     if not REPO_SKILLS.exists():
@@ -84,29 +103,33 @@ def get_available_skills():
 
 def sync_single_skill(src_dir: pathlib.Path, dst_dir: pathlib.Path, dry_run: bool = False,
                       target_name: str = None):
-    transformations = [
-        path.relative_to(src_dir) for path in sorted(src_dir.rglob("*"))
-        if path.is_file() and POLICY_TOKEN in path.read_bytes()
-    ]
-    if transformations and target_name not in PROVIDER_POLICIES:
-        raise ValueError("A known target_name is required to render provider policy tokens")
+    transformations = []
+    for path in sorted(src_dir.rglob("*")):
+        if path.is_file():
+            content = path.read_bytes()
+            if POLICY_TOKEN in content:
+                if target_name not in PROVIDER_POLICIES:
+                    raise ValueError("A known target_name is required to render provider policy tokens")
+                transformations.append((path.relative_to(src_dir), POLICY_TOKEN, PROVIDER_POLICIES[target_name].encode("utf-8")))
+            if FAST_CODE_POLICY_TOKEN in content:
+                if target_name not in FAST_CODE_PROVIDER_POLICIES:
+                    raise ValueError("A known target_name is required to render provider policy tokens")
+                transformations.append((path.relative_to(src_dir), FAST_CODE_POLICY_TOKEN, FAST_CODE_PROVIDER_POLICIES[target_name].encode("utf-8")))
+
     existed = dst_dir.exists()
     action = "Substituir (mirror)" if existed else "Criar"
     if transformations:
-        action += (
-            f"; transformar {POLICY_TOKEN.decode()} -> {target_name} em "
-            + ", ".join(str(path) for path in transformations)
-        )
+        token_names = ", ".join(sorted({t[1].decode() for t in transformations}))
+        files_str = ", ".join(sorted({str(t[0]) for t in transformations}))
+        action += f"; transformar {token_names} -> {target_name} em {files_str}"
     if dry_run:
         return action
     if existed:
         shutil.rmtree(dst_dir)
     shutil.copytree(src_dir, dst_dir)
-    for relative_path in transformations:
+    for relative_path, token, replacement in transformations:
         destination = dst_dir / relative_path
-        destination.write_bytes(destination.read_bytes().replace(
-            POLICY_TOKEN, PROVIDER_POLICIES[target_name].encode("utf-8")
-        ))
+        destination.write_bytes(destination.read_bytes().replace(token, replacement))
     return action
 
 
