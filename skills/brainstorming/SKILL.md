@@ -29,7 +29,7 @@ Before you start implementing, you must, in order:
    human partner pick one (see Lay out the approaches).
 2. Write the design doc, short or full (see Size the Work).
 3. Get their approval of that doc.
-4. Proceed to specification or implementation planning (`scope-refinement` or direct execution).
+4. Proceed to specification or implementation planning (`fast-scope` or `qa-scope` or direct execution).
 
 Two things aren't implementing: a spike they said yes to (see Spike to
 feel things out), and doing what they asked once they've opted out of
@@ -256,7 +256,7 @@ and the gate goes with it. A spike they said yes to may be built; it
 stays labeled throwaway, and keeping what it produced is a new request
 that comes back through this gate.
 
-After the design doc is approved, proceed to `scope-refinement` or the agreed implementation plan.
+After the design doc is approved, proceed to `fast-scope` or `qa-scope` or the agreed implementation plan.
 </HARD-GATE>
 
 ## Red Flags

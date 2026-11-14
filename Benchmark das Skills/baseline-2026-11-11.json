@@ -1,0 +1,161 @@
+{
+  "run_id": "dc1b2448-24b5-4817-9db4-62cafcf8ea93",
+  "recorded_at": "2026-11-12T01:29:30.824367+00:00",
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "fixture_and_oracle_sha256": "b750001fd20b469dbda13b1a02d263dcc00da1d732f837c8a6d0c739926d4ff2",
+  "skills": {
+    "blueprint": {
+      "files": {
+        "SKILL.md": {
+          "bytes": 12396,
+          "sha256": "cab97cd7c344d23ff4a52b96931537fb28ddf2c5a49b3e565c4b2e212cee30b3"
+        },
+        "contract.py": {
+          "bytes": 20242,
+          "sha256": "aff76216d0a3c378ff9742b26f7aff6b9bac59929ddc28d7bad9156a0a9598a5"
+        }
+      },
+      "rounds": [
+        {
+          "elapsed_ms": 1379.77,
+          "exit_code": 0,
+          "stdout": "PASS: shape, DAG disjointness, prior start, environment drift, partial outcomes, QA result, replan and history\n",
+          "stderr": ""
+        },
+        {
+          "elapsed_ms": 1279.96,
+          "exit_code": 0,
+          "stdout": "PASS: shape, DAG disjointness, prior start, environment drift, partial outcomes, QA result, replan and history\n",
+          "stderr": ""
+        },
+        {
+          "elapsed_ms": 1301.77,
+          "exit_code": 0,
+          "stdout": "PASS: shape, DAG disjointness, prior start, environment drift, partial outcomes, QA result, replan and history\n",
+          "stderr": ""
+        },
+        {
+          "elapsed_ms": 1265.62,
+          "exit_code": 0,
+          "stdout": "PASS: shape, DAG disjointness, prior start, environment drift, partial outcomes, QA result, replan and history\n",
+          "stderr": ""
+        },
+        {
+          "elapsed_ms": 1271.74,
+          "exit_code": 0,
+          "stdout": "PASS: shape, DAG disjointness, prior start, environment drift, partial outcomes, QA result, replan and history\n",
+          "stderr": ""
+        }
+      ],
+      "median_ms": 1279.96
+    },
+    "forge": {
+      "files": {
+        "PLANNED.md": {
+          "bytes": 12595,
+          "sha256": "9dd7e4993df304a7a8af8a0869c095f19db48d833fbab81056f8edcc6c87ea20"
+        },
+        "SKILL.md": {
+          "bytes": 7321,
+          "sha256": "c43ca846cdafc75a99f2e9f82c046d03fb5cace1856d8e1cd6e0784ecb33a62e"
+        },
+        "contract.py": {
+          "bytes": 20242,
+          "sha256": "aff76216d0a3c378ff9742b26f7aff6b9bac59929ddc28d7bad9156a0a9598a5"
+        }
+      },
+      "rounds": [
+        {
+          "elapsed_ms": 1257.56,
+          "exit_code": 0,
+          "stdout": "PASS: shape, DAG disjointness, prior start, environment drift, partial outcomes, QA result, replan and history\n",
+          "stderr": ""
+        },
+        {
+          "elapsed_ms": 1278.49,
+          "exit_code": 0,
+          "stdout": "PASS: shape, DAG disjointness, prior start, environment drift, partial outcomes, QA result, replan and history\n",
+          "stderr": ""
+        },
+        {
+          "elapsed_ms": 1338.39,
+          "exit_code": 0,
+          "stdout": "PASS: shape, DAG disjointness, prior start, environment drift, partial outcomes, QA result, replan and history\n",
+          "stderr": ""
+        },
+        {
+          "elapsed_ms": 1268.09,
+          "exit_code": 0,
+          "stdout": "PASS: shape, DAG disjointness, prior start, environment drift, partial outcomes, QA result, replan and history\n",
+          "stderr": ""
+        },
+        {
+          "elapsed_ms": 1272.9,
+          "exit_code": 0,
+          "stdout": "PASS: shape, DAG disjointness, prior start, environment drift, partial outcomes, QA result, replan and history\n",
+          "stderr": ""
+        }
+      ],
+      "median_ms": 1272.9
+    },
+    "quality-gate": {
+      "files": {
+        "SKILL.md": {
+          "bytes": 9983,
+          "sha256": "c86c1dee8c7ca69772f97a3b170049a7c83bb5d47db6e22dc0465b0af67e2fa5"
+        },
+        "contract.py": {
+          "bytes": 20242,
+          "sha256": "aff76216d0a3c378ff9742b26f7aff6b9bac59929ddc28d7bad9156a0a9598a5"
+        }
+      },
+      "rounds": [
+        {
+          "elapsed_ms": 1270.52,
+          "exit_code": 0,
+          "stdout": "PASS: shape, DAG disjointness, prior start, environment drift, partial outcomes, QA result, replan and history\n",
+          "stderr": ""
+        },
+        {
+          "elapsed_ms": 1291.55,
+          "exit_code": 0,
+          "stdout": "PASS: shape, DAG disjointness, prior start, environment drift, partial outcomes, QA result, replan and history\n",
+          "stderr": ""
+        },
+        {
+          "elapsed_ms": 1293.35,
+          "exit_code": 0,
+          "stdout": "PASS: shape, DAG disjointness, prior start, environment drift, partial outcomes, QA result, replan and history\n",
+          "stderr": ""
+        },
+        {
+          "elapsed_ms": 1300.95,
+          "exit_code": 0,
+          "stdout": "PASS: shape, DAG disjointness, prior start, environment drift, partial outcomes, QA result, replan and history\n",
+          "stderr": ""
+        },
+        {
+          "elapsed_ms": 1259.69,
+          "exit_code": 0,
+          "stdout": "PASS: shape, DAG disjointness, prior start, environment drift, partial outcomes, QA result, replan and history\n",
+          "stderr": ""
+        }
+      ],
+      "median_ms": 1291.55
+    }
+  },
+  "contracts_identical": true,
+  "forge_split_comparison": {
+    "direct_before_bytes": 19688,
+    "direct_after_bytes": 7321,
+    "planned_reference_bytes": 12595
+  },
+  "agent_benchmark": {
+    "status": "blocked",
+    "reason": "Both Codex CLI sessions failed to initialize the app-server on a read-only filesystem before any model turn.",
+    "input_tokens": null,
+    "cached_input_tokens": null,
+    "output_tokens": null,
+    "latency_ms": null
+  }
+}

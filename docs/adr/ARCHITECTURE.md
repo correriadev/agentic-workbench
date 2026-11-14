@@ -7,9 +7,7 @@ tags: [architecture, design-patterns, folder-structure]
 edges:
   - relation: references
     target: "adr:tests"
-  - relation: references
-    target: "adr:tdd-triad-blueprint"
-updated: 2026-10-29
+updated: 2026-11-11
 ---
 # Project Architecture
 
@@ -34,7 +32,7 @@ agentic-workbench/
 </folder_structure>
 
 ## LAYERS
-- **Core Engineering Skills**: Specification, test-driven implementation, independent adversarial QA, rapid prototyping, and architecture review (`scope-refinement`, `fast-scope`, `tdd-orchestrator`, `fast-code`, `tdd-maker`, `adversarial-qa`, `the-grumpy-tech-lead`, `project-memory`).
+- **Core Engineering Skills**: Shared scope, implementation planning, test-driven construction, evidence planning, acceptance review and architecture review (`blueprint`, `forge`, `quality-gate`, `the-grumpy-tech-lead`, `project-memory`).
 - **Product & Discovery Skills**: Problem framing, backlog refinement, meta-prompt generation, and UI prototype parsing (`brainstorming`, `pbb-design`, `prompt-generator`, `read-ui-prototype`).
 - **Navigation, Mentorship & Delegation**: AST graph discovery, contextual reasoning, and CLI delegation wrappers (`codebase-memory`, `contextual-mentorship`, `ask-antigravity`, `ask-codex`, `ask-opencode`).
 - **Operational Infrastructure**: Repository cleanup scripts and intentional local agent synchronization (`scripts/sync_skills.py`, `scripts/cleanup.ps1`, `scripts/cleanup.sh`).
@@ -59,14 +57,10 @@ REQUIRED: Any import violating these rules must fail CI verification via: `pytho
 ## MODULES
 | Module | Responsibility | Location |
 |--------|-----------------|-------------|
-| `scope-refinement` | Tripartite specification refinement (SCOPE, tasks, qa) | `skills/scope-refinement/` |
-| `fast-scope` | Lean prototype scope refinement (bipartite spec for fast-code) | `skills/fast-scope/` |
-| `tdd-orchestrator` | Task DAG supervision and batch dispatch | `skills/tdd-orchestrator/` |
-| `fast-code` | Fast prototype orchestrator (zero git, zero tests, DAG execution) | `skills/fast-code/` |
-| `tdd-maker` | Strict Red-Green-Refactor test-driven construction | `skills/tdd-maker/` |
-| `adversarial-qa` | Independent adversarial verification against invariants | `skills/adversarial-qa/` |
+| `blueprint` | Shared scope and construction planning | `skills/blueprint/` |
+| `forge` | Docs-first RED-GREEN executor and candidate evidence producer | `skills/forge/` |
+| `quality-gate` | Evidence planning (`plan`) and candidate assessment (`check`) | `skills/quality-gate/` |
 | `the-grumpy-tech-lead` | Socratic architectural review and systemic risk detection | `skills/the-grumpy-tech-lead/` |
-| `triad-mediator` | Independent read-only forensic autopsy and operator escalation arbiter | `skills/triad-mediator/` |
 | `project-memory` | Architecture, test protocols, and graph index maintenance | `skills/project-memory/` |
 | `brainstorming` | Collaborative discovery and architectural trade-off analysis | `skills/brainstorming/` |
 | `pbb-design` | Product backlog building and scope slicing | `skills/pbb-design/` |
@@ -80,6 +74,11 @@ REQUIRED: Any import violating these rules must fail CI verification via: `pytho
 | `ask-opencode` | Local OpenCode CLI delegation wrapper | `skills/ask-opencode/` |
 | `sync_skills` | Intentional skill distribution across coding agents | `scripts/sync_skills.py` |
 | `cleanup` | Repository hygiene and cache purging scripts | `scripts/cleanup.ps1` |
+
+## CHANGE CONTRACT
+- The first planner may create `SCOPE.md`; either planner can operate independently. `blueprint` owns `tasks.json`, and `quality-gate plan` owns `qa.json`.
+- Derived plans identify the scope revision. Reconcile affected plans after approved changes to the shared behavior and when QA obligations introduce evidence work.
+- `forge` executes unit-first RED → GREEN for implementation tasks and produces planned evidence in the working tree. `quality-gate check` judges the evidence against the published contract without modifying it.
 
 ## PATTERNS
 <code_patterns>
@@ -110,4 +109,12 @@ import external_orchestrator                     # FORBIDDEN: provider-agnostic 
 
 - [**README.md**](../README.md): Main documentation index.
 - [**TESTS.md**](./TESTS.md): Testing strategies and commands.
-- [**TDD_TRIAD_BLUEPRINT.md**](./TDD_TRIAD_BLUEPRINT.md): Portable architectural blueprint for reproducing the `tdd-orchestrator -> tdd-maker -> adversarial-qa` triad in other contexts.
+
+
+### Change contracts
+
+Planned changes store three contracts under `docs/specs/<change_id>/`. `SCOPE.md` defines the shared behavior and risks. `tasks.json` stores the task graph, execution state and candidate evidence. `qa.json` stores the normative contract and assessments. The bundled `contract.py` validates writes under a shared lock. The QA revision hashes the normative contract independently of assessments.
+
+Direct Forge execution starts from the user request and the repository. It can implement, author a check or run an existing procedure. It presents action, target, preconditions, permitted effects and verification after read-only inspection and before writes or side effects.
+
+For planned execution, Forge resolves each `evidence_checks[].qa_ids` against `qa.json.contract`, runs the procedure on the identified candidate and records observed outcomes in `tasks.json`. Failed checks may produce evidence. Missing observations or prerequisites are reported as gaps or blockers. Quality Gate judges sufficiency and records assessments.

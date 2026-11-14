@@ -205,8 +205,8 @@ Once all `MACRO`s reach a terminal state (`completed` or `failed`):
 
 ## 5. Agent Consumption Protocol
 1. **Fast Triage (`fast-scope` / quick lookup):** Read ONLY `## 1. TL;DR` and `## 2. Findings Matrix`.
-2. **Specification Grounding (`scope-refinement` / `pbb-design`):** Read `RESEARCH.md` in full, then read only the `## 1. Executive Summary` (lines 1–35) of relevant shards.
-3. **Deep Implementation / Audit (`tdd-maker` / `the-grumpy-tech-lead`):** Open the specific `shards/<macro_id>.md` cited in `## 2. Findings Matrix` and jump to `### <micro_id>` under `## 2. Deep Evidence` for verbatim quotes and exact `path:line` locators.
+2. **Specification Grounding (`fast-scope` / `qa-scope` / `pbb-design`):** Read `RESEARCH.md` in full, then read only the `## 1. Executive Summary` (lines 1–35) of relevant shards.
+3. **Deep Implementation / Audit (`fast-code` / `the-grumpy-tech-lead`):** Open the specific `shards/<macro_id>.md` cited in `## 2. Findings Matrix` and jump to `### <micro_id>` under `## 2. Deep Evidence` for verbatim quotes and exact `path:line` locators.
 ```
 
 4. **Finalize State:** Set top-level `status = "completed"` (or `"partial"` if any `MACRO` failed/blocked) in `docs/research/${topic_id}/research.json`.

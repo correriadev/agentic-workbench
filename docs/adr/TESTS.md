@@ -7,7 +7,7 @@ tags: [testing, unit-tests, validation, scripts]
 edges:
   - relation: references
     target: "adr:architecture"
-updated: 2026-10-29
+updated: 2026-11-11
 ---
 # Testing Protocol
 
@@ -20,7 +20,6 @@ Repository verification strategy combining structural ontology validation, graph
 | Unit | `powershell -File skills/ask-antigravity/scripts/Test-Invoke-Antigravity.ps1` | Runs offline contract tests for the Antigravity delegation wrapper |
 | Integration | `python skills/project-memory/scripts/generate_docs_graph.py docs` | Generates and verifies integrity of the documentation relation graph |
 | E2E | `python scripts/sync_skills.py --dry-run` | Validates skill mirroring plans across all 4 coding agent targets |
-| E2E | `python scripts/test_triad_slots_e2e.py` | Validates Triad Git worktree slot lifecycle, isolation, and recovery end-to-end |
 | Coverage | `python skills/project-memory/scripts/validate_ontology.py docs` | Validates document frontmatter, node references, and structural schemas |
 
 ## MINIMUM COVERAGE
@@ -29,7 +28,7 @@ REQUIRED: Maintain the following minimum coverage levels:
 | Layer | Coverage | Description |
 |-------|----------|-------------|
 | Documentation Graph | 100% | Zero unresolved node references or broken edges in docs/.graph.json |
-| Skill Specifications | 100% | Valid frontmatter and self-contained structure for all 15 skills |
+| Skill Specifications | 100% | Valid frontmatter and self-contained structure for all canonical skills |
 | CLI Delegation Wrappers | 100% | All offline argument parsing, mode switching, and error paths verified |
 | Repository Synchronization | 100% | Clean dry-run execution across Antigravity, Codex, OpenCode, and Claude |
 
@@ -57,6 +56,14 @@ REQUIRED: Maintain the following minimum coverage levels:
 - REQUIRED: In RED phase, a test must fail strictly due to an unmet invariant or schema mismatch — never due to unhandled syntax errors or script crashes.
 - PROHIBITED: Modifying test assertions or ignoring validation exit codes to force green verification status.
 
+## CONSTRUCTION AND QA EVIDENCE
+- `blueprint` documents explicit `unit_tests.files` and an executable focused `unit_tests.command` in `tasks.json` for implementation tasks, with test paths included in `files_allowed`.
+- `forge` reads `docs/README.md` first, creates or updates only mapped test files in RED and verifies a failure caused by missing acceptance behavior (not by syntax, imports or environment).
+- GREEN edits only allowed production files; the mapped tests remain frozen. The same unit-test command must exit 0 before the task is completed. Build/typecheck smoke checks are supplementary.
+- Missing test mappings and pre-existing unrelated test failures block execution; do not bypass or weaken the tests to reach GREEN. Neither git nor worktrees are used.
+
+- `quality-gate plan` specifies exact observations, conditions, assertions and provenance for material risks in `qa.json`. `forge` executes the planned checks and captures evidence on the final candidate. `quality-gate check` judges sufficiency and provenance independently.
+
 ## TOOLING
 - **Framework:** Python `unittest`, PowerShell native assertion scripts
 - **Assertions:** Built-in PowerShell `Assert`, Python `self.assertEqual` / custom validators
@@ -74,3 +81,10 @@ REQUIRED: Maintain the following minimum coverage levels:
 
 - [**README.md**](../README.md): Main documentation index.
 - [**ARCHITECTURE.md**](./ARCHITECTURE.md): System architecture and patterns.
+
+
+### Direct Forge verification
+
+Before a write or an execution with side effects, publish a session plan with the action, target, prerequisites, permitted effects and verification. Defer runners that may write caches until after the plan. Use focused RED → GREEN for changes to production behavior. For check authoring or run-only requests, report the observations obtained without manufacturing a RED result.
+
+For E2E, reuse the project runner and runbook. Verify the running candidate and required dependencies, correlate observations to the scenario, and record actual results and blockers. In planned mode, link each evidence record to its QA obligation and candidate. A successful runner alone does not establish that every required observation was collected.

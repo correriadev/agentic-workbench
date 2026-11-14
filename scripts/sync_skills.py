@@ -56,26 +56,7 @@ OBSOLETE_SKILLS = {
     "jev-social-research"
 }
 
-POLICY_TOKEN = b"{{PROVIDER_SUBAGENTS_POLICY}}"
 FAST_CODE_POLICY_TOKEN = b"{{FAST_CODE_SUBAGENTS_POLICY}}"
-
-_HAIKU_POLICY = (
-    "Dispatch both `tdd-maker` and `adversarial-qa` with explicit `model: haiku-5.5`, "
-    "`effort: extra-high`; never inherit session defaults."
-)
-PROVIDER_POLICIES = {
-    "antigravity": (
-        "Dispatch both `tdd-maker` and `adversarial-qa` via `invoke_subagent` with `Model: flash` "
-        "(allowed: `inherit`, `flash_lite`, `flash`, `pro`; no effort parameter exists)."
-    ),
-    "codex": (
-        "Dispatch both `tdd-maker` and `adversarial-qa` via `spawn_agent` with `model: gpt-6-luna`, "
-        "`reasoning_effort: xhigh`, `fork_turns: none`. Since `spawn_agent` lacks native `cwd`, pass "
-        "the absolute slot directory and require `cd <slot>` as the worker's mandatory first action."
-    ),
-    "claude": _HAIKU_POLICY,
-    "opencode": _HAIKU_POLICY,
-}
 
 _FAST_CODE_HAIKU_POLICY = (
     "Dispatch inline builder subagent with explicit `model: haiku-5.5`, `effort: extra-high`; "
@@ -107,10 +88,6 @@ def sync_single_skill(src_dir: pathlib.Path, dst_dir: pathlib.Path, dry_run: boo
     for path in sorted(src_dir.rglob("*")):
         if path.is_file():
             content = path.read_bytes()
-            if POLICY_TOKEN in content:
-                if target_name not in PROVIDER_POLICIES:
-                    raise ValueError("A known target_name is required to render provider policy tokens")
-                transformations.append((path.relative_to(src_dir), POLICY_TOKEN, PROVIDER_POLICIES[target_name].encode("utf-8")))
             if FAST_CODE_POLICY_TOKEN in content:
                 if target_name not in FAST_CODE_PROVIDER_POLICIES:
                     raise ValueError("A known target_name is required to render provider policy tokens")

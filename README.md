@@ -2,7 +2,7 @@
 
 > Catálogo canônico de skills e protocolos de engenharia de software para coding agents locais (**Google Antigravity**, **OpenAI Codex**, **OpenCode** e **Claude Code**).
 
-O repositório fornece um ecossistema modular e desacoplado onde skills operam com responsabilidades atômicas: quem especifica não implementa, quem implementa não testa, e quem audita atua de forma adversarial e independente.
+O Workbench oferece skills independentes para planejar a mudança, construir com testes e julgar a evidência de entrega.
 
 ---
 
@@ -49,35 +49,13 @@ Uma vez sincronizadas, invoque as skills em qualquer projeto pelo nome ou objeti
 
 ## 2. Fluxos de Trabalho Recomendados
 
-Escolha o fluxo ideal conforme o nível de rigor e o estágio da tarefa:
+### Construção e validação
 
-### Fluxo A: Produção & Engenharia Rigorosa (TDD Triad)
-*Para funcionalidades críticas, refatorações de arquitetura e código de produção.*
+`blueprint` e `quality-gate plan` podem ser chamados de forma independente e em qualquer ordem. A primeira skill cria o `SCOPE.md` compartilhado quando necessário. `blueprint` gera `tasks.json`; `quality-gate plan` investiga o código e gera as obrigações de evidência em `qa.json`. Quando ambos os planos existem, reconcilie as obrigações com as tarefas e use a mesma revisão de escopo.
 
-```text
-[brainstorming / pbb-design]
-             ↓
-    [scope-refinement]  ──► gera docs/specs/<id>/{SCOPE.md, tasks.json, qa.json}
-             ↓
-    [tdd-orchestrator]  ──► coordena lotes e slots git desacoplados
-        ├── [tdd-maker] ──► ciclo RED-GREEN-REFACTOR em maker-slot (sem ver qa.json)
-        └── [adversarial-qa] ──► suite destrutiva em qa-slot (pass/fail objetivo)
-             ↓
-  [the-grumpy-tech-lead] ──► auditoria socrática (impactos de escala, N+1, leaks)
-             ↓
-      [project-memory]  ──► atualiza docs/ (.digest.md, .graph.json, ADRs)
-```
+`forge` executa as tarefas na working tree, começa pelos testes unitários em RED e só então implementa em GREEN. Também executa as verificações planejadas para produzir evidências. Quando houver contrato de QA, `quality-gate check` julga a evidência vinculada ao candidato e registra o veredito.
 
-### Fluxo B: Prototipagem Ultrarrápida (Zero Git / Fast Path)
-*Para MVPs, scripts rápidos, validação de conceitos e spikes sem cerimônia de git.*
-
-```text
-[fast-scope] ──► gera plano enxuto docs/specs/<id>/{SCOPE.md, tasks.json} (sem qa.json)
-      ↓
- [fast-code] ──► executa DAG diretamente na working tree, sem worktrees e sem git
-```
-
-### Fluxo C: Pesquisa Aprofundada & Meta-Engenharia
+### Pesquisa Aprofundada e Meta-Engenharia
 *Para investigar tópicos complexos ou criar/auditar novas skills.*
 
 ```text
@@ -94,19 +72,11 @@ Todas as skills ficam isoladas em `skills/<nome>/` e contêm sua especificação
 ### 🛠️ Engenharia Core & TDD
 | Skill | Papel |
 |---|---|
-| [`scope-refinement`](skills/scope-refinement/SKILL.md) | Especificação tripartite atômica baseada em evidências (`SCOPE.md`, `tasks.json`, `qa.json`). |
-| [`tdd-orchestrator`](skills/tdd-orchestrator/SKILL.md) | Orquestrador do DAG; despacha lotes, gerencia branches de trabalho e integra commits aprovados. |
-| [`tdd-maker`](skills/tdd-maker/SKILL.md) | Construtor RED-GREEN-REFACTOR estrito restrito a `files_allowed`. Não acessa o arquivo de QA. |
-| [`adversarial-qa`](skills/adversarial-qa/SKILL.md) | Juiz independente; executa testes destrutivos, limites, concorrência e segurança contra `qa.json`. |
 | [`the-grumpy-tech-lead`](skills/the-grumpy-tech-lead/SKILL.md) | Revisor socrático; audita vazamentos de recursos, queries N+1, contratos e integridade de design. |
-| [`triad-mediator`](skills/triad-mediator/SKILL.md) | Árbitro forense read-only chamado apenas quando o triad trava em impasse (`blocked`). |
 | [`project-memory`](skills/project-memory/SKILL.md) | Mantém a memória documental em `docs/` (`.digest.md`, `.graph.json`, ADRs). |
-
-### ⚡ Prototipagem Rápida
-| Skill | Papel |
-|---|---|
-| [`fast-scope`](skills/fast-scope/SKILL.md) | Especificação bipartite ágil (`SCOPE.md`, `tasks.json`) sem overhead de QA formal. |
-| [`fast-code`](skills/fast-code/SKILL.md) | Executor direto na working tree local, focado em velocidade (zero worktree / zero commits intermediários). |
+| [`blueprint`](skills/blueprint/SKILL.md) | Inicializa ou reutiliza o escopo e gera o plano de implementação e evidência em `tasks.json`. |
+| [`quality-gate`](skills/quality-gate/SKILL.md) | Define as obrigações de evidência em `plan` e avalia o candidato em `check`. |
+| [`forge`](skills/forge/SKILL.md) | Implementa mudanças, cria verificações e executa procedimentos existentes, incluindo E2E. |
 
 ### 💡 Produto, Design & Pesquisa
 | Skill | Papel |
@@ -148,10 +118,10 @@ O script [`scripts/sync_skills.py`](scripts/sync_skills.py) gerencia a distribui
 
 ```bash
 # Sincronizar apenas uma skill específica
-python scripts/sync_skills.py --skill scope-refinement
+python scripts/sync_skills.py --skill blueprint
 
 # Sincronizar uma skill para um único agente
-python scripts/sync_skills.py --skill fast-code --target codex
+python scripts/sync_skills.py --skill forge --target codex
 
 # Limpeza e higienização de arquivos residuais
 python scripts/sync_skills.py --dry-run
@@ -173,11 +143,10 @@ agentic-workbench/
 │   └── adr/
 │       ├── ARCHITECTURE.md         # Arquitetura modular e regras de dependência
 │       ├── TESTS.md                # Protocolo de testes e validações
-│       └── TDD_TRIAD_BLUEPRINT.md  # Blueprint para reprodução externa da Tríade TDD
 ├── scripts/
 │   ├── cleanup.ps1 / cleanup.sh    # Scripts de higienização do workspace
 │   └── sync_skills.py              # Sincronizador canônico para os 4 coding agents
-├── skills/                         # Catálogo de 21 skills autocontidas
+├── skills/                         # Catálogo de skills autocontidas
 ├── AGENTS.md                       # Regras operacionais para Antigravity, Codex e OpenCode
 ├── CLAUDE.md                       # Regras operacionais específicas para Claude Code
 └── README.md                       # Este documento
@@ -191,3 +160,12 @@ python skills/project-memory/scripts/generate_docs_graph.py docs
 # Validar conformidade de ontologia e links
 python skills/project-memory/scripts/validate_ontology.py docs
 ```
+
+### Forge em modo direto ou planejado
+
+- **Direto.** A Forge pode implementar uma mudança, criar uma verificação ou executar um cenário existente. Após a inspeção somente leitura, apresenta na sessão a ação, o alvo, as pré-condições, os efeitos previstos e a verificação antes da primeira escrita ou de uma execução com efeitos. RED → GREEN se aplica a mudanças de comportamento do produto. Esse modo dispensa os três contratos.
+- **Planejado.** Indique o plano ou o `change_id`. Em `docs/specs/<change_id>/`, `SCOPE.md` registra a intenção e os critérios, `tasks.json` guarda o plano, os estados e as evidências, e `qa.json` guarda as obrigações em `contract` e os vereditos em `assessments`. Quando houver QA formal, use `quality-gate plan`, reconcilie as tarefas com `blueprint`, execute com `forge` e avalie com `quality-gate check`. Um contrato planejado inválido deve ser reconciliado antes da execução.
+
+Para E2E, a Forge segue o runbook e reutiliza o runner do projeto. Confere o ambiente e a versão servida, executa o cenário e registra as observações ou os bloqueios. No modo planejado, associa cada `evidence_check` de `tasks.json` às obrigações de `qa.json.contract` e registra a evidência por obrigação e candidato, incluindo falhas observadas. Uma suíte verde com observações faltantes deixa uma lacuna. O veredito cabe a `quality-gate check`.
+
+Os scripts `contract.py` acompanham as skills e validam as gravações. A revisão de QA identifica o conteúdo de `qa.json.contract`. Registrar um veredito preserva essa revisão.
