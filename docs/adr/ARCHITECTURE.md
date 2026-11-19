@@ -7,7 +7,7 @@ tags: [architecture, design-patterns, folder-structure]
 edges:
   - relation: references
     target: "adr:tests"
-updated: 2026-11-11
+updated: 2026-11-19
 ---
 # Project Architecture
 
@@ -34,7 +34,7 @@ agentic-workbench/
 ## LAYERS
 - **Core Engineering Skills**: Shared scope, implementation planning, test-driven construction, evidence planning, acceptance review and architecture review (`blueprint`, `forge`, `quality-gate`, `the-grumpy-tech-lead`, `project-memory`).
 - **Product & Discovery Skills**: Problem framing, backlog refinement, meta-prompt generation, and UI prototype parsing (`brainstorming`, `pbb-design`, `prompt-generator`, `read-ui-prototype`).
-- **Navigation, Mentorship & Delegation**: AST graph discovery, contextual reasoning, and CLI delegation wrappers (`codebase-memory`, `contextual-mentorship`, `ask-antigravity`, `ask-codex`, `ask-opencode`).
+- **Navigation, Mentorship & Delegation**: Repository mapping, AST graph discovery, contextual reasoning, and CLI delegation wrappers (`project-mapper`, `codebase-memory`, `contextual-mentorship`, `ask-antigravity`, `ask-codex`, `ask-opencode`).
 - **Operational Infrastructure**: Repository cleanup scripts and intentional local agent synchronization (`scripts/sync_skills.py`, `scripts/cleanup.ps1`, `scripts/cleanup.sh`).
 
 ## DEPENDENCY RULES
@@ -68,6 +68,7 @@ REQUIRED: Any import violating these rules must fail CI verification via: `pytho
 | `skill-creator` | Self-contained skill creation, token economy, and prompt-cache optimization | `skills/skill-creator/` |
 | `read-ui-prototype` | Semantic interface specification extraction | `skills/read-ui-prototype/` |
 | `codebase-memory` | AST knowledge graph querying and impact analysis | `skills/codebase-memory/` |
+| `project-mapper` | Agents investigate a Git snapshot and publish reviewed relationships, source locations and open questions in SQLite. | `skills/project-mapper/` |
 | `contextual-mentorship` | Context-aware decision reasoning and mentorship | `skills/contextual-mentorship/` |
 | `ask-antigravity` | Local Antigravity CLI delegation wrapper | `skills/ask-antigravity/` |
 | `ask-codex` | Local OpenAI Codex CLI delegation wrapper | `skills/ask-codex/` |

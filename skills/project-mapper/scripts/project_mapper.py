@@ -293,6 +293,28 @@ def verify(root, connection):
                 relationships=len(data['relationships']), nodes=len(data['nodes']))
 
 
+def worker_prompt(root, args):
+    stage = run_directory(output_paths(root)[0], args.run)
+    manifest, plan = load_run(stage)
+    if 'questions' not in plan:
+        raise MappingError('worker-prompt requires a supervisor-led investigation')
+    question = question_index(plan).get(args.question)
+    if question is None:
+        raise MappingError('unknown investigation question')
+    mapper = Path(__file__).resolve()
+    contract = (mapper.parent.parent / 'references' / 'worker.md').read_text(encoding='utf-8').rstrip()
+    assignment = dict(root=str(root), mapper=str(mapper), run=args.run, question=question,
+                      snapshot=manifest['snapshot']['identity'], plan=str(stage / 'plan.json'),
+                      inventory=str(stage / 'inventory.json'),
+                      shard=str(safe_path(stage, f'shards/{args.question}.json')))
+    prompt = contract + '\n\nAssignment\n' + canonical(assignment)
+    if args.repair is not None:
+        if not args.repair.strip():
+            raise MappingError('a repair requires a concrete diagnostic')
+        prompt += '\n\nRepair\n' + canonical({'diagnostic': args.repair})
+    return {'prompt': prompt}
+
+
 def worker_input(root, args):
     stage = run_directory(output_paths(root)[0], args.run)
     manifest, plan = load_run(stage)
@@ -398,6 +420,10 @@ def arguments():
     snapshot_options(prepare_args)
     prepare_args.add_argument('--agent-review', action='store_true')
     commands.add_parser('publish', help='validate, resolve and atomically publish a prepared run').add_argument('run')
+    worker = commands.add_parser('worker-prompt', help='render a single isolated worker assignment')
+    worker.add_argument('run')
+    worker.add_argument('question')
+    worker.add_argument('--repair', help='append one retry diagnostic to this assignment')
     read = commands.add_parser('read-input', help='read a checked, assigned worker locator')
     read.add_argument('run')
     read.add_argument('task')
@@ -444,6 +470,8 @@ def dispatch(root, args):
         return start_run(root, args.commit, agent_review=args.agent_review)
     if args.command == 'publish':
         return publish(root, args.run)
+    if args.command == 'worker-prompt':
+        return worker_prompt(root, args)
     if args.command == 'read-input':
         return worker_input(root, args)
     if args.command == 'search-input':

@@ -1,50 +1,34 @@
 # Investigation protocol
 
-## Orient on the snapshot
+## Orient
 
-Use the path to `scripts/project_mapper.py` in place of `<mapper>`. Commands accept the target Git root as their first argument.
+Set `<mapper>` to the absolute path of `scripts/project_mapper.py`. Pass the target Git root as its first argument. The initial `investigate` command returns the run ID and paths of the inventory, plan, decisions and shards directory. Before adding questions, use `@` as the reader's question ID.
 
 ```text
-python "<mapper>" . investigate --commit HEAD
 python "<mapper>" . read-input RUN @ package.json --start 1 --count 30
 python "<mapper>" . search-input RUN "dotnet test" --glob "*.ps1" --limit 10
 ```
 
-`investigate` creates an unpublished run and returns the paths of its inventory, plan, decisions and shards directory. `@` allows orientation before any questions exist. Search returns literal, case-sensitive matches in snapshot text, their line and content IDs, skipped unreadable files, and a truncation flag. Repeat `--glob` for multiple patterns. Read individual matches before using them. `hints RUN path.py` returns optional Python extraction candidates for that input. Use the same reader for unfamiliar languages and manifests.
+Search is case-sensitive and returns locators, skipped unreadable inputs and a truncation flag. Repeat `--glob` to search multiple patterns. Open a match to see its meaning. Consult optional `hints RUN path.py` when an AST would help.
 
-Commit mode reads Git blobs. Worktree mode uses tracked files and Git standard excludes for untracked paths, records deletions and fingerprints eligible bytes. Both modes exclude mapper output and keep links and submodules as boundaries. A worker read checks the requested file. Publication checks the complete inventory again. If the worktree changes, prepare a fresh run. Retain the run ID to resume a fixed snapshot.
+Commit mode reads Git blobs. Worktree mode includes tracked files and eligible untracked files under Git's standard excludes, records deletions and fingerprints bytes. Both modes exclude mapper output and treat links and submodules as boundaries. When worktree bytes change, start a new run.
 
-## Write and extend the plan
+## Plan and resume
 
-The supervisor owns `plan.json`. Preserve the initial snapshot identity. Use a lowercase slug for each stable question ID. Each question has one owner and an independent output at `shards/<id>.json`. Use seed paths from the eligible inventory. A worker can inspect any eligible path relevant to its question. Use `depends_on` when a question's acceptance relies on another answer. Definitions and dependencies can be revised between waves.
-
-```json
-{"snapshot":"<identity>","questions":[{"id":"launch","question":"Which executable does the public E2E command invoke?","seeds":["package.json"],"depends_on":[]}]}
-```
-
-Use repository-specific questions, such as which adapter a setting selects, how a consumer binds to a particular channel, or what enables report generation. Give a worker the question, pointers, and the expected output path. Independent workers can read overlapping sources. The supervisor alone decides when to expand the plan, reconcile names across shards or close a question. On resumption inspect existing questions, shards and decisions to avoid repeating accepted work.
-
-## Write one worker shard
+Preserve the initial snapshot identity in `plan.json`. Record the question this repository raises, its seed paths and any prerequisites. Use the smallest set of questions that can explain the requested behavior. Give each question a stable lowercase slug and use `depends_on` where acceptance relies on an earlier finding. Inspect existing questions, shards and decisions before resuming the same run.
 
 ```json
-{
-  "snapshot": "<identity>",
-  "question": "launch",
-  "status": "answered",
-  "claims": [{
-    "source": "command:npm:e2e",
-    "relation": "invokes",
-    "target": "file:scripts/e2e.ps1",
-    "condition": "",
-    "evidence": [{"path":"package.json","content_id":"<ID from read-input>","start":4,"end":4}]
-  }],
-  "gap": ""
-}
+{"snapshot":"<identity>","questions":[{"id":"launch","question":"Which executable does the E2E command invoke?","seeds":["package.json"],"depends_on":[]}]}
 ```
 
-Read further sources with `read-input RUN launch PATH --start LINE --count COUNT` (1–120 lines per read). Cite the smallest ranges establishing identity, direction and conditions. A literal declaration may establish an edge with one locator. A cross-service registration typically needs the producer, the binding configuration and the consumer. Capture conditions in `condition` and include their source locations. Use vocabulary consistent across the run, such as `invokes`, `consumes`, `writes` and `member-of`. Use distinct namespaces for homonyms. A `file:<path>` endpoint must exist in the eligible snapshot. A `member-of` claim also populates the membership view grouped by target kind and key.
+## Dispatch
 
-Use `answered` for supported claims. For an examined negative answer, use an empty `claims` array and add `"absence":{"statement":"<what is absent under which conditions>","evidence":[...]}` with the locators that bound the search. Use `partial` for supported facts with a concrete missing link, or `blocked` with no claims and an explicit gap. Leave a question without an accepted shard as unexamined. Record uncertainty or conflict in the gap. Keep credentials and raw payloads out of names, conditions and findings.
+```text
+python "<mapper>" . worker-prompt RUN launch
+python "<mapper>" . worker-prompt RUN launch --repair "The cited condition includes backend B. Recheck its registration."
+```
+
+Pass the returned `prompt` string verbatim to a worker with access to those paths. The [worker contract](worker.md) is the reusable prefix. The command appends the active assignment in deterministic key order and a diagnostic only on repair. Use the same skill version for retries. The same assignment can run locally. A worker returns a pointer and any follow-up lead. A missing shard remains unexamined. For a recoverable failure, retry the same assignment with the specific diagnostic. If the same blocker persists, record the gap and continue the independent questions.
 
 ## Review and publish
 
@@ -57,14 +41,12 @@ python "<mapper>" . coverage --family investigation
 python "<mapper>" . trace "command:npm:e2e" --type invokes --direction out
 ```
 
-`check-shard` checks structure, endpoints, snapshot identity and source ranges. The supervisor inspects the claim and its sources, tests an alternative interpretation, then passes the **exact fingerprint reviewed** to `accept`. Request a corrected shard when the source does not support the proposed relationship. A worker writes only its shard. The acceptance command atomically updates the supervisor's decisions. Accept prerequisites before their dependents. A changed answer, question definition or prerequisite decision requires fresh review. Adding an independent question preserves existing decisions.
+`check-shard` validates ownership, endpoints, snapshot bytes and ranges. Before `accept`, reopen decisive lines. Check that they establish origin, destination, direction and the stated condition. A literal command can support an edge at one site. Across services, verify that producer, registration and consumer refer to the same channel **and** transport namespace. Look for a same-name alternative, override or feature flag that would reverse the conclusion. For an absence, identify what closes the search within its stated scope. Two documents repeating one source count as one basis.
 
-`publish` compiles accepted shards, records open questions and atomically promotes the checked database. A previous complete graph for the same snapshot and plan survives a partial retry. `verify` reopens the snapshot, rechecks the locators and replays the accepted records. The semantic judgment belongs to the reviewer. Independent investigations may discover additional relationships in the same revision.
+Reconcile qualified names and types across workers. The `member-of` relationship also populates `dimensions`. Accept prerequisite decisions before dependents. An accepted partial prerequisite still has a gap: corroborate the dependent claim separately or carry that gap forward. A changed question, shard or prerequisite decision requires fresh review. Adding an independent question preserves existing decisions.
 
-`graph.sqlite` holds the plan, decisions embodied in accepted shards, question outcomes, nodes, typed edges, evidence and gaps. Inspect `coverage`, `dimensions`, `node KEY` and `trace KEY`. Trace accepts repeated types, direction, depth and size bounds. Coverage reports cite eligible and uncited file counts separately. **Complete** describes the questions in that plan. Record material boundaries omitted from an investigation as open questions.
+`publish` compiles accepted shards and records open questions in `.project-mapper/graph.sqlite`. A complete graph for the same snapshot and plan survives a partial retry. `verify` replays accepted records and checks locators. The supervisor is responsible for semantic judgment. Inspect `coverage --area QUESTION_ID` for the question outcome and discrepancies. `complete` describes the questions in this plan. File counts distinguish cited and uncited inputs. Use `node KEY`, `trace KEY` or `dimensions` for navigation.
 
 ## Optional Python baseline
 
-Existing `build --commit REV`, `build --worktree` and `prepare [--agent-review]` commands run a separate static Python profile. It handles regular packages, imports, supported direct calls inside module-level functions, and selected root pyproject declarations. The optional legacy review marks signals for follow-up. Use `investigate` for supervisor-authored plans and relationships that cross technologies. Use `hints` inside an investigation to consult an extractor without replacing the active graph.
-
-Old schema-compatible SQLite files remain inspectable. Static replay requires the recorded profile version, built-in module set and compatible Python parser. Rebuild with the current version to apply changes in binding or coverage.
+`build --commit REV`, `build --worktree` and `prepare [--agent-review]` remain available for static Python analysis of regular packages, supported imports, direct function calls and root pyproject declarations. Legacy review flags signals. Use `hints` inside an investigation to consult this extractor without replacing the graph. Older schema-compatible SQLite files remain inspectable. Static replay requires the recorded profile and a compatible interpreter.

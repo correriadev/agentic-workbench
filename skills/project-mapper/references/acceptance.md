@@ -22,6 +22,18 @@ Run the same unittest discovery command above from the repository root. The inve
 
 The baseline regressions cover lexical scope, built-in module precedence, delegated dependencies, unexamined inputs and scoped traces. Click is an optional pinned checkout for the static profile. Controlled tests do not need network access.
 
+## Evaluate the prompts
+
+The CLI suite checks the dispatch contract byte-for-byte. It compares two questions, a repair suffix, a path with spaces and an unknown question. The semantic checks below need independent workers. Freeze the expected outcome before dispatch; give each worker only its rendered prompt. Judge the accepted claims, directions, conditions, cited ranges and open questions. Record first-pass mistakes separately from successful repairs.
+
+| Probe | Required observation |
+| --- | --- |
+| An empty default registry includes a plugin that subscribes to an event on the partner bus. Another plugin handles the same event name on an internal bus. | Follow the include to the configured handler. Keep the buses distinct in entity identities. Reject a claim of absence based on the empty inline list. |
+| A diagnostic profile selects a registry using an environment variable whose value is unavailable. | Preserve the configuration dependency and the missing value as a gap. No resolved diagnostic-to-handler edge, including one conditional on a hypothetical registration. |
+| Batch configuration has an empty observer list; the loader returns that list directly. Another mode has an observer. | Publish an evidenced absence for batch. Verify the empty graph and inspect question coverage and discrepancies. |
+
+In the first blind trial, one worker omitted the bus namespace and another proposed a handler conditional on an unseen registry. After the prompt revision, fresh workers found `event:partner:receipt.created` and traced the diagnostic profile only as far as `env:SETTLEMENT_PLUGIN_REGISTRY`. The verified graph had five nodes and three edges, with one of two questions answered. In the separate batch trial, the worker established absence from configuration and loader evidence. The verified graph had one answered question and zero edges.
+
 ## Historical static-profile v1 oracles and results
 
 | Test | Expected | Observed |
