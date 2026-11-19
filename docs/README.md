@@ -11,6 +11,9 @@ Index of project technical documentation for **Agentic Workbench**. Coding agent
 | [**ARCHITECTURE.md**](./adr/ARCHITECTURE.md) | Architecture, folder organization, and code patterns for the project. | **Mandatory** |
 | [**TESTS.md**](./adr/TESTS.md) | Testing strategies, patterns, and execution commands. | **Mandatory** |
 | [**PROJECT-MAPPER-RESEARCH.md**](./adr/guides/PROJECT-MAPPER-RESEARCH.md) | Reverse-engineering research and falsification plan for the proposed standalone Project Mapper skill. | Optional |
+| [**PROJECT-MAPPER-REA.md**](./adr/guides/PROJECT-MAPPER-REA.md) | REA source, evidence, traversal and version comparison deep dive. | Optional |
+| [**PROJECT-MAPPER-METHOD.md**](./adr/guides/PROJECT-MAPPER-METHOD.md) | Comparative research and architecture recovery method. | Optional |
+| [**PROJECT-MAPPER-VALIDATION.md**](./adr/guides/PROJECT-MAPPER-VALIDATION.md) | Local graph contract, refresh and experimental acceptance criteria. | Optional |
 
 ## Recommended Reading Order
 
