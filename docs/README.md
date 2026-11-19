@@ -10,6 +10,7 @@ Index of project technical documentation for **Agentic Workbench**. Coding agent
 | [**.graph.json**](./.graph.json) | Macro relation graph index for agent topology navigation and 1-hop routing. | **Mandatory** |
 | [**ARCHITECTURE.md**](./adr/ARCHITECTURE.md) | Architecture, folder organization, and code patterns for the project. | **Mandatory** |
 | [**TESTS.md**](./adr/TESTS.md) | Testing strategies, patterns, and execution commands. | **Mandatory** |
+| [**PROJECT-MAPPER-RESEARCH.md**](./adr/guides/PROJECT-MAPPER-RESEARCH.md) | Reverse-engineering research and falsification plan for the proposed standalone Project Mapper skill. | Optional |
 
 ## Recommended Reading Order
 
