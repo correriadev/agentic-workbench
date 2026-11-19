@@ -2,6 +2,8 @@
 
 import argparse
 from collections import Counter
+from contextlib import closing, contextmanager
+from fnmatch import fnmatchcase
 import json
 import os
 from pathlib import Path
@@ -13,10 +15,11 @@ from uuid import uuid4
 sys.dont_write_bytecode = True
 
 import graph_store as store
+from investigation import compile_investigation, new_plan, validate_plan, validate_shard
 from pipeline import (collect, envelope, final_coverage, load, make_plan, project, review_envelope,
                       reviews, safe_path, save, validate_baseline)
-from python_profile import PROFILE, Source
-from scan_files import MappingError, canonical, inventory, repository, snapshot_options, snapshot_reader
+from python_profile import MANIFEST, PROFILE, Source, extract
+from scan_files import MappingError, canonical, digest, inventory, repository, snapshot_options, snapshot_reader
 
 
 OUTPUT = '.project-mapper'
@@ -41,30 +44,78 @@ def run_directory(directory, name):
     return stage
 
 
-def prepare(root, commit, agent_review):
+def start_run(root, commit, *, investigation=False, agent_review=False):
     manifest = inventory(root, commit)
-    with snapshot_reader(root, manifest) as reader:
-        plan = make_plan(manifest, reader, agent_review)
-        directory, _, _ = output_paths(root, create=True)
-        name = 'run-' + uuid4().hex
-        stage = safe_path(directory, name, directory=True, create=True)
-        safe_path(stage, 'shards', directory=True, create=True)
-        save(safe_path(stage, 'inventory.json'), manifest)
-        save(safe_path(stage, 'plan.json'), plan)
-        collect(plan, reader, stage)
-    return dict(run=name, snapshot=manifest['snapshot'], plan=str(stage / 'plan.json'),
-                inventory=str(stage / 'inventory.json'),
-                review_tasks=[dict(id=key, path=str(stage / item['output']), dependencies=item['dependencies'])
-                              for key, item in plan['tasks'].items() if key.startswith('review-')])
+    directory, _, _ = output_paths(root, create=True)
+    name = 'run-' + uuid4().hex
+    stage = safe_path(directory, name, directory=True, create=True)
+    shards = safe_path(stage, 'shards', directory=True, create=True)
+    save(safe_path(stage, 'inventory.json'), manifest)
+    result = dict(run=name, snapshot=manifest['snapshot'], plan=str(stage / 'plan.json'),
+                  inventory=str(stage / 'inventory.json'), shards=str(shards))
+    if investigation:
+        plan = new_plan(manifest['snapshot']['identity'])
+        decisions = safe_path(stage, 'decisions.json')
+        save(decisions, {})
+        result['decisions'] = str(decisions)
+    else:
+        with snapshot_reader(root, manifest) as reader:
+            plan = make_plan(manifest, reader, agent_review)
+            collect(plan, reader, stage)
+        result['review_tasks'] = [dict(id=key, path=str(stage / item['output']), dependencies=item['dependencies'])
+                                  for key, item in plan['tasks'].items() if key.startswith('review-')]
+    save(safe_path(stage, 'plan.json'), plan)
+    return result
 
 
-def reload_run(root, stage):
-    saved = load(safe_path(stage, 'inventory.json'))
-    manifest = inventory(root, saved['snapshot']['revision'])
-    if saved != manifest:
-        raise MappingError('input snapshot changed since inventory; prepare a new run')
+def load_run(stage):
+    manifest = load(safe_path(stage, 'inventory.json'))
     plan = load(safe_path(stage, 'plan.json'))
+    identity = manifest['snapshot']['identity']
+    snapshot = dict(manifest['snapshot'])
+    del snapshot['identity']
+    if digest([snapshot, manifest['ignore_policy'], manifest['entries']]) != identity:
+        raise MappingError('saved inventory fingerprint mismatch')
+    if safe_path(stage, 'decisions.json').exists():
+        validate_plan(plan, identity, manifest['entries'])
+    elif plan.get('snapshot') != identity or plan.get('id') != digest({k: v for k, v in plan.items() if k != 'id'}):
+        raise MappingError('saved baseline plan fingerprint mismatch')
     return manifest, plan
+
+
+def question_index(plan):
+    return {question['id']: question for question in plan['questions']}
+
+
+def decision_fingerprint(question, raw, decisions):
+    if not isinstance(decisions, dict):
+        raise MappingError('decisions must be an object')
+    dependencies = {}
+    for key in question['depends_on']:
+        if key not in decisions:
+            raise MappingError(f'review prerequisite question first: {key}')
+        dependencies[key] = decisions[key]
+    return digest([question, raw, dependencies])
+
+
+def investigation_rows(stage, manifest, plan, reader):
+    questions = question_index(plan)
+    if not questions:
+        raise MappingError('write the investigation questions to plan.json before publishing')
+    decisions = load(safe_path(stage, 'decisions.json'))
+    if not isinstance(decisions, dict) or decisions.keys() - questions.keys():
+        raise MappingError('decisions must map planned question IDs to checked fingerprints')
+    shard_paths = safe_path(stage, 'shards', directory=True)
+    allowed = {key + '.json' for key in questions}
+    if {path.name for path in shard_paths.iterdir()} - allowed:
+        raise MappingError('shard directory has outputs without task ownership')
+    accepted = {}
+    for key, fingerprint in decisions.items():
+        raw = load(safe_path(shard_paths, key + '.json'))
+        if decision_fingerprint(questions[key], raw, decisions) != fingerprint:
+            raise MappingError(f'review changed evidence, question or prerequisite before publishing: {key}')
+        accepted[key] = raw
+    return compile_investigation(manifest, plan, accepted, reader)
 
 
 def expected_plan(manifest, plan, reader):
@@ -130,7 +181,9 @@ def write_readme(path, info, connection, script):
         f'- Revision or worktree fingerprint {snapshot["revision"] or snapshot["identity"]}',
         f'- Inventory fingerprint {snapshot["identity"]}',
         f'- Profile {info["profile"]["name"]} v{info["profile"]["version"]}',
-        f'- Coverage {info["status"]}',
+        f'- Coverage {info["status"]}' + (' for the planned questions' if 'investigation_scope' in info else ''),
+        *([f'- Cited files {info["investigation_scope"]["cited_files"]} of '
+           f'{info["investigation_scope"]["eligible_files"]} eligible files'] if 'investigation_scope' in info else []),
         '- Dimensions ' + (', '.join(dims) or 'none identified'),
         '- Coverage gaps ' + (', '.join(f'{status} ({count})' for status, count in sorted(counts.items())) or 'none'),
         '', '## Material gaps', '',
@@ -143,21 +196,57 @@ def write_readme(path, info, connection, script):
         output.write('\n'.join(content))
 
 
+def baseline_rows(stage, manifest, plan, reader):
+    expected_plan(manifest, plan, reader)
+    shard_directory = safe_path(stage, 'shards', directory=True)
+    allowed = {Path(item['output']).name for key, item in plan['tasks'].items()
+               if key.startswith(('scan-', 'review-'))}
+    if {item.name for item in shard_directory.iterdir()} - allowed:
+        raise MappingError('shard directory has outputs without task ownership')
+    baseline = {key: load(safe_path(stage, item['output'])) for key, item in plan['tasks'].items()
+                if key.startswith('scan-')}
+    return synthesize(manifest, plan, reader, baseline, reviews(plan, stage, reader))
+
+
+@contextmanager
+def write_lock(directory):
+    # Only hold this lock while replacing shared state. The OS releases it on exit or crash.
+    for suffix in ('', '-journal', '-wal', '-shm'):
+        safe_path(directory, 'publication.sqlite' + suffix)
+    with closing(sqlite3.connect(directory / 'publication.sqlite', timeout=10)) as lock:
+        lock.execute('BEGIN IMMEDIATE')
+        yield
+
+
+def scope_info(info):
+    return {'investigation_scope': info['investigation_scope']} if 'investigation_scope' in info else {}
+
+
+def guard_promotion(path, info):
+    if not path.exists():
+        return
+    with store.database(path) as current:
+        prior = store.metadata(current)
+    if prior['snapshot'] != info['snapshot']:
+        return
+    if 'questions' in prior['plan'] and 'questions' not in info['plan']:
+        raise MappingError('active investigation preserved; request Python hints within the investigation')
+    if prior['plan'] == info['plan']:
+        if prior['status'] == 'complete' and info['status'] != 'complete':
+            raise MappingError('active complete graph preserved; new coverage is partial')
+        if set(prior.get('accepted_shards', {})) - set(info.get('accepted_shards', {})):
+            raise MappingError('active investigation preserved; previously accepted questions are missing')
+
+
 def publish(root, name):
     directory, graph_path, readme_path = output_paths(root)
     stage = run_directory(directory, name)
-    manifest, plan = reload_run(root, stage)
+    manifest, plan = load_run(stage)
     with snapshot_reader(root, manifest) as reader:
-        expected_plan(manifest, plan, reader)
-        shard_directory = safe_path(stage, 'shards', directory=True)
-        allowed = {Path(item['output']).name for key, item in plan['tasks'].items()
-                   if key.startswith(('scan-', 'review-'))}
-        if {item.name for item in shard_directory.iterdir()} - allowed:
-            raise MappingError('shard directory has outputs without task ownership')
-        baseline = {key: load(safe_path(stage, item['output'])) for key, item in plan['tasks'].items()
-                    if key.startswith('scan-')}
-        supplemental = reviews(plan, stage, reader)
-        data = synthesize(manifest, plan, reader, baseline, supplemental)
+        if 'questions' in plan:
+            data = investigation_rows(stage, manifest, plan, reader)
+        else:
+            data = baseline_rows(stage, manifest, plan, reader)
     # A separate publication attempt directory allows retries after a crash or invalid shard.
     attempt = safe_path(stage, 'publish-' + uuid4().hex, directory=True, create=True)
     candidate = safe_path(attempt, 'candidate.sqlite')
@@ -167,17 +256,19 @@ def publish(root, name):
         store.check_integrity(connection, data)
         info = store.metadata(connection)
         write_readme(candidate_readme, info, connection, Path(__file__).resolve())
-    if manifest != inventory(root, manifest['snapshot']['revision']):
-        raise MappingError('input snapshot changed before publication')
-    output_paths(root)
-    os.replace(candidate, graph_path)
-    readme_written = True
-    try:
-        os.replace(candidate_readme, readme_path)
-    except OSError:
-        readme_written = False
+    with write_lock(directory):
+        if manifest != inventory(root, manifest['snapshot']['revision']):
+            raise MappingError('input snapshot changed before publication')
+        output_paths(root)
+        guard_promotion(graph_path, info)
+        os.replace(candidate, graph_path)
+        readme_written = True
+        try:
+            os.replace(candidate_readme, readme_path)
+        except OSError:
+            readme_written = False
     return dict(path=str(graph_path), snapshot=info['snapshot'], status=info['status'],
-                readme_written=readme_written, run=name, relationships=len(data['relationships']),
+                readme_written=readme_written, run=name, **scope_info(info), relationships=len(data['relationships']),
                 nodes=len(data['nodes']), supplemental_fingerprint=info['supplemental_fingerprint'])
 
 
@@ -187,24 +278,34 @@ def verify(root, connection):
     manifest = inventory(root, info['snapshot']['revision'])
     if manifest['snapshot'] != info['snapshot']:
         raise MappingError('current input snapshot differs from published graph')
-    reports = {key: json.loads(report) for key, report in connection.execute('SELECT id,report FROM tasks')}
-    baseline = {key: value for key, value in reports.items() if key.startswith('scan-')}
     with snapshot_reader(root, manifest) as reader:
-        expected_plan(manifest, info['plan'], reader)
-        data = synthesize(manifest, info['plan'], reader, baseline, info['supplemental'])
+        if 'questions' in info['plan']:
+            data = compile_investigation(manifest, info['plan'], info['accepted_shards'], reader)
+        else:
+            if info['profile'] != PROFILE:
+                raise MappingError('recorded Python profile differs; use the original mapper to replay or rebuild')
+            reports = {key: json.loads(report) for key, report in connection.execute('SELECT id,report FROM tasks')}
+            baseline = {key: value for key, value in reports.items() if key.startswith('scan-')}
+            expected_plan(manifest, info['plan'], reader)
+            data = synthesize(manifest, info['plan'], reader, baseline, info['supplemental'])
     store.check_integrity(connection, data)
-    return dict(snapshot=info['snapshot'], integrity='ok', status=info['status'], entries=len(data['inventory']),
+    return dict(snapshot=info['snapshot'], integrity='ok', status=info['status'], **scope_info(info), entries=len(data['inventory']),
                 relationships=len(data['relationships']), nodes=len(data['nodes']))
 
 
 def worker_input(root, args):
     stage = run_directory(output_paths(root)[0], args.run)
-    manifest, plan = reload_run(root, stage)
+    manifest, plan = load_run(stage)
     with snapshot_reader(root, manifest) as reader:
-        expected_plan(manifest, plan, reader)
-        task = plan['tasks'].get(args.task)
-        if not task or not args.task.startswith('review-') or args.path not in task['paths']:
-            raise MappingError('input path is outside this worker assignment')
+        if 'questions' in plan:
+            if args.task != '@' and args.task not in question_index(plan):
+                raise MappingError('unknown investigation question')
+        else:
+            task = plan['tasks'].get(args.task)
+            if not task or not args.task.startswith('review-') or args.path not in task['paths']:
+                raise MappingError('input path is outside this worker assignment')
+        if args.path not in reader.entries or not reader.entries[args.path]['eligible']:
+            raise MappingError('input path is outside eligible inventory')
         source = Source(reader, args.path)
         if args.start < 1 or args.count < 1 or args.count > 120:
             raise MappingError('start must be positive and count must be in 1..120')
@@ -215,20 +316,84 @@ def worker_input(root, args):
 
 def check_shard(root, args):
     stage = run_directory(output_paths(root)[0], args.run)
-    manifest, plan = reload_run(root, stage)
+    manifest, plan = load_run(stage)
     with snapshot_reader(root, manifest) as reader:
-        expected_plan(manifest, plan, reader)
+        if 'questions' in plan:
+            question = question_index(plan).get(args.task)
+            if question is None:
+                raise MappingError('unknown investigation question')
+            raw = load(safe_path(stage, f'shards/{args.task}.json'))
+            decisions = load(safe_path(stage, 'decisions.json'))
+            validate_shard(question['id'], raw, manifest, reader)
+            fingerprint = decision_fingerprint(question, raw, decisions)
+            return dict(question=args.task, status=raw['status'], claims=len(raw['claims']), fingerprint=fingerprint)
         task = plan['tasks'].get(args.task)
         if not task or not args.task.startswith('review-'):
             raise MappingError('task does not own a review shard')
         return review_envelope(plan, args.task, load(safe_path(stage, task['output'])), reader)
 
 
+def accept_shard(root, args):
+    stage = run_directory(output_paths(root)[0], args.run)
+    path = safe_path(stage, 'decisions.json')
+    if not path.is_file():
+        raise MappingError('accept applies to supervisor-led investigations')
+    with write_lock(stage):
+        checked = check_shard(root, args)
+        if checked['fingerprint'] != args.fingerprint:
+            raise MappingError('reviewed fingerprint changed; reopen the evidence before accepting')
+        decisions = load(path)
+        decisions[args.task] = args.fingerprint
+        temporary = safe_path(stage, f'decisions-{uuid4().hex}.tmp')
+        save(temporary, decisions)
+        os.replace(temporary, path)
+    return checked
+
+
+def search_inputs(root, args):
+    stage = run_directory(output_paths(root)[0], args.run)
+    manifest, _ = load_run(stage)
+    if not args.literal or not 1 <= args.limit <= 500:
+        raise MappingError('supply a nonempty literal and a result limit in 1..500')
+    needle = args.literal.encode()
+    matches, unreadable = [], []
+    with snapshot_reader(root, manifest) as reader:
+        for path, entry in reader.entries.items():
+            if not entry['eligible'] or (args.glob and not any(fnmatchcase(path, pat) for pat in args.glob)):
+                continue
+            try:
+                source = Source(reader, path)
+            except (UnicodeError, SyntaxError, LookupError):
+                unreadable.append(path)
+                continue
+            if '\x00' in source.text:
+                unreadable.append(path)
+                continue
+            for line, value in enumerate(source.lines, 1):
+                if needle in value:
+                    if len(matches) == args.limit:
+                        return dict(matches=matches, unreadable=unreadable, truncated=True)
+                    matches.append(dict(path=path, content_id=source.content_id, line=line))
+    return dict(matches=matches, unreadable=unreadable, truncated=False)
+
+
+def python_hints(root, args):
+    stage = run_directory(output_paths(root)[0], args.run)
+    manifest, _ = load_run(stage)
+    if not (args.path.endswith('.py') or args.path == MANIFEST):
+        raise MappingError('Python hints support .py files and the root pyproject.toml')
+    with snapshot_reader(root, manifest) as reader:
+        if args.path not in reader.entries or not reader.entries[args.path]['eligible']:
+            raise MappingError('input path is outside eligible inventory')
+        return extract(reader, args.path)
+
+
 def arguments():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('repo', type=Path, help='root of the target Git repository')
     commands = parser.add_subparsers(dest='command', required=True)
-    snapshot_options(commands.add_parser('build', help='run all six stages locally'))
+    snapshot_options(commands.add_parser('investigate', help='start a supervisor-authored mapping plan'))
+    snapshot_options(commands.add_parser('build', help='publish the optional static Python baseline'))
     prepare_args = commands.add_parser('prepare', help='inventory, plan and extract in an unpublished run')
     snapshot_options(prepare_args)
     prepare_args.add_argument('--agent-review', action='store_true')
@@ -239,9 +404,21 @@ def arguments():
     read.add_argument('path')
     read.add_argument('--start', type=int, default=1)
     read.add_argument('--count', type=int, default=40)
+    search = commands.add_parser('search-input', help='find a literal in eligible snapshot text')
+    search.add_argument('run')
+    search.add_argument('literal')
+    search.add_argument('--glob', action='append', default=[])
+    search.add_argument('--limit', type=int, default=50)
+    hints = commands.add_parser('hints', help='inspect optional Python extractor candidates for one input')
+    hints.add_argument('run')
+    hints.add_argument('path')
     check = commands.add_parser('check-shard', help='validate an assigned worker shard before publication')
     check.add_argument('run')
     check.add_argument('task')
+    accept = commands.add_parser('accept', help='record the supervisor decision for an exact checked shard')
+    accept.add_argument('run')
+    accept.add_argument('task')
+    accept.add_argument('fingerprint')
     coverage = commands.add_parser('coverage', help='show coverage, ignore policy and discrepancies')
     coverage.add_argument('--family')
     coverage.add_argument('--area')
@@ -250,8 +427,7 @@ def arguments():
     trace = commands.add_parser('trace', help='traverse typed edges and show incomplete frontiers')
     trace.add_argument('selector')
     trace.add_argument('--direction', choices=['in', 'out', 'both'], default='out')
-    trace.add_argument('--type', action='append', default=[], choices=sorted(
-        kind for kinds in PROFILE['edge_types'].values() for kind in kinds))
+    trace.add_argument('--type', action='append', default=[], help='repeat for each relationship type')
     trace.add_argument('--depth', type=int, default=4)
     trace.add_argument('--max-nodes', type=int, default=100)
     trace.add_argument('--max-edges', type=int, default=250)
@@ -260,14 +436,22 @@ def arguments():
 
 
 def dispatch(root, args):
+    if args.command == 'investigate':
+        return start_run(root, args.commit, investigation=True)
     if args.command == 'build':
-        return publish(root, prepare(root, args.commit, False)['run'])
+        return publish(root, start_run(root, args.commit)['run'])
     if args.command == 'prepare':
-        return prepare(root, args.commit, args.agent_review)
+        return start_run(root, args.commit, agent_review=args.agent_review)
     if args.command == 'publish':
         return publish(root, args.run)
     if args.command == 'read-input':
         return worker_input(root, args)
+    if args.command == 'search-input':
+        return search_inputs(root, args)
+    if args.command == 'hints':
+        return python_hints(root, args)
+    if args.command == 'accept':
+        return accept_shard(root, args)
     if args.command == 'check-shard':
         return check_shard(root, args)
     with store.database(output_paths(root)[1]) as connection:

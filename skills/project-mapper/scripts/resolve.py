@@ -10,7 +10,8 @@ from scan_files import digest
 
 
 class Graph:
-    def __init__(self):
+    def __init__(self, profile=PROFILE):
+        self.profile = profile
         self.nodes = {}
         self.relationships = {}
         self.memberships = {}
@@ -24,7 +25,7 @@ class Graph:
     def observe(self, anchor, basis, authority, limitation=''):
         occurrence = digest(anchor)
         self.occurrences[occurrence] = anchor
-        provenance = dict(profile=PROFILE['name'], version=PROFILE['version'], method=basis)
+        provenance = dict(profile=self.profile['name'], version=self.profile['version'], method=basis)
         context = digest(provenance)
         self.provenance[context] = provenance
         data = dict(occurrence=occurrence, context=context, basis=basis, authority=authority,
@@ -40,7 +41,7 @@ class Graph:
 
     def relation(self, kind, source, target, state, evidence, *, candidates=(), conditions=(),
                  reason='', discriminator=''):
-        family = 'semantic' if kind in PROFILE['edge_types']['semantic'] else 'structural'
+        family = 'semantic' if kind in self.profile['edge_types']['semantic'] else 'structural'
         data = dict(type=kind, family=family, source=source, target=target, state=state,
                     candidates=sorted(set(candidates)), conditions=list(conditions), reason=reason,
                     discriminator=discriminator)
@@ -191,6 +192,10 @@ class Reconciler:
                 mode = 'child'
             elif child_paths:
                 candidates = [*base_paths, *child_paths]
+            # The interpreter's built-in importer runs before filesystem lookup.
+            # Other standard-library names may legitimately be provided by the project.
+            if not spec['level'] and base and base.split('.')[0] in PROFILE['builtin_modules']:
+                candidates = []
             evidence = [source['anchor'], observation]
             target = None
             state = 'unresolved'
@@ -215,8 +220,8 @@ class Reconciler:
                            discriminator=f'{base or ""}:{member or ""}')
             if state == 'unresolved':
                 graph.issue(path, 'structural', reason)
-            self.imports[path, spec['bind']].append(dict(spec, base=base, paths=candidates, mode=mode,
-                                                        observation=observation, state=state))
+            self.imports[path, spec['binding_scope'], spec['bind']].append(
+                dict(spec, base=base, paths=candidates, mode=mode, observation=observation, state=state))
 
     def binding_targets(self, alias, parts):
         paths = alias['paths']
@@ -241,7 +246,7 @@ class Reconciler:
             caller = self.definitions[path, call['caller']]
             key = caller[0]['key'] if len(caller) == 1 else module['key']
             parts = call['parts']
-            aliases = self.imports[path, parts[0]] if parts else []
+            aliases = self.imports[path, call['binding_scope'], parts[0]] if parts else []
             possible = [(alias, target) for alias in aliases for target in self.binding_targets(alias, parts)]
             reason = call['reason']
             if not reason and len(caller) != 1:

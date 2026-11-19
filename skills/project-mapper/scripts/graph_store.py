@@ -60,7 +60,7 @@ CREATE INDEX relationship_candidates_node ON relationship_candidates(node,relati
 """
 
 
-def records(manifest, plan, graph, coverage, outcomes, reports, supplemental):
+def records(manifest, plan, graph, coverage, outcomes, reports, supplemental, *, profile=PROFILE):
     complete = all(row['status'] in {'analyzed', 'excluded', 'inapplicable'} for row in coverage)
     inventory_rows = []
     for item in manifest['entries']:
@@ -69,11 +69,11 @@ def records(manifest, plan, graph, coverage, outcomes, reports, supplemental):
         if status == 'pending':
             status = outcome.get('status', 'unexamined')
             reason = outcome.get('reason', 'no active profile signal' if not outcome else '')
-        if status in {'blocked', 'unsupported'}:
+        if status in {'blocked', 'unsupported', 'unexamined', 'partial'}:
             complete = False
         inventory_rows.append((item['path'], item['kind'], item['content_id'], int(item['eligible']),
                                int(item['tracked']), status, reason, item.get('raw_path')))
-    metadata = dict(schema_version=SCHEMA_VERSION, profile=PROFILE, snapshot=manifest['snapshot'],
+    metadata = dict(schema_version=SCHEMA_VERSION, profile=profile, snapshot=manifest['snapshot'],
                     inventory_identity=digest(manifest), ignore_policy=manifest['ignore_policy'],
                     plan=plan, status='complete' if complete else 'partial',
                     supplemental=supplemental, supplemental_fingerprint=digest(supplemental) if any(
@@ -211,6 +211,8 @@ def inspect_coverage(connection, family=None, area=None):
                      for row in connection.execute('SELECT * FROM discrepancies ORDER BY path,kind,id')]
     return dict(snapshot=info['snapshot'], status=info['status'], profile=info['profile'],
                 ignore_policy=info['ignore_policy'], coverage=coverage_records(connection, family=family, area=area),
+                inventory_counts=dict(connection.execute('SELECT status,count(*) FROM inventory GROUP BY status')),
+                **({'investigation_scope': info['investigation_scope']} if 'investigation_scope' in info else {}),
                 discrepancies=discrepancies)
 
 
@@ -298,11 +300,27 @@ def trace(connection, selector, direction, types, depth, max_nodes, max_edges):
             nodes.add(other)
             edges[row['id']] = row
             queue.append((other, level + 1, row['type'] == 'contains' and row['target'] == key))
-    relevant = {family for family, kinds in PROFILE['edge_types'].items() if not types or set(types).intersection(kinds)}
-    gaps = [dict(area=row['area'], family=row['family'], status=row['status'], reason=row['reason'])
-            for row in coverage_records(connection) if row['family'] in relevant
-            and row['status'] not in {'analyzed', 'inapplicable', 'excluded'}]
-    return dict(snapshot=metadata(connection)['snapshot'], seeds=seeds[:max_nodes], nodes=sorted(nodes),
+    info = metadata(connection)
+    relevant = {family for family, kinds in info['profile']['edge_types'].items()
+                if not types or set(types).intersection(kinds)}
+    question_scope = info.get('investigation_scope')
+    reached_areas = set()
+    if question_scope is None:
+        for key in nodes:
+            for (path,) in connection.execute(
+                'SELECT DISTINCT o.path FROM node_observations n JOIN observations v ON n.observation=v.id '
+                'JOIN occurrences o ON v.occurrence=o.id WHERE n.node=?', (key,)
+            ):
+                reached_areas.add(path.split('/', 1)[0] if '/' in path else '.')
+    gaps = []
+    for row in coverage_records(connection):
+        if row['status'] in {'analyzed', 'inapplicable', 'excluded'}:
+            continue
+        # Open questions may identify bridges beyond the evidence already reached.
+        if row['family'] == 'investigation' or (row['family'] in relevant and row['area'] in reached_areas):
+            gaps.append({field: row[field] for field in ('area', 'family', 'status', 'reason')})
+    scope = {'investigation_scope': question_scope} if question_scope is not None else {'repository_status': info['status']}
+    return dict(snapshot=info['snapshot'], status=info['status'], **scope, seeds=seeds[:max_nodes], nodes=sorted(nodes),
                 edges=[edge_record(connection, row) for _, row in sorted(edges.items())],
                 truncated=bool(limits), limits=sorted(limits), analysis_incomplete=bool(gaps or unresolved),
                 coverage_frontier=gaps,

@@ -15,7 +15,8 @@ from scan_files import MappingError, digest
 
 
 PROFILE = {
-    'name': 'python-static', 'version': 1, 'parser': f'CPython {sys.version_info.major}.{sys.version_info.minor}',
+    'name': 'python-static', 'version': 2, 'parser': f'CPython {sys.version_info.major}.{sys.version_info.minor}',
+    'builtin_modules': sorted(sys.builtin_module_names),
     'languages': ['Python'], 'formats': ['pyproject.toml', 'architecture/deployment/contract path signals'],
     'layouts': ['flat regular packages and loose modules', 'conventional src layout',
                 'setuptools package-dir empty-key source root'],
@@ -215,22 +216,30 @@ def python_facts(source):
     def visit(node, scope=None, guards=()):
         if isinstance(node, (ast.Import, ast.ImportFrom)):
             for spec in imports(node):
+                module_binding = node in bindings.writes.get(spec['bind'], ())
+                # None denotes module scope; zero denotes an unsupported nested scope.
+                binding_scope = None if module_binding else (scope.lineno if scope else 0)
                 spec.update(anchor=source.anchor('import', spec['bind'], node=node), conditions=list(guards),
+                            binding_scope=binding_scope,
                             stable=unique.get(spec['bind']) is node and not dynamic)
                 facts['imports'].append(spec)
         if isinstance(node, ast.Call):
             parts = spelling(node.func)
             reason = 'call outside supported function scope'
+            binding_scope = None
             if scope and parts:
                 table = scopes.get((scope.name, scope.lineno))
                 try:
                     symbol = table.lookup(parts[0]) if table else None
                 except KeyError:
                     symbol = None
+                if symbol and symbol.is_local() and symbol.is_imported():
+                    binding_scope = scope.lineno
                 reason = '' if symbol and symbol.is_global() and not dynamic else 'shadowed or mutable binding'
             elif scope:
                 reason = 'dynamic call expression'
             facts['calls'].append(dict(caller=scope.name if scope else None, parts=parts, reason=reason,
+                                       binding_scope=binding_scope,
                                        conditions=list(guards),
                                        anchor=source.anchor('call', '.'.join(parts), node=node)))
         if isinstance(node, SCOPE):
@@ -295,6 +304,9 @@ def manifest_facts(source):
     else:
         risks.append('unsupported project.scripts declaration')
     dependencies = []
+    dynamic = section(project, 'dynamic')
+    if isinstance(dynamic, list) and 'dependencies' in dynamic:
+        risks.append('project.dynamic delegates dependencies to the build backend; inspect its configuration')
     for keys, kind in [(('project', 'dependencies'), 'declares-dependency'),
                        (('build-system', 'requires'), 'build-requires')]:
         values = section(data, *keys)

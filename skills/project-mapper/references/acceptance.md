@@ -1,8 +1,8 @@
 # Project Mapper acceptance
 
-Validated with Python 3.12.10 and Git 2.55.0.windows.3. The five acceptance tests passed with the public checkout enabled. Each mapper invocation opens a new process. The test oracles come from fixture source and Git tree enumeration independently of mapper output.
+Historical static-profile v1 run. Validated with Python 3.12.10 and Git 2.55.0.windows.3. The five acceptance tests passed with the public checkout enabled. Each mapper invocation opens a new process. The test oracles come from fixture source and Git tree enumeration independently of mapper output.
 
-## Run
+## Run the complete suite
 
 From the Agentic Workbench repository root, prepare an isolated checkout of [Click 8.1.8](https://github.com/pallets/click/tree/934813e4d421071a1b3db3973c02fe2721359a6e). The fetch is a test prerequisite. The mapper itself uses local Git objects.
 
@@ -16,7 +16,13 @@ python -B -m unittest discover -s skills/project-mapper/tests -v
 
 Use `PROJECT_MAPPER_TEST_TEMP` to select an existing writable scratch directory for the controlled repositories. Omit `PROJECT_MAPPER_CLICK` to run the controlled checks with the public test reported as blocked. The public test asserts the exact 40-character commit.
 
-## Oracles and results
+## Supervisor-led investigation checks
+
+Run the same unittest discovery command above from the repository root. The investigation tests drive the public CLI using temporary Git repositories and independently specified expected edges. They exercise source reads across directories, editable questions, verified decisions, conditions, open questions and stale evidence. A polyglot fixture traces an npm command through PowerShell to the test runner and the conditional report path. Its separate report alias is a forbidden edge. A successful check establishes the mapped static flow; generating a report requires a separate execution.
+
+The baseline regressions cover lexical scope, built-in module precedence, delegated dependencies, unexamined inputs and scoped traces. Click is an optional pinned checkout for the static profile. Controlled tests do not need network access.
+
+## Historical static-profile v1 oracles and results
 
 | Test | Expected | Observed |
 | --- | --- | --- |
