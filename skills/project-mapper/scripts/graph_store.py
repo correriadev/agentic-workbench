@@ -3,14 +3,16 @@
 from collections import deque
 from contextlib import closing, contextmanager
 import json
+import re
 import sqlite3
+import unicodedata
 
 from python_profile import PROFILE
 from scan_files import MappingError, canonical, digest
 
 
-SCHEMA_VERSION = 1
-SCHEMA = """
+SCHEMA_VERSION = 2
+SCHEMA_V1 = """
 CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT;
 CREATE TABLE inventory (path TEXT PRIMARY KEY, kind TEXT NOT NULL, content_id TEXT, eligible INTEGER NOT NULL,
                         tracked INTEGER NOT NULL, status TEXT NOT NULL, reason TEXT NOT NULL, raw_path TEXT) STRICT;
@@ -58,6 +60,31 @@ CREATE INDEX relationships_source ON relationships(source,type,id);
 CREATE INDEX relationships_target ON relationships(target,type,id);
 CREATE INDEX relationship_candidates_node ON relationship_candidates(node,relationship);
 """
+SCHEMA = SCHEMA_V1 + """
+CREATE TABLE discoveries (node TEXT PRIMARY KEY REFERENCES nodes(key), title TEXT NOT NULL, summary TEXT NOT NULL,
+                          terms TEXT NOT NULL, content TEXT NOT NULL) STRICT;
+CREATE TABLE discovery_support (node TEXT NOT NULL REFERENCES discoveries(node), pointer TEXT NOT NULL,
+                                observation TEXT NOT NULL REFERENCES observations(id),
+                                PRIMARY KEY(node,pointer,observation)) STRICT, WITHOUT ROWID;
+CREATE TABLE discovery_terms (term TEXT NOT NULL, node TEXT NOT NULL REFERENCES discoveries(node),
+                              weight INTEGER NOT NULL, PRIMARY KEY(term,node)) STRICT, WITHOUT ROWID;
+CREATE INDEX coverage_open ON coverage(family,area) WHERE status NOT IN ('analyzed','inapplicable','excluded');
+"""
+
+
+def tokens(text):
+    folded = unicodedata.normalize('NFKD', text.casefold())
+    folded = ''.join(char for char in folded if not unicodedata.combining(char))
+    return set(re.findall(r'[^\W_]+', folded))
+
+
+def search_rows(discoveries):
+    for key, title, summary, terms, _ in discoveries:
+        weights = dict.fromkeys(tokens(summary), 1)
+        weights.update(dict.fromkeys(tokens(' '.join(json.loads(terms))), 2))
+        weights.update(dict.fromkeys(tokens(title) | tokens(key), 3))
+        for term, weight in sorted(weights.items()):
+            yield term, key, weight
 
 
 def records(manifest, plan, graph, coverage, outcomes, reports, supplemental, *, profile=PROFILE):
@@ -133,6 +160,7 @@ def write(path, data):
             if rows:
                 parameters = ','.join('?' for _ in rows[0])
                 connection.executemany(f'INSERT INTO {table} VALUES ({parameters})', sorted(rows, key=canonical))
+        connection.executemany('INSERT INTO discovery_terms VALUES (?,?,?)', search_rows(data.get('discoveries', [])))
 
 
 def schema_rows(connection):
@@ -141,16 +169,19 @@ def schema_rows(connection):
 
 
 def check_schema(connection):
-    with closing(sqlite3.connect(':memory:')) as reference:
-        reference.executescript(SCHEMA)
-        expected = schema_rows(reference)
-    if (connection.execute('PRAGMA user_version').fetchone()[0] != SCHEMA_VERSION
-            or schema_rows(connection) != expected):
+    version = connection.execute('PRAGMA user_version').fetchone()[0]
+    if version not in (1, SCHEMA_VERSION):
         raise MappingError('graph schema does not match this version')
+    with closing(sqlite3.connect(':memory:')) as reference:
+        reference.executescript(SCHEMA_V1 if version == 1 else SCHEMA)
+        expected = schema_rows(reference)
+    if schema_rows(connection) != expected:
+        raise MappingError('graph schema does not match this version')
+    return version
 
 
 def check_integrity(connection, expected=None):
-    check_schema(connection)
+    version = check_schema(connection)
     if connection.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
         raise MappingError('SQLite integrity check failed')
     if connection.execute('PRAGMA foreign_key_check').fetchone():
@@ -165,17 +196,31 @@ def check_integrity(connection, expected=None):
         'SELECT 1 FROM memberships WHERE id NOT IN (SELECT membership FROM membership_observations)',
         "SELECT 1 FROM coverage WHERE scoped_absence AND (status!='analyzed' OR findings!=0)",
     )
+    if version >= 2:
+        invalid += ('SELECT 1 FROM discoveries d WHERE NOT EXISTS '
+                    '(SELECT 1 FROM discovery_support s WHERE s.node=d.node)',)
     if any(connection.execute(query + ' LIMIT 1').fetchone() for query in invalid):
         raise MappingError('graph evidence or coverage integrity check failed')
     if expected:
-        for table, rows in expected.items():
+        tables = {'discoveries': [], 'discovery_support': []} | expected
+        if version == 1:
+            if tables.pop('discoveries') or tables.pop('discovery_support'):
+                raise MappingError('version 1 graphs cannot reproduce discoveries')
+            tables['metadata'] = [(key, '1' if key == 'schema_version' else value)
+                                  for key, value in tables['metadata']]
+        else:
+            tables['discovery_terms'] = list(search_rows(tables['discoveries']))
+        for table, rows in tables.items():
             actual = [tuple(row) for row in connection.execute(f'SELECT * FROM {table}')]
             if sorted(actual, key=canonical) != sorted(rows, key=canonical):
                 raise MappingError(f'graph rows do not reproduce from validated evidence: {table}')
 
 
-def metadata(connection):
-    return {key: json.loads(value) for key, value in connection.execute('SELECT key,value FROM metadata')}
+def metadata(connection, *keys):
+    query = 'SELECT key,value FROM metadata'
+    if keys:
+        query += ' WHERE key IN (' + ','.join('?' for _ in keys) + ')'
+    return {key: json.loads(value) for key, value in connection.execute(query, keys)}
 
 
 def evidence(connection, table, column, key):
@@ -206,7 +251,7 @@ def coverage_records(connection, *, family=None, area=None):
 
 
 def inspect_coverage(connection, family=None, area=None):
-    info = metadata(connection)
+    info = metadata(connection, 'snapshot', 'status', 'profile', 'ignore_policy', 'investigation_scope')
     discrepancies = [dict(row, evidence=evidence(connection, 'discrepancy_observations', 'discrepancy', row['id']))
                      for row in connection.execute('SELECT * FROM discrepancies ORDER BY path,kind,id')]
     return dict(snapshot=info['snapshot'], status=info['status'], profile=info['profile'],
@@ -222,18 +267,25 @@ def dimensions(connection):
 
 
 def find_nodes(connection, selector):
-    query = 'SELECT * FROM nodes WHERE key=? OR name=? ORDER BY key'
-    result = connection.execute(query, (selector, selector)).fetchall()
+    exact = connection.execute('SELECT * FROM nodes WHERE key=?', (selector,)).fetchone()
+    if exact:
+        return [exact]
+    result = connection.execute('SELECT * FROM nodes WHERE name=? ORDER BY key', (selector,)).fetchall()
     if not result:
         raise MappingError('no matching node key or exact name')
     return result
 
 
 def adjacent(connection, key, direction, types, upward=False):
-    outgoing = 'source=?' if direction in {'out', 'both'} and not upward else '0'
-    incoming = 'target=?' if direction in {'in', 'both'} else '0'
-    params = (key,) * (outgoing.count('?') + incoming.count('?'))
-    query = f'SELECT * FROM relationships WHERE ({outgoing} OR {incoming})'
+    endpoints = []
+    if direction in {'out', 'both'} and not upward:
+        endpoints.append('source=?')
+    if direction in {'in', 'both'}:
+        endpoints.append('target=?')
+    if not endpoints:
+        return ()
+    params = (key,) * len(endpoints)
+    query = 'SELECT * FROM relationships WHERE (' + ' OR '.join(endpoints) + ')'
     if upward:
         query += " AND type='contains'"
     if types:
@@ -249,13 +301,73 @@ def incoming_candidates(connection, key, types=()):
     return connection.execute(query + ' ORDER BY r.id', (key, *types))
 
 
+def search_discoveries(connection, query, limit):
+    if not 1 <= limit <= 100:
+        raise MappingError('search limit must be between 1 and 100')
+    if not query.strip():
+        raise MappingError('search requires a query')
+    if connection.execute('PRAGMA user_version').fetchone()[0] == 1:
+        return []
+    # Preview fields precede content in the row. Do not decode the authored JSON to route a reader.
+    preview = ("SELECT d.node AS key,CASE WHEN length(d.title)>160 THEN substr(d.title,1,159)||'…' "
+               "ELSE d.title END AS title,CASE WHEN length(d.summary)>320 THEN substr(d.summary,1,319)||'…' "
+               "ELSE d.summary END AS summary FROM discoveries d")
+    exact = connection.execute(preview + ' WHERE d.node=?', (query,)).fetchone()
+    hits = [dict(exact)] if exact else []
+    words = sorted(tokens(query))
+    if not words or len(hits) == limit:
+        return hits
+    if len(words) > 128:
+        raise MappingError('search accepts up to 128 distinct words per query')
+    marks = ','.join('?' for _ in words)
+    # Limit candidates before fetching previews. Exact keys take precedence over lexical matches.
+    ranked = ('WITH ranked AS (SELECT node,COUNT(*) AS matches,SUM(weight) AS score FROM discovery_terms '
+              f'WHERE term IN ({marks}) AND node!=? GROUP BY node ORDER BY matches DESC,score DESC,node LIMIT ?) ')
+    sql = ranked + preview + ' JOIN ranked r ON d.node=r.node ORDER BY r.matches DESC,r.score DESC,r.node'
+    hits.extend(dict(row) for row in connection.execute(sql, (*words, query, limit - len(hits))))
+    return hits
+
+
+def discovery_record(connection, key):
+    row = connection.execute('SELECT node AS key,title,summary,terms,content FROM discoveries WHERE node=?',
+                             (key,)).fetchone()
+    if row is None:
+        return None
+    support = {}
+    # A snapshot, blob and span suffice to reopen a source. The node projection also exposes full provenance.
+    locators = """
+        SELECT s.pointer,v.id,o.path,o.content_id,o.span FROM discovery_support s
+        JOIN observations v ON v.id=s.observation JOIN occurrences o ON o.id=v.occurrence
+        WHERE s.node=? ORDER BY s.pointer,o.path,o.span,v.id
+    """
+    for pointer, observation, path, content_id, span in connection.execute(locators, (key,)):
+        support.setdefault(pointer, []).append(dict(id=observation, path=path, content_id=content_id,
+                                                     span=json.loads(span)))
+    return dict(row, terms=json.loads(row['terms']), content=json.loads(row['content']),
+                support=[dict(pointer=ptr, evidence=items) for ptr, items in support.items()])
+
+
+def open_discovery(connection, key):
+    if connection.execute('PRAGMA user_version').fetchone()[0] != 1:
+        result = discovery_record(connection, key)
+        if result is not None:
+            return result
+    raise MappingError('no discovery with this exact key in the published map')
+
+
 def inspect_node(connection, selector):
-    return [dict(row,
-                 evidence=evidence(connection, 'node_observations', 'node', row['key']),
-                 incoming=[edge_record(connection, item) for item in adjacent(connection, row['key'], 'in', [])],
-                 outgoing=[edge_record(connection, item) for item in adjacent(connection, row['key'], 'out', [])],
-                 incoming_candidates=[edge_record(connection, item) for item in incoming_candidates(connection, row['key'])])
-            for row in find_nodes(connection, selector)]
+    current = connection.execute('PRAGMA user_version').fetchone()[0] != 1
+    result = []
+    for row in find_nodes(connection, selector):
+        key = row['key']
+        node = dict(row, evidence=evidence(connection, 'node_observations', 'node', key),
+                    incoming=[edge_record(connection, item) for item in adjacent(connection, key, 'in', [])],
+                    outgoing=[edge_record(connection, item) for item in adjacent(connection, key, 'out', [])],
+                    incoming_candidates=[edge_record(connection, item) for item in incoming_candidates(connection, key)])
+        if current and (discovery := discovery_record(connection, key)) is not None:
+            node['discovery'] = discovery
+        result.append(node)
+    return result
 
 
 def trace(connection, selector, direction, types, depth, max_nodes, max_edges):
@@ -300,12 +412,13 @@ def trace(connection, selector, direction, types, depth, max_nodes, max_edges):
             nodes.add(other)
             edges[row['id']] = row
             queue.append((other, level + 1, row['type'] == 'contains' and row['target'] == key))
-    info = metadata(connection)
-    relevant = {family for family, kinds in info['profile']['edge_types'].items()
-                if not types or set(types).intersection(kinds)}
+    info = metadata(connection, 'snapshot', 'status', 'investigation_scope')
     question_scope = info.get('investigation_scope')
-    reached_areas = set()
+    relevant, reached_areas = set(), set()
     if question_scope is None:
+        profile = metadata(connection, 'profile')['profile']
+        relevant = {family for family, kinds in profile['edge_types'].items()
+                    if not types or set(types).intersection(kinds)}
         for key in nodes:
             for (path,) in connection.execute(
                 'SELECT DISTINCT o.path FROM node_observations n JOIN observations v ON n.observation=v.id '
@@ -313,12 +426,11 @@ def trace(connection, selector, direction, types, depth, max_nodes, max_edges):
             ):
                 reached_areas.add(path.split('/', 1)[0] if '/' in path else '.')
     gaps = []
-    for row in coverage_records(connection):
-        if row['status'] in {'analyzed', 'inapplicable', 'excluded'}:
-            continue
+    for row in connection.execute("SELECT area,family,status,reason FROM coverage WHERE status NOT IN "
+                                  "('analyzed','inapplicable','excluded') ORDER BY area,family"):
         # Open questions may identify bridges beyond the evidence already reached.
         if row['family'] == 'investigation' or (row['family'] in relevant and row['area'] in reached_areas):
-            gaps.append({field: row[field] for field in ('area', 'family', 'status', 'reason')})
+            gaps.append(dict(row))
     scope = {'investigation_scope': question_scope} if question_scope is not None else {'repository_status': info['status']}
     return dict(snapshot=info['snapshot'], status=info['status'], **scope, seeds=seeds[:max_nodes], nodes=sorted(nodes),
                 edges=[edge_record(connection, row) for _, row in sorted(edges.items())],

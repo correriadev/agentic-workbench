@@ -41,11 +41,27 @@ python "<mapper>" . coverage --family investigation
 python "<mapper>" . trace "command:npm:e2e" --type invokes --direction out
 ```
 
-`check-shard` validates ownership, endpoints, snapshot bytes and ranges. Before `accept`, reopen decisive lines. Check that they establish origin, destination, direction and the stated condition. A literal command can support an edge at one site. Across services, verify that producer, registration and consumer refer to the same channel **and** transport namespace. Look for a same-name alternative, override or feature flag that would reverse the conclusion. For an absence, identify what closes the search within its stated scope. Two documents repeating one source count as one basis.
+`check-shard` checks the envelope, pointers and source ranges. Before `accept`, reopen each decisive range. Ask what would change the answer if a value were absent, an override applied or a different consumer ran. For a field transformation, follow origin, conversion and destination. For a cross-service link, check producer, registration, consumer and transport namespace. Two documents repeating one source count as one basis.
 
-Reconcile qualified names and types across workers. The `member-of` relationship also populates `dimensions`. Accept prerequisite decisions before dependents. An accepted partial prerequisite still has a gap: corroborate the dependent claim separately or carry that gap forward. A changed question, shard or prerequisite decision requires fresh review. Adding an independent question preserves existing decisions.
+Judge the content against the question. For example, a subtitle discovery might contain `{"missing_translation":"use original","null_translation":"suppress"}` with separate support for each branch. Another node might hold a complete wire contract. Use the content structure that preserves each finding. Group facts under one pointer when the same lines support them all. For keys containing `/` or `~`, encode them as `~1` or `~0` in a JSON Pointer. An array index identifies an element in this revision.
 
-`publish` compiles accepted shards and records open questions in `.project-mapper/graph.sqlite`. A complete graph for the same snapshot and plan survives a partial retry. `verify` replays accepted records and checks locators. The supervisor is responsible for semantic judgment. Inspect `coverage --area QUESTION_ID` for the question outcome and discrepancies. `complete` describes the questions in this plan. File counts distinguish cited and uncited inputs. Use `node KEY`, `trace KEY` or `dimensions` for navigation.
+Reserve colon-qualified keys for existing endpoints. Give each discovery one defining shard and an ID independent of its title. Workers can describe the same evidence differently. Compare scope, conditions and consequences before consolidating overlapping findings. Retain separate identities for homonyms. When the manual and implementation differ, preserve both attributed statements and their locators. Identify what would resolve the disagreement. For a scoped absence, inspect the places that could supply an exception.
+
+Use claims for evidenced links between findings, including across shards. A referenced opaque ID needs an accepted defining shard by publication. `member-of` indexes the target ID as the group in `dimensions` under `discovery` for a discovery target or the endpoint kind for a legacy target. Accept prerequisites before dependents. A partial prerequisite still has a gap. Corroborate the dependent finding or carry the gap forward. Recheck any changed question, shard or prerequisite decision. An independent new question preserves existing decisions.
+
+`publish` compiles accepted shards and records open questions in `.project-mapper/graph.sqlite`. A complete graph for the same snapshot and plan survives a partial retry. `verify` replays the recorded evidence. `coverage --area QUESTION_ID` reports the outcome and discrepancies. “Complete” applies to planned questions. For a changed snapshot, rebuild and review affected findings against the new sources. Use separate checkouts to retain and compare published revisions.
+
+## Query a published map
+
+From the target Git root, with the same mapper path:
+
+```text
+python "<mapper>" . search "missing subtitle translation" --limit 5
+python "<mapper>" . open ID
+python "<mapper>" . trace ID --direction both --depth 2
+```
+
+Start with words a caller would use. Search returns compact candidates from discovery routing text. If nothing fits, reformulate with a project term. Open a candidate by exact ID, read the pertinent content and its supporting locators, then follow a specific relation to check scope or downstream effects. `node KEY` inspects a graph node and its links, including legacy endpoints. `dimensions` lists evidenced memberships. On an empty result, inspect coverage before inferring absence.
 
 ## Optional Python baseline
 

@@ -92,7 +92,7 @@ Todas as skills ficam isoladas em `skills/<nome>/` e contêm sua especificação
 | Skill | Papel |
 |---|---|
 | [`codebase-memory`](skills/codebase-memory/SKILL.md) | Exploração estrutural do código via Knowledge Graph (AST) com o servidor MCP. |
-| [`project-mapper`](skills/project-mapper/SKILL.md) | Investiga como os componentes do repositório se conectam e publica em SQLite as relações encontradas, suas fontes e as perguntas em aberto. |
+| [`project-mapper`](skills/project-mapper/SKILL.md) | Agentes investigam o repositório e publicam descobertas em JSON livre, com relações e evidências por trecho. A consulta em SQLite permite localizar uma descoberta, abri-la e seguir suas ligações. |
 | [`contextual-mentorship`](skills/contextual-mentorship/SKILL.md) | Sessões de mentoria técnica guiada, reflexão e aprendizado colaborativo. |
 | [`ask-antigravity`](skills/ask-antigravity/SKILL.md) | Delega tarefas e revisões para a CLI local do Google Antigravity (`agy`). |
 | [`ask-codex`](skills/ask-codex/SKILL.md) | Delega tarefas e revisões isoladas para a CLI local do OpenAI Codex. |

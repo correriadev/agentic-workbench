@@ -68,7 +68,7 @@ REQUIRED: Any import violating these rules must fail CI verification via: `pytho
 | `skill-creator` | Self-contained skill creation, token economy, and prompt-cache optimization | `skills/skill-creator/` |
 | `read-ui-prototype` | Semantic interface specification extraction | `skills/read-ui-prototype/` |
 | `codebase-memory` | AST knowledge graph querying and impact analysis | `skills/codebase-memory/` |
-| `project-mapper` | Agents investigate a Git snapshot and publish reviewed relationships, source locations and open questions in SQLite. | `skills/project-mapper/` |
+| `project-mapper` | Agents investigate a Git snapshot and publish reviewed discoveries with open JSON content, source ranges attached to specific findings, and links. SQLite provides a compact search index, exact reads and graph traversal. | `skills/project-mapper/` |
 | `contextual-mentorship` | Context-aware decision reasoning and mentorship | `skills/contextual-mentorship/` |
 | `ask-antigravity` | Local Antigravity CLI delegation wrapper | `skills/ask-antigravity/` |
 | `ask-codex` | Local OpenAI Codex CLI delegation wrapper | `skills/ask-codex/` |

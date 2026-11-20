@@ -18,7 +18,7 @@ Use `PROJECT_MAPPER_TEST_TEMP` to select an existing writable scratch directory 
 
 ## Supervisor-led investigation checks
 
-Run the same unittest discovery command above from the repository root. The investigation tests drive the public CLI using temporary Git repositories and independently specified expected edges. They exercise source reads across directories, editable questions, verified decisions, conditions, open questions and stale evidence. A polyglot fixture traces an npm command through PowerShell to the test runner and the conditional report path. Its separate report alias is a forbidden edge. A successful check establishes the mapped static flow; generating a report requires a separate execution.
+The investigation tests drive the public CLI using temporary Git repositories and independently specified expected edges. They exercise source reads across directories, editable questions, verified decisions, conditions, open questions and stale evidence. A polyglot fixture traces an npm command through PowerShell to the test runner and the conditional report path. Its separate report alias is a forbidden edge. A successful check establishes the mapped static flow; generating a report requires a separate execution.
 
 The baseline regressions cover lexical scope, built-in module precedence, delegated dependencies, unexamined inputs and scoped traces. Click is an optional pinned checkout for the static profile. Controlled tests do not need network access.
 
@@ -34,6 +34,20 @@ The CLI suite checks the dispatch contract byte-for-byte. It compares two questi
 
 In the first blind trial, one worker omitted the bus namespace and another proposed a handler conditional on an unseen registry. After the prompt revision, fresh workers found `event:partner:receipt.created` and traced the diagnostic profile only as far as `env:SETTLEMENT_PLUGIN_REGISTRY`. The verified graph had five nodes and three edges, with one of two questions answered. In the separate batch trial, the worker established absence from configuration and loader evidence. The verified graph had one answered question and zero edges.
 
+## Blind evaluation of open discoveries
+
+Calibrate the reading budget on one repository. Reserve a different domain for the decision. Freeze source revisions, questions, required assertions and locators, forbidden associations and one unknowable answer before mapping. Give investigators only their assigned questions about the domain. A fresh reader receives only the held-out user question, without IDs or author vocabulary.
+
+| Probe | Observation to record |
+| --- | --- |
+| In a content-addressed archive, two names refer to the same bytes. One expires while another reference may protect the content. | Starting from an operation, recover the exact local conditions for visibility and physical removal, then trace back to affected callers. Include same-name rules in unrelated subsystems as distractors. |
+| Change one local convention in a second revision. Keep an unrelated rule unchanged. | Ground the changed answer in the correct revision, preserve the other answer and acknowledge questions beyond the evidence, such as when a rule was first introduced. |
+| Two investigators describe overlapping behavior with different terms. A third finding shares a title only. | Retrieve the correct finding without a known ID. Accept alternate JSON structures and partitions supported by evidence. Count false joins and wrong-revision citations. |
+
+Compare the open map and the previous graph under the same reader settings and returned-content budget. For decisive questions, include direct source search. Score the map-only answer before allowing source access, then record what that access rescued. Include search results in bytes/tokens, count distractors and opens, and separate build cost from query latency. A pilot can start with 12 distractors, three opened discoveries and 4,000 returned tokens per question. Freeze limits after calibration.
+
+For a pilot pass, require correct, grounded answers to all critical held-out questions, the expected abstention, zero forbidden associations and a predefined gain over the previous graph. Regression controls include exact key versus a matching alias and a fixed one-edge trace with 1k, 10k and 100k unrelated edges. Compare fresh-process p50/p95 by direction and bytes read internally versus bytes returned. Report actual results separately from these procedures.
+
 ## Historical static-profile v1 oracles and results
 
 | Test | Expected | Observed |
@@ -44,29 +58,8 @@ In the first blind trial, one worker omitted the bus namespace and another propo
 | Supplemental validation and replay, declared-root fixture | Equivalent baseline runs reproduce logical rows. Reject an unowned output and a review outside its task. Preserve the previous graph on rejection. Record a verified supplemental signal, blocked review and unexamined review without adding unsupported edges. | Pass. The accepted observation has a supplemental fingerprint and replays from its assigned source. The resulting typed edge set matches the baseline. |
 | Click, `934813e4d421071a1b3db3973c02fe2721359a6e` | `click.termui` imports `click.utils`. `click.termui:secho` calls `click.utils:echo`. `click.termui` belongs to the `click` source package. A same-module target is forbidden and incomplete analysis remains visible. | Pass. The committed inventory matched the independent tree. The import, directed call and membership exist. The forbidden target is absent. The incoming call trace and source replay passed. |
 
-No acceptance check was blocked in the run with Click enabled. Unsupported deployment, contracts, dynamic dispatch, and incomplete supplemental reviews remain graph coverage outcomes.
+Unsupported deployment, contracts and dynamic dispatch remain coverage outcomes.
 
-## Published demonstration
+## Historical Click demonstration
 
-Commands run from Agentic Workbench with `$checkout` set to the same pinned Click root and `$mapper` set to the local entry point. The suite also invoked `build --commit` and `build --worktree` as standalone public commands.
-
-```powershell
-$mapper = (Resolve-Path 'skills/project-mapper/scripts/project_mapper.py').Path
-$rev = '934813e4d421071a1b3db3973c02fe2721359a6e'
-python -B $mapper $checkout prepare --commit $rev --agent-review
-$runId = 'run-c9a31bd4210f4796bb2511748d872335'
-# For a new prepare, substitute the run ID printed by that command.
-# Dispatch the task IDs printed by prepare and check each result before publishing.
-python -B $mapper $checkout check-shard $runId review-7299b59de0b5dad3
-python -B $mapper $checkout publish $runId
-python -B $mapper $checkout verify
-python -B $mapper $checkout trace 'function:click.termui:secho' --type calls --direction out --depth 1
-python -B $mapper $checkout trace 'function:click.utils:echo' --type calls --direction in --depth 1
-python -B $mapper $checkout dimensions
-python -B $mapper $checkout coverage --area '.github' --family runtime-deployment
-```
-
-- Published `$checkout/.project-mapper/graph.sqlite`. Fresh-process verification returned `integrity=ok`, 147 inventory entries, 226 nodes and 2,145 relationship records, including unresolved candidates.
-- Both directions retained the import at `src/click/termui.py:16`, call at `src/click/termui.py:634` and destination definition at `src/click/utils.py:219`. The one-hop outgoing result reported traversal truncation. The incoming result reached the requested extent with `analysis_incomplete=true`. [Call site](https://github.com/pallets/click/blob/934813e4d421071a1b3db3973c02fe2721359a6e/src/click/termui.py#L634), [definition](https://github.com/pallets/click/blob/934813e4d421071a1b3db3973c02fe2721359a6e/src/click/utils.py#L219)
-- The `.github` area recorded `runtime-deployment=unsupported`. Four supplemental tasks completed their assigned scope. Three recorded partial coverage. Nine source signals passed the gate and produced supplemental fingerprint `31ad207fe295699158c7496e8a059be5b4cd8c3f2179c450afc03446905eb59b`.
-- Git status outside `.project-mapper/` was empty before and after publication. Git index bytes and HEAD matched.
+The published graph for the pinned checkout had 147 inventory entries, 226 nodes and 2,145 relationships, including unresolved candidates. Fresh-process verification returned `integrity=ok`. Tracing `function:click.termui:secho` outgoing and `function:click.utils:echo` incoming retained the call at `src/click/termui.py:634` and the definition at `src/click/utils.py:219`. The incoming trace correctly reported incomplete analysis. The `.github` deployment area remained unsupported. Four supplemental tasks completed their assigned scope, three reported partial coverage and nine source signals passed the gate. Git index bytes and HEAD matched before and after publication. [Call site](https://github.com/pallets/click/blob/934813e4d421071a1b3db3973c02fe2721359a6e/src/click/termui.py#L634), [definition](https://github.com/pallets/click/blob/934813e4d421071a1b3db3973c02fe2721359a6e/src/click/utils.py#L219).

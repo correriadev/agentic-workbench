@@ -170,6 +170,10 @@ def write_readme(path, info, connection, script):
                               "CASE WHEN type='calls' THEN 0 ELSE 1 END,id LIMIT 1", ('resolved',)).fetchone()
     prefix = f'python "{script.as_posix()}" .'
     commands = [f'{prefix} coverage', f'{prefix} dimensions', f'{prefix} verify']
+    if connection.execute('SELECT 1 FROM discoveries LIMIT 1').fetchone():
+        commands.extend([f'{prefix} search "<words describing the behavior>" --limit 5',
+                         f'{prefix} open "<key from search>"',
+                         f'{prefix} trace "<key from search>" --direction both --depth 1'])
     if item:
         commands.extend([f'{prefix} node "{item["source"]}"',
                          f'{prefix} trace "{item["source"]}" --type {item["type"]} --direction both'])
@@ -269,7 +273,8 @@ def publish(root, name):
             readme_written = False
     return dict(path=str(graph_path), snapshot=info['snapshot'], status=info['status'],
                 readme_written=readme_written, run=name, **scope_info(info), relationships=len(data['relationships']),
-                nodes=len(data['nodes']), supplemental_fingerprint=info['supplemental_fingerprint'])
+                nodes=len(data['nodes']), discoveries=len(data.get('discoveries', [])),
+                supplemental_fingerprint=info['supplemental_fingerprint'])
 
 
 def verify(root, connection):
@@ -290,7 +295,7 @@ def verify(root, connection):
             data = synthesize(manifest, info['plan'], reader, baseline, info['supplemental'])
     store.check_integrity(connection, data)
     return dict(snapshot=info['snapshot'], integrity='ok', status=info['status'], **scope_info(info), entries=len(data['inventory']),
-                relationships=len(data['relationships']), nodes=len(data['nodes']))
+                relationships=len(data['relationships']), nodes=len(data['nodes']), discoveries=len(data.get('discoveries', [])))
 
 
 def worker_prompt(root, args):
@@ -348,7 +353,8 @@ def check_shard(root, args):
             decisions = load(safe_path(stage, 'decisions.json'))
             validate_shard(question['id'], raw, manifest, reader)
             fingerprint = decision_fingerprint(question, raw, decisions)
-            return dict(question=args.task, status=raw['status'], claims=len(raw['claims']), fingerprint=fingerprint)
+            return dict(question=args.task, status=raw['status'], claims=len(raw['claims']),
+                        discoveries=len(raw.get('discoveries', [])), fingerprint=fingerprint)
         task = plan['tasks'].get(args.task)
         if not task or not args.task.startswith('review-'):
             raise MappingError('task does not own a review shard')
@@ -449,7 +455,11 @@ def arguments():
     coverage.add_argument('--family')
     coverage.add_argument('--area')
     commands.add_parser('dimensions', help='show evidence-backed memberships')
-    commands.add_parser('node', help='look up a node by typed key or exact name').add_argument('selector')
+    lookup = commands.add_parser('search', help='locate reviewed discoveries by words in their index')
+    lookup.add_argument('query')
+    lookup.add_argument('--limit', type=int, default=5, help='maximum candidates returned (1..100)')
+    commands.add_parser('open', help='read one discovery and its supporting evidence by exact ID').add_argument('key')
+    commands.add_parser('node', help='look up a node by key or exact name').add_argument('selector')
     trace = commands.add_parser('trace', help='traverse typed edges and show incomplete frontiers')
     trace.add_argument('selector')
     trace.add_argument('--direction', choices=['in', 'out', 'both'], default='out')
@@ -488,6 +498,12 @@ def dispatch(root, args):
             return store.inspect_coverage(connection, args.family, args.area)
         if args.command == 'dimensions':
             return dict(memberships=store.dimensions(connection))
+        if args.command == 'search':
+            matches = store.search_discoveries(connection, args.query, args.limit)
+            return dict(snapshot=store.metadata(connection, 'snapshot')['snapshot'], matches=matches)
+        if args.command == 'open':
+            discovery = store.open_discovery(connection, args.key)
+            return dict(snapshot=store.metadata(connection, 'snapshot')['snapshot'], **discovery)
         if args.command == 'node':
             return dict(nodes=store.inspect_node(connection, args.selector))
         if args.command == 'trace':
