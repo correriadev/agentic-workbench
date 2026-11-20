@@ -27,8 +27,8 @@ class DiscoveryStore(unittest.TestCase):
                 store.open_discovery(db, 'service:api')
 
     def test_search_indexes_routes_and_only_open_returns_content(self):
-        discoveries = [('r/1', 'Política de retenção', 'Prazos do objeto', '["recolha física"]', 'null'),
-                       ('r/2', 'Arquivo', 'Referência de retenção', '[]', '{"huge":"not-searchable"}')]
+        discoveries = [('r/1', 'Café retention policy', 'Object lifetimes', '["physical collection"]', 'null'),
+                       ('r/2', 'Archive', 'Retention reference', '[]', '{"huge":"not-searchable"}')]
         nodes = [(key, 'discovery', '', title, 0) for key, title, *_ in discoveries]
         data = dict(nodes=nodes, inventory=[('rule.py', 'file', 'abc', 1, 1, 'cited', '', None)],
                     occurrences=[('o', 'rule.py', 'abc', '[1,0,1,5]', 'source-range', 'q', 'hash')],
@@ -47,7 +47,7 @@ class DiscoveryStore(unittest.TestCase):
                     return sqlite3.SQLITE_OK
 
                 db.set_authorizer(audit_read)
-                hits = store.search_discoveries(db, 'RECOLHA e RETENCAO', 1)
+                hits = store.search_discoveries(db, 'CAFE and RETENTION', 1)
                 self.assertEqual(hits, [dict(key='r/1', title=discoveries[0][1], summary=discoveries[0][2])])
                 self.assertNotIn(('discoveries', 'content'), selected)
                 self.assertEqual(store.search_discoveries(db, 'not-searchable', 4), [])
@@ -56,7 +56,7 @@ class DiscoveryStore(unittest.TestCase):
                 self.assertEqual(opened['support'][0]['pointer'], '')
                 self.assertEqual(opened['support'][0]['evidence'][0]['path'], 'rule.py')
             with closing(sqlite3.connect(path)) as db:
-                db.execute("DELETE FROM discovery_terms WHERE term='recolha'")
+                db.execute("DELETE FROM discovery_terms WHERE term='cafe'")
                 with self.assertRaisesRegex(MappingError, 'discovery_terms'):
                     store.check_integrity(db, data)
 

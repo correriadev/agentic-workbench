@@ -68,7 +68,7 @@ def start_run(root, commit, *, investigation=False, agent_review=False):
     return result
 
 
-def load_run(stage):
+def load_run(stage, *, allow_legacy=False):
     manifest = load(safe_path(stage, 'inventory.json'))
     plan = load(safe_path(stage, 'plan.json'))
     identity = manifest['snapshot']['identity']
@@ -77,7 +77,7 @@ def load_run(stage):
     if digest([snapshot, manifest['ignore_policy'], manifest['entries']]) != identity:
         raise MappingError('saved inventory fingerprint mismatch')
     if safe_path(stage, 'decisions.json').exists():
-        validate_plan(plan, identity, manifest['entries'])
+        validate_plan(plan, identity, manifest['entries'], allow_legacy=allow_legacy)
     elif plan.get('snapshot') != identity or plan.get('id') != digest({k: v for k, v in plan.items() if k != 'id'}):
         raise MappingError('saved baseline plan fingerprint mismatch')
     return manifest, plan
@@ -87,7 +87,15 @@ def question_index(plan):
     return {question['id']: question for question in plan['questions']}
 
 
-def decision_fingerprint(question, raw, decisions):
+def check_plan(root, name):
+    stage = run_directory(output_paths(root)[0], name)
+    _, plan = load_run(stage)
+    if 'questions' not in plan:
+        raise MappingError('check-plan requires a supervisor-led investigation')
+    return dict(plan=plan, fingerprint=digest(plan))
+
+
+def decision_fingerprint(output_language, question, raw, decisions):
     if not isinstance(decisions, dict):
         raise MappingError('decisions must be an object')
     dependencies = {}
@@ -95,7 +103,7 @@ def decision_fingerprint(question, raw, decisions):
         if key not in decisions:
             raise MappingError(f'review prerequisite question first: {key}')
         dependencies[key] = decisions[key]
-    return digest([question, raw, dependencies])
+    return digest([{'output_language': output_language}, question, raw, dependencies])
 
 
 def investigation_rows(stage, manifest, plan, reader):
@@ -112,8 +120,8 @@ def investigation_rows(stage, manifest, plan, reader):
     accepted = {}
     for key, fingerprint in decisions.items():
         raw = load(safe_path(shard_paths, key + '.json'))
-        if decision_fingerprint(questions[key], raw, decisions) != fingerprint:
-            raise MappingError(f'review changed evidence, question or prerequisite before publishing: {key}')
+        if decision_fingerprint(plan['output_language'], questions[key], raw, decisions) != fingerprint:
+            raise MappingError(f'review the current language contract, evidence, question and prerequisites: {key}')
         accepted[key] = raw
     return compile_investigation(manifest, plan, accepted, reader)
 
@@ -185,6 +193,8 @@ def write_readme(path, info, connection, script):
         f'- Revision or worktree fingerprint {snapshot["revision"] or snapshot["identity"]}',
         f'- Inventory fingerprint {snapshot["identity"]}',
         f'- Profile {info["profile"]["name"]} v{info["profile"]["version"]}',
+        *(['- Map language is English. Source identifiers and literals retain their original spelling.']
+          if info['plan'].get('output_language') == 'en' else []),
         f'- Coverage {info["status"]}' + (' for the planned questions' if 'investigation_scope' in info else ''),
         *([f'- Cited files {info["investigation_scope"]["cited_files"]} of '
            f'{info["investigation_scope"]["eligible_files"]} eligible files'] if 'investigation_scope' in info else []),
@@ -235,19 +245,28 @@ def guard_promotion(path, info):
         return
     if 'questions' in prior['plan'] and 'questions' not in info['plan']:
         raise MappingError('active investigation preserved; request Python hints within the investigation')
-    if prior['plan'] == info['plan']:
-        if prior['status'] == 'complete' and info['status'] != 'complete':
-            raise MappingError('active complete graph preserved; new coverage is partial')
-        if set(prior.get('accepted_shards', {})) - set(info.get('accepted_shards', {})):
-            raise MappingError('active investigation preserved; previously accepted questions are missing')
+    proposed_plan = info['plan']
+    migrating = ('questions' in prior['plan'] and 'output_language' not in prior['plan']
+                 and proposed_plan.get('output_language') == 'en')
+    if migrating:
+        proposed_plan = {key: value for key, value in proposed_plan.items() if key != 'output_language'}
+    same_plan = prior['plan'] == proposed_plan
+    # Translation can change question IDs and wording while covering the same snapshot.
+    if (migrating or same_plan) and prior['status'] == 'complete' and info['status'] != 'complete':
+        raise MappingError('active complete graph preserved; new coverage is partial')
+    if same_plan and set(prior.get('accepted_shards', {})) - set(info.get('accepted_shards', {})):
+        raise MappingError('active investigation preserved; previously accepted questions are missing')
 
 
-def publish(root, name):
+def publish(root, name, *, reviewed_english_plan=None):
     directory, graph_path, readme_path = output_paths(root)
     stage = run_directory(directory, name)
     manifest, plan = load_run(stage)
     with snapshot_reader(root, manifest) as reader:
         if 'questions' in plan:
+            if reviewed_english_plan != digest(plan):
+                raise MappingError('review the full current plan with check-plan and pass its fingerprint '
+                                   'with --reviewed-english-plan')
             data = investigation_rows(stage, manifest, plan, reader)
         else:
             data = baseline_rows(stage, manifest, plan, reader)
@@ -263,6 +282,8 @@ def publish(root, name):
     with write_lock(directory):
         if manifest != inventory(root, manifest['snapshot']['revision']):
             raise MappingError('input snapshot changed before publication')
+        if 'questions' in plan and load(safe_path(stage, 'plan.json')) != plan:
+            raise MappingError('plan changed during publication; review the current plan with check-plan')
         output_paths(root)
         guard_promotion(graph_path, info)
         os.replace(candidate, graph_path)
@@ -285,7 +306,7 @@ def verify(root, connection):
         raise MappingError('current input snapshot differs from published graph')
     with snapshot_reader(root, manifest) as reader:
         if 'questions' in info['plan']:
-            data = compile_investigation(manifest, info['plan'], info['accepted_shards'], reader)
+            data = compile_investigation(manifest, info['plan'], info['accepted_shards'], reader, allow_legacy=True)
         else:
             if info['profile'] != PROFILE:
                 raise MappingError('recorded Python profile differs; use the original mapper to replay or rebuild')
@@ -309,6 +330,7 @@ def worker_prompt(root, args):
     mapper = Path(__file__).resolve()
     contract = (mapper.parent.parent / 'references' / 'worker.md').read_text(encoding='utf-8').rstrip()
     assignment = dict(root=str(root), mapper=str(mapper), run=args.run, question=question,
+                      output_language=plan['output_language'],
                       snapshot=manifest['snapshot']['identity'], plan=str(stage / 'plan.json'),
                       inventory=str(stage / 'inventory.json'),
                       shard=str(safe_path(stage, f'shards/{args.question}.json')))
@@ -322,7 +344,7 @@ def worker_prompt(root, args):
 
 def worker_input(root, args):
     stage = run_directory(output_paths(root)[0], args.run)
-    manifest, plan = load_run(stage)
+    manifest, plan = load_run(stage, allow_legacy=True)
     with snapshot_reader(root, manifest) as reader:
         if 'questions' in plan:
             if args.task != '@' and args.task not in question_index(plan):
@@ -352,7 +374,7 @@ def check_shard(root, args):
             raw = load(safe_path(stage, f'shards/{args.task}.json'))
             decisions = load(safe_path(stage, 'decisions.json'))
             validate_shard(question['id'], raw, manifest, reader)
-            fingerprint = decision_fingerprint(question, raw, decisions)
+            fingerprint = decision_fingerprint(plan['output_language'], question, raw, decisions)
             return dict(question=args.task, status=raw['status'], claims=len(raw['claims']),
                         discoveries=len(raw.get('discoveries', [])), fingerprint=fingerprint)
         task = plan['tasks'].get(args.task)
@@ -380,7 +402,7 @@ def accept_shard(root, args):
 
 def search_inputs(root, args):
     stage = run_directory(output_paths(root)[0], args.run)
-    manifest, _ = load_run(stage)
+    manifest, _ = load_run(stage, allow_legacy=True)
     if not args.literal or not 1 <= args.limit <= 500:
         raise MappingError('supply a nonempty literal and a result limit in 1..500')
     needle = args.literal.encode()
@@ -407,7 +429,7 @@ def search_inputs(root, args):
 
 def python_hints(root, args):
     stage = run_directory(output_paths(root)[0], args.run)
-    manifest, _ = load_run(stage)
+    manifest, _ = load_run(stage, allow_legacy=True)
     if not (args.path.endswith('.py') or args.path == MANIFEST):
         raise MappingError('Python hints support .py files and the root pyproject.toml')
     with snapshot_reader(root, manifest) as reader:
@@ -425,7 +447,11 @@ def arguments():
     prepare_args = commands.add_parser('prepare', help='inventory, plan and extract in an unpublished run')
     snapshot_options(prepare_args)
     prepare_args.add_argument('--agent-review', action='store_true')
-    commands.add_parser('publish', help='validate, resolve and atomically publish a prepared run').add_argument('run')
+    commands.add_parser('check-plan', help='return the full investigation plan and its fingerprint').add_argument('run')
+    publish_args = commands.add_parser('publish', help='validate, resolve and atomically publish a prepared run')
+    publish_args.add_argument('run')
+    publish_args.add_argument('--reviewed-english-plan', metavar='FINGERPRINT',
+                              help='for investigations, confirm English review of every question in this exact plan')
     worker = commands.add_parser('worker-prompt', help='render a single isolated worker assignment')
     worker.add_argument('run')
     worker.add_argument('question')
@@ -451,6 +477,8 @@ def arguments():
     accept.add_argument('run')
     accept.add_argument('task')
     accept.add_argument('fingerprint')
+    accept.add_argument('--reviewed-english', action='store_true', required=True,
+                        help='confirm the question and authored findings are in English and source literals are exact')
     coverage = commands.add_parser('coverage', help='show coverage, ignore policy and discrepancies')
     coverage.add_argument('--family')
     coverage.add_argument('--area')
@@ -478,8 +506,10 @@ def dispatch(root, args):
         return publish(root, start_run(root, args.commit)['run'])
     if args.command == 'prepare':
         return start_run(root, args.commit, agent_review=args.agent_review)
+    if args.command == 'check-plan':
+        return check_plan(root, args.run)
     if args.command == 'publish':
-        return publish(root, args.run)
+        return publish(root, args.run, reviewed_english_plan=args.reviewed_english_plan)
     if args.command == 'worker-prompt':
         return worker_prompt(root, args)
     if args.command == 'read-input':

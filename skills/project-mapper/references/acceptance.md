@@ -1,10 +1,10 @@
 # Project Mapper acceptance
 
-Historical static-profile v1 run. Validated with Python 3.12.10 and Git 2.55.0.windows.3. The five acceptance tests passed with the public checkout enabled. Each mapper invocation opens a new process. The test oracles come from fixture source and Git tree enumeration independently of mapper output.
+The five historical static-profile v1 acceptance tests passed on Python 3.12.10 and Git 2.55.0.windows.3 with the public checkout. CLI tests run fresh processes against fixture source and independently enumerated Git trees.
 
 ## Run the complete suite
 
-From the Agentic Workbench repository root, prepare an isolated checkout of [Click 8.1.8](https://github.com/pallets/click/tree/934813e4d421071a1b3db3973c02fe2721359a6e). The fetch is a test prerequisite. The mapper itself uses local Git objects.
+From the repository root, prepare the pinned [Click 8.1.8](https://github.com/pallets/click/tree/934813e4d421071a1b3db3973c02fe2721359a6e) checkout. Mapping uses local Git objects.
 
 ```powershell
 $checkout = '<absolute path to a new isolated Click checkout>'
@@ -14,17 +14,17 @@ $env:PROJECT_MAPPER_CLICK = $checkout
 python -B -m unittest discover -s skills/project-mapper/tests -v
 ```
 
-Use `PROJECT_MAPPER_TEST_TEMP` to select an existing writable scratch directory for the controlled repositories. Omit `PROJECT_MAPPER_CLICK` to run the controlled checks with the public test reported as blocked. The public test asserts the exact 40-character commit.
+Optionally set `PROJECT_MAPPER_TEST_TEMP` to a writable scratch directory. Without `PROJECT_MAPPER_CLICK` the controlled checks still run. The public test requires the exact commit.
 
 ## Supervisor-led investigation checks
 
-The investigation tests drive the public CLI using temporary Git repositories and independently specified expected edges. They exercise source reads across directories, editable questions, verified decisions, conditions, open questions and stale evidence. A polyglot fixture traces an npm command through PowerShell to the test runner and the conditional report path. Its separate report alias is a forbidden edge. A successful check establishes the mapped static flow; generating a report requires a separate execution.
+The local CLI tests exercise cross-directory reads, editable questions, decisions, conditions, open questions and stale evidence. A polyglot fixture follows npm through PowerShell to the test runner and conditional report path. The separate report alias is a forbidden edge. These checks establish static flow. Generating a report requires execution.
 
-The baseline regressions cover lexical scope, built-in module precedence, delegated dependencies, unexamined inputs and scoped traces. Click is an optional pinned checkout for the static profile. Controlled tests do not need network access.
+Baseline regressions cover lexical scope, built-in module precedence, delegated dependencies, unexamined inputs and scoped traces.
 
 ## Evaluate the prompts
 
-The CLI suite checks the dispatch contract byte-for-byte. It compares two questions, a repair suffix, a path with spaces and an unknown question. The semantic checks below need independent workers. Freeze the expected outcome before dispatch; give each worker only its rendered prompt. Judge the accepted claims, directions, conditions, cited ranges and open questions. Record first-pass mistakes separately from successful repairs.
+CLI tests compare dispatch prompts byte-for-byte across two questions, a repair suffix, paths with spaces and an unknown question. For semantic checks, freeze expectations before giving independent workers only their prompts. Judge claims, directions, conditions, locators and open questions. Record first-pass mistakes and repairs separately.
 
 | Probe | Required observation |
 | --- | --- |
@@ -32,11 +32,17 @@ The CLI suite checks the dispatch contract byte-for-byte. It compares two questi
 | A diagnostic profile selects a registry using an environment variable whose value is unavailable. | Preserve the configuration dependency and the missing value as a gap. No resolved diagnostic-to-handler edge, including one conditional on a hypothetical registration. |
 | Batch configuration has an empty observer list; the loader returns that list directly. Another mode has an observer. | Publish an evidenced absence for batch. Verify the empty graph and inspect question coverage and discrepancies. |
 
-In the first blind trial, one worker omitted the bus namespace and another proposed a handler conditional on an unseen registry. After the prompt revision, fresh workers found `event:partner:receipt.created` and traced the diagnostic profile only as far as `env:SETTLEMENT_PLUGIN_REGISTRY`. The verified graph had five nodes and three edges, with one of two questions answered. In the separate batch trial, the worker established absence from configuration and loader evidence. The verified graph had one answered question and zero edges.
+In the first blind trial, one worker omitted the bus namespace and another assumed a handler in an unseen registry. Fresh workers using the revised prompt found `event:partner:receipt.created` and stopped the diagnostic trace at `env:SETTLEMENT_PLUGIN_REGISTRY`. Verification found five nodes, three edges and one of two questions answered. Batch configuration and loader evidence established scoped absence, with one answered question and zero edges.
+
+## Cross-language acceptance
+
+Map a non-English request and repository with an isolated worker. Inspect English in the plan, shard, graph, export (including embedded records) and report. Check nested keys, terms, conditions and gaps. Resolve source identifiers and citations against the snapshot. Query by English paraphrase. Change an unexamined question after plan review. Publication must reject the stale fingerprint and accept the corrected, freshly reviewed partial plan. Re-review legacy findings before migration.
+
+A Spanish request sent an isolated worker to Portuguese code and a French guide. Its English discovery distinguished the guide’s zero-balance promise from the implementation’s completed-review check. An English search found the discovery and its two source-backed links. The worker preserved the original parameter and status strings.
 
 ## Blind evaluation of open discoveries
 
-Calibrate the reading budget on one repository. Reserve a different domain for the decision. Freeze source revisions, questions, required assertions and locators, forbidden associations and one unknowable answer before mapping. Give investigators only their assigned questions about the domain. A fresh reader receives only the held-out user question, without IDs or author vocabulary.
+Calibrate the reading budget on one repository and evaluate in another domain. Freeze revisions, questions, assertions, locators, forbidden associations and one unknowable answer. Investigators receive only their assignments. Give a fresh reader the held-out question without IDs or author vocabulary.
 
 | Probe | Observation to record |
 | --- | --- |

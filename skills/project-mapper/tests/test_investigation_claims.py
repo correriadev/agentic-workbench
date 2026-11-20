@@ -1,7 +1,7 @@
 import unittest
 
 from test_acceptance import fixture, invoke, test_directory
-from test_investigation import accept, add_question, load, save, write_answer
+from test_investigation import accept, add_question, load, publish_investigation, save, write_answer
 
 
 class InvestigationClaims(unittest.TestCase):
@@ -26,7 +26,7 @@ class InvestigationClaims(unittest.TestCase):
             save(negative, dict(load(negative), absence=absence))
             accept(repo, run, 'subscribers')
 
-            invoke(repo, 'publish', run['run'])
+            publish_investigation(repo, run)
             result = invoke(repo, 'coverage')
             rows = {entry['area']: entry for entry in result['coverage']}
             self.assertEqual(result['status'], 'partial')

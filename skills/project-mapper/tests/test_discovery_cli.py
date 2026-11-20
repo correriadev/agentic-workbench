@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 from test_acceptance import fixture, git, invoke, test_directory
-from test_investigation import accept, add_question, save
+from test_investigation import accept, add_question, publish_investigation, save
 
 
 def citation(repo, run, path):
@@ -39,7 +39,7 @@ class DiscoveryCLI(unittest.TestCase):
                                  gap='', discoveries=[node], claims=[edge])
                     save(Path(run['shards']) / 'contract.json', shard)
                     accept(repo, run, 'contract')
-                    self.assertEqual(invoke(repo, 'publish', run['run'])['discoveries'], 1)
+                    self.assertEqual(publish_investigation(repo, run)['discoveries'], 1)
                     self.assertEqual(invoke(repo, 'verify')['integrity'], 'ok')
                     hits = invoke(repo, 'search', 'client identifier', '--limit', '1')
                     self.assertEqual(hits['snapshot']['revision'], revision)

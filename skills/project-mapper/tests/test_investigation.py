@@ -56,7 +56,12 @@ def write_answer(run, question_id, claims, *, status='answered', gap=''):
 
 def accept(repo, run, question_id):
     checked = invoke(repo, 'check-shard', run['run'], question_id)
-    return invoke(repo, 'accept', run['run'], question_id, checked['fingerprint'])
+    return invoke(repo, 'accept', run['run'], question_id, checked['fingerprint'], '--reviewed-english')
+
+
+def publish_investigation(repo, run, *, ok=True):
+    reviewed = invoke(repo, 'check-plan', run['run'])
+    return invoke(repo, 'publish', run['run'], '--reviewed-english-plan', reviewed['fingerprint'], ok=ok)
 
 
 def start_launch(repo, *snapshot_args):
@@ -88,7 +93,7 @@ class Investigation(unittest.TestCase):
                                          invokes('script:runner', 'script:verifier', guard, verify,
                                                  check, condition=FRESH)])
             accept(repo, run, 'report')
-            published = invoke(repo, 'publish', run['run'])
+            published = publish_investigation(repo, run)
             verified = invoke(repo, 'verify')
             self.assertEqual(verified['snapshot']['revision'], rev)
             self.assertEqual(verified['integrity'], 'ok')
@@ -122,7 +127,7 @@ class Investigation(unittest.TestCase):
             gap = 'A hosted CI execution receipt is unavailable.'
             write_answer(run, 'hosted', [], status='partial', gap=gap)
             accept(repo, run, 'hosted')
-            invoke(repo, 'publish', run['run'])
+            publish_investigation(repo, run)
             verified = invoke(repo, 'verify')
             self.assertEqual(verified['status'], 'partial')
             report = invoke(repo, 'coverage')
@@ -139,10 +144,10 @@ class Investigation(unittest.TestCase):
             # Its previous acceptance must not authorize the new endpoint.
             answer['claims'][0]['target'] = 'npm:report'
             save(shard, answer)
-            rejected = invoke(repo, 'accept', run['run'], 'launch', previous['launch'], ok=False)
+            rejected = invoke(repo, 'accept', run['run'], 'launch', previous['launch'], '--reviewed-english', ok=False)
             self.assertNotEqual(rejected.returncode, 0)
             self.assertEqual(load(run['decisions']), previous)
-            self.assertNotEqual(invoke(repo, 'publish', run['run'], ok=False).returncode, 0)
+            self.assertNotEqual(publish_investigation(repo, run, ok=False).returncode, 0)
             self.assertEqual(invoke(repo, 'verify'), verified)
             answer['claims'][0]['evidence'][0]['end'] = 999
             save(shard, answer)
@@ -157,7 +162,7 @@ class Investigation(unittest.TestCase):
                              FILES['package.json'].splitlines())
             hit = invoke(repo, 'search-input', run['run'], 'cli.js', '--glob', 'scripts/*.ps1')
             self.assertIn('scripts/run.ps1', json.dumps(hit))
-            self.assertNotEqual(invoke(repo, 'publish', run['run'], ok=False).returncode, 0)
+            self.assertNotEqual(publish_investigation(repo, run, ok=False).returncode, 0)
 
             add_question(run, 'launch', 'How does npm start the runner?', ['package.json'])
             add_question(run, 'report', 'How does the runner generate reports?', ['scripts/run.ps1'], ['launch'])
@@ -169,29 +174,29 @@ class Investigation(unittest.TestCase):
             self.assertNotEqual(invoke(repo, 'check-shard', run['run'], 'report', ok=False).returncode, 0)
             accept(repo, run, 'launch')
             accept(repo, run, 'report')
-            invoke(repo, 'publish', run['run'])
+            publish_investigation(repo, run)
             verified = invoke(repo, 'verify')
 
             plan = load(run['plan'])
             plan['questions'][0]['question'] = 'Which command starts the suite from npm?'
             save(run['plan'], plan)
-            self.assertNotEqual(invoke(repo, 'publish', run['run'], ok=False).returncode, 0)
+            self.assertNotEqual(publish_investigation(repo, run, ok=False).returncode, 0)
             accept(repo, run, 'launch')
-            self.assertNotEqual(invoke(repo, 'publish', run['run'], ok=False).returncode, 0)
+            self.assertNotEqual(publish_investigation(repo, run, ok=False).returncode, 0)
             self.assertEqual(invoke(repo, 'verify'), verified)
             accept(repo, run, 'report')
-            invoke(repo, 'publish', run['run'])
+            publish_investigation(repo, run)
             self.assertEqual(invoke(repo, 'verify')['integrity'], 'ok')
 
     def test_worktree_drift_preserves_previously_published_snapshot(self):
         with test_directory() as repo:
             rev = fixture(repo, FILES)
             previous, _ = start_launch(repo, '--commit', rev)
-            invoke(repo, 'publish', previous['run'])
+            publish_investigation(repo, previous)
             verified = invoke(repo, 'verify')
             run, _ = start_launch(repo, '--worktree')
             (repo / 'scripts/run.ps1').write_text('dotnet --version\n', encoding='utf-8')
-            self.assertNotEqual(invoke(repo, 'publish', run['run'], ok=False).returncode, 0)
+            self.assertNotEqual(publish_investigation(repo, run, ok=False).returncode, 0)
             self.assertEqual(invoke(repo, 'verify'), verified)
 
     def test_missing_approval_preserves_existing_accepted_question(self):
@@ -199,12 +204,12 @@ class Investigation(unittest.TestCase):
             files = {name: source for name, source in FILES.items() if name != 'tools/verify.mjs'}
             rev = fixture(repo, files)
             first, _ = start_launch(repo, '--commit', rev)
-            invoke(repo, 'publish', first['run'])
+            publish_investigation(repo, first)
             before = invoke(repo, 'verify')
             original = invoke(repo, 'trace', 'npm:e2e', '--type', 'invokes')
 
             repeat = invoke(repo, 'investigate', '--commit', rev)
             save(repeat['plan'], load(first['plan']))
-            invoke(repo, 'publish', repeat['run'], ok=False)
+            publish_investigation(repo, repeat, ok=False)
             self.assertEqual(invoke(repo, 'verify'), before)
             self.assertEqual(invoke(repo, 'trace', 'npm:e2e', '--type', 'invokes'), original)

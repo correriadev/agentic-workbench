@@ -29,6 +29,7 @@ class WorkerPrompt(unittest.TestCase):
                         'mapper': str(SCRIPTS / 'project_mapper.py'),
                         'run': run['run'],
                         'snapshot': plan['snapshot'],
+                        'output_language': 'en',
                         'plan': run['plan'],
                         'inventory': run['inventory'],
                         'question': question,

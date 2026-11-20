@@ -16,7 +16,7 @@ DEVICE = re.compile(r'con|prn|aux|nul|com[1-9]|lpt[1-9]')
 
 
 def new_plan(identity):
-    return {'snapshot': identity, 'questions': []}
+    return {'snapshot': identity, 'output_language': 'en', 'questions': []}
 
 
 def fields(obj, keys, name):
@@ -46,8 +46,13 @@ def string_list(value, name):
     return value
 
 
-def validate_plan(plan, identity, entries):
-    fields(plan, 'snapshot questions', 'investigation plan')
+def validate_plan(plan, identity, entries, *, allow_legacy=False):
+    if allow_legacy and isinstance(plan, dict) and 'output_language' not in plan:
+        fields(plan, 'snapshot questions', 'investigation plan')
+    else:
+        fields(plan, 'snapshot output_language questions', 'investigation plan')
+        if plan['output_language'] != 'en':
+            raise MappingError('investigation plan requires output_language "en"')
     if plan['snapshot'] != identity or not isinstance(plan['questions'], list):
         raise MappingError('plan requires the current inventory snapshot and a question list')
     eligible = {entry['path'] for entry in entries if entry['eligible']}
@@ -221,9 +226,9 @@ def validate_shard(question_id, raw, manifest, reader):
     return raw
 
 
-def compile_investigation(manifest, plan, shards, reader):
+def compile_investigation(manifest, plan, shards, reader, *, allow_legacy=False):
     """Rebuild logical rows from the accepted subset, retaining every planned question."""
-    validate_plan(plan, manifest['snapshot']['identity'], manifest['entries'])
+    validate_plan(plan, manifest['snapshot']['identity'], manifest['entries'], allow_legacy=allow_legacy)
     questions = {item['id']: item for item in plan['questions']}
     if not isinstance(shards, dict) or shards.keys() - questions.keys():
         raise MappingError('accepted shards must belong to the investigation plan')

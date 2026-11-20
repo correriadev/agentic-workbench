@@ -4,7 +4,7 @@ import sqlite3
 import unittest
 
 from test_acceptance import fixture, invoke, test_directory
-from test_investigation import accept, add_question, load, save, write_answer
+from test_investigation import accept, add_question, load, publish_investigation, save, write_answer
 
 
 class DiscoveryCompiler(unittest.TestCase):
@@ -35,7 +35,7 @@ class DiscoveryCompiler(unittest.TestCase):
         accept(self.repo, self.run, 'read')
         self.shard('drop', [second])
         accept(self.repo, self.run, 'drop')
-        invoke(self.repo, 'publish', self.run['run'])
+        publish_investigation(self.repo, self.run)
         self.assertEqual(invoke(self.repo, 'verify')['integrity'], 'ok')
         with closing(sqlite3.connect(self.graph)) as db:
             self.assertEqual([(row[0], json.loads(row[4])) for row in db.execute('select * from discoveries order by 1')],
@@ -49,7 +49,7 @@ class DiscoveryCompiler(unittest.TestCase):
                                    ([self.discovery('different', None)], 'endpoint')]:
             self.shard('drop', replacement)
             accept(self.repo, self.run, 'drop')
-            failed = invoke(self.repo, 'publish', self.run['run'], ok=False)
+            failed = publish_investigation(self.repo, self.run, ok=False)
             self.assertNotEqual(failed.returncode, 0)
             self.assertIn(error, failed.stderr)
             self.assertEqual(self.graph.read_bytes(), original)
