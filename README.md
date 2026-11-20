@@ -76,6 +76,7 @@ Todas as skills ficam isoladas em `skills/<nome>/` e contêm sua especificação
 | [`project-memory`](skills/project-memory/SKILL.md) | Mantém a memória documental em `docs/` (`.digest.md`, `.graph.json`, ADRs). |
 | [`blueprint`](skills/blueprint/SKILL.md) | Inicializa ou reutiliza o escopo e gera o plano de implementação e evidência em `tasks.json`. |
 | [`quality-gate`](skills/quality-gate/SKILL.md) | Define as obrigações de evidência em `plan` e avalia o candidato em `check`. |
+| [`journey-verifier`](skills/journey-verifier/SKILL.md) | Gera um repositório E2E separado, executa a jornada contra o alvo real e registra efeitos observados por canais independentes. |
 | [`forge`](skills/forge/SKILL.md) | Implementa mudanças, cria verificações e executa procedimentos existentes, incluindo E2E. |
 
 ### 💡 Produto, Design & Pesquisa
