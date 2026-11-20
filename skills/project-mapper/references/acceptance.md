@@ -18,6 +18,10 @@ Optionally set `PROJECT_MAPPER_TEST_TEMP` to a writable scratch directory. Witho
 
 ## Supervisor-led investigation checks
 
+For an operational comparison, pin one target revision and give each skill version the same operator request and source-reading budget. Before publication, freeze an independent source answer key including a rule withheld from both investigators. Score the first publications through fresh readers using only search, open and trace. Record answer accuracy, decisive locators and unsupported handoffs separately. The credential regression uses a disposable synthetic value to check raw reader visibility and its absence from the published SQLite contents and generated files.
+
+In a paired OpenCart 2.3.0.2 trial (`85e0f35ae96197e0aa92a4aedd3aad76eebd2961`), the baseline (`7952389675c907816ce1b73ed4ccbdb58146f39c`) and revised instructions each used 30 source reads. First publications cited 18 and 20 files respectively. Both readers recovered storefront/admin startup and the manual delivery boundary. Only the revised map tied installer URL scheme to forwarded headers and traced the database port through generated configuration to the request-time consumer. Neither reader recovered the default installer route, both redirect destinations or the full omitted-versus-empty table-prefix rule. Each graph contained three discoveries. This trial measures one independent run per version.
+
 The local CLI tests exercise cross-directory reads, editable questions, decisions, conditions, open questions and stale evidence. A polyglot fixture follows npm through PowerShell to the test runner and conditional report path. The separate report alias is a forbidden edge. These checks establish static flow. Generating a report requires execution.
 
 Baseline regressions cover lexical scope, built-in module precedence, delegated dependencies, unexamined inputs and scoped traces.

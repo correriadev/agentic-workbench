@@ -32,6 +32,8 @@ Pass the returned `prompt` string verbatim to a worker with access to those path
 
 ## Review and publish
 
+For operational findings, reopen the producer and consumer under each material entry point. Check whether a deployment claim has evidence beyond a runnable command. Review the entire plan and shard for credential values before acceptance: the database embeds the accepted records. After publication inspect the embedded records and generated files as well as the reader-facing discoveries. Source readers can return raw lines; use credential names and locators in review messages.
+
 ```text
 python "<mapper>" . check-shard RUN launch
 python "<mapper>" . accept RUN launch FINGERPRINT --reviewed-english
