@@ -78,6 +78,21 @@ def start_launch(repo, *snapshot_args):
 
 
 class Investigation(unittest.TestCase):
+    def test_changed_plan_cannot_replace_complete_graph_with_partial(self):
+        with test_directory() as repo:
+            rev = fixture(repo, FILES)
+            run, _ = start_launch(repo, '--commit', rev)
+            publish_investigation(repo, run)
+            before = invoke(repo, 'verify')
+            graph = repo / '.project-mapper/graph.sqlite'
+            original = graph.read_bytes()
+            add_question(run, 'unexamined', 'What else happens?', ['package.json'])
+            result = publish_investigation(repo, run, ok=False)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('active complete graph preserved', result.stderr)
+            self.assertEqual(graph.read_bytes(), original)
+            self.assertEqual(invoke(repo, 'verify'), before)
+
     def test_supervisor_adds_question_and_publishes_conditional_cross_language_chain(self):
         with test_directory() as repo:
             rev = fixture(repo, FILES)

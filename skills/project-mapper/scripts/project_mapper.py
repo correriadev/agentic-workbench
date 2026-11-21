@@ -246,13 +246,13 @@ def guard_promotion(path, info):
     if 'questions' in prior['plan'] and 'questions' not in info['plan']:
         raise MappingError('active investigation preserved; request Python hints within the investigation')
     proposed_plan = info['plan']
+    # Translation can change question IDs and wording while covering the same snapshot.
     migrating = ('questions' in prior['plan'] and 'output_language' not in prior['plan']
                  and proposed_plan.get('output_language') == 'en')
     if migrating:
         proposed_plan = {key: value for key, value in proposed_plan.items() if key != 'output_language'}
     same_plan = prior['plan'] == proposed_plan
-    # Translation can change question IDs and wording while covering the same snapshot.
-    if (migrating or same_plan) and prior['status'] == 'complete' and info['status'] != 'complete':
+    if prior['status'] == 'complete' and info['status'] != 'complete':
         raise MappingError('active complete graph preserved; new coverage is partial')
     if same_plan and set(prior.get('accepted_shards', {})) - set(info.get('accepted_shards', {})):
         raise MappingError('active investigation preserved; previously accepted questions are missing')

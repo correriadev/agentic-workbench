@@ -123,6 +123,10 @@ class LanguageContract(unittest.TestCase):
         with closing(sqlite3.connect(db)) as conn:
             saved = json.loads(conn.execute("SELECT value FROM metadata WHERE key='plan'").fetchone()[0])
         self.assertEqual(saved, self.plan)
-        # Once the migration is complete, an expanded English plan may publish partial coverage.
+        # An expanded plan must not replace the complete migrated map with partial coverage.
+        upgraded = db.read_bytes()
         add_question(self.run, 'owner', 'Who assigns the state codes?', ['estados.txt'])
-        self.assertEqual(publish_investigation(self.repo, self.run)['status'], 'partial')
+        refused = publish_investigation(self.repo, self.run, ok=False)
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn('active complete graph preserved', refused.stderr)
+        self.assertEqual(db.read_bytes(), upgraded)
