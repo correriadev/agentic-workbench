@@ -33,7 +33,7 @@ agentic-workbench/
 
 ## LAYERS
 - **Core Engineering Skills**: Shared scope, implementation planning, test-driven construction, evidence planning, acceptance review and architecture review (`blueprint`, `forge`, `quality-gate`, `the-grumpy-tech-lead`, `project-memory`).
-- **Product & Discovery Skills**: Problem framing, backlog refinement, meta-prompt generation, and UI prototype parsing (`brainstorming`, `pbb-design`, `prompt-generator`, `read-ui-prototype`).
+- **Product & Discovery Skills**: Problem framing, experiment design, backlog refinement, meta-prompt generation, and UI prototype parsing (`brainstorming`, `experiment-design`, `pbb-design`, `prompt-generator`, `read-ui-prototype`).
 - **Navigation, Mentorship & Delegation**: Repository mapping, AST graph discovery, contextual reasoning, outcome briefs, decision sparring, and CLI delegation wrappers (`project-mapper`, `codebase-memory`, `contextual-mentorship`, `outcome-delegation`, `decision-sparring`, `ask-antigravity`, `ask-codex`, `ask-opencode`).
 - **Operational Infrastructure**: Repository cleanup scripts and intentional local agent synchronization (`scripts/sync_skills.py`, `scripts/cleanup.ps1`, `scripts/cleanup.sh`).
 
@@ -63,6 +63,7 @@ REQUIRED: Any import violating these rules must fail CI verification via: `pytho
 | `the-grumpy-tech-lead` | Socratic architectural review and systemic risk detection | `skills/the-grumpy-tech-lead/` |
 | `project-memory` | Architecture, test protocols, and graph index maintenance | `skills/project-memory/` |
 | `brainstorming` | Collaborative discovery and architectural trade-off analysis | `skills/brainstorming/` |
+| `experiment-design` | Decision-focused experiments and evidence interpretation | `skills/experiment-design/` |
 | `pbb-design` | Product backlog building and scope slicing | `skills/pbb-design/` |
 | `prompt-generator` | System prompt and persona engineering | `skills/prompt-generator/` |
 | `skill-creator` | Self-contained skill creation, token economy, and prompt-cache optimization | `skills/skill-creator/` |
