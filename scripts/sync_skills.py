@@ -75,6 +75,22 @@ FAST_CODE_PROVIDER_POLICIES = {
     "opencode": _FAST_CODE_HAIKU_POLICY,
 }
 
+SEMANTIC_WORKER_POLICY_TOKEN = b"{{PROJECT_MAPPER_SEMANTIC_WORKER_POLICY}}"
+_SEMANTIC_HAIKU = (
+    "For semantic investigation workers, use `Task` with `model: haiku-5.5` "
+    "and `effort: extra-high` when permitted and available."
+)
+SEMANTIC_WORKER_PROVIDER_POLICIES = {
+    "antigravity": "For semantic investigation workers, use `invoke_subagent` with `Model: flash` when permitted and available; no effort parameter exists.",
+    "codex": "For semantic investigation workers, use `spawn_agent` with `model: gpt-6-luna`, `reasoning_effort: xhigh`, `fork_turns: none` when permitted and available.",
+    "claude": _SEMANTIC_HAIKU,
+    "opencode": _SEMANTIC_HAIKU,
+}
+PROVIDER_POLICY_TOKENS = {
+    FAST_CODE_POLICY_TOKEN: FAST_CODE_PROVIDER_POLICIES,
+    SEMANTIC_WORKER_POLICY_TOKEN: SEMANTIC_WORKER_PROVIDER_POLICIES,
+}
+
 
 def get_available_skills():
     if not REPO_SKILLS.exists():
@@ -88,10 +104,11 @@ def sync_single_skill(src_dir: pathlib.Path, dst_dir: pathlib.Path, dry_run: boo
     for path in sorted(src_dir.rglob("*")):
         if path.is_file():
             content = path.read_bytes()
-            if FAST_CODE_POLICY_TOKEN in content:
-                if target_name not in FAST_CODE_PROVIDER_POLICIES:
-                    raise ValueError("A known target_name is required to render provider policy tokens")
-                transformations.append((path.relative_to(src_dir), FAST_CODE_POLICY_TOKEN, FAST_CODE_PROVIDER_POLICIES[target_name].encode("utf-8")))
+            for token, policies in PROVIDER_POLICY_TOKENS.items():
+                if token in content:
+                    if target_name not in policies:
+                        raise ValueError("A known target_name is required to render provider policy tokens")
+                    transformations.append((path.relative_to(src_dir), token, policies[target_name].encode("utf-8")))
 
     existed = dst_dir.exists()
     action = "Substituir (mirror)" if existed else "Criar"
