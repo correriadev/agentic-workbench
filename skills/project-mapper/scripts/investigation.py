@@ -63,6 +63,13 @@ def validate_plan(plan, identity, entries, *, allow_legacy=False):
             keys += ' required_relations'
             for requirement in string_list(item['required_relations'], 'required relations'):
                 string(requirement, 'required relation')
+        if isinstance(item, dict) and 'node_ids' in item:
+            keys += ' node_ids'
+            node_ids = string_list(item['node_ids'], 'assigned nodes')
+            if not node_ids:
+                raise MappingError('graph assignment requires at least one node')
+            for node in node_ids:
+                string(node, 'assigned node')
         fields(item, keys, 'question')
         key = slug(item['id'], 'question id')
         if len(key) > 128 or DEVICE.fullmatch(key) or key in dependencies:

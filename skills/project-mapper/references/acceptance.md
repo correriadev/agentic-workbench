@@ -30,6 +30,8 @@ Baseline regressions cover lexical scope, built-in module precedence, delegated 
 
 `test_multidimensional.py` covers lexical candidates, paths, configuration, coverage and bounded token scanning; `test_multidimensional_cli.py` covers publication, Python coexistence, semantic enrichment, preservation and replay; `test_multidimensional_credentials.py` checks representative secrets across generated artifacts. `test_node_context.py` checks linked discovery previews and context counts. Treat candidates as leads, not validated calls or runtime behavior. For a real-repository evaluation pin a snapshot, inspect representative cross-dimensional links and report unresolved or unsupported inputs. Report build, verification and query costs separately; a successful static map alone does not demonstrate semantic completeness.
 
+`test_semantic_planner.py` covers graph-derived assignments, shared nodes, bounded units, source boundaries and snapshot checks. `test_graph_investigation_contract.py` exercises graph-pinned plans, batches, paginated inspection, tampering and progressive publication. The `test_semantic_node_*` suites check node-specific roles, shared flow context and bounded evidence projections. A count of assigned or linked nodes is not a semantic completeness metric; report unexamined units and missing node-specific roles separately.
+
 ## Evaluate the prompts
 
 CLI tests compare dispatch prompts byte-for-byte across two questions, a repair suffix, paths with spaces and an unknown question. For semantic checks, freeze expectations before giving independent workers only their prompts. Judge claims, directions, conditions, locators and open questions. Record first-pass mistakes and repairs separately.

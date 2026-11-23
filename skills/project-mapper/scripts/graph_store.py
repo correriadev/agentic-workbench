@@ -271,16 +271,16 @@ def semantic_context_counts(connection):
         rows = connection.execute(
             "WITH linked(node) AS ("
             "SELECT r.source FROM relationships r JOIN discoveries d ON d.node=r.target "
-            "WHERE r.family='semantic' AND r.state='resolved' UNION "
+            "WHERE r.family='semantic' AND r.state='resolved' AND r.type='explained-by' UNION "
             "SELECT r.target FROM relationships r JOIN discoveries d ON d.node=r.source "
-            "WHERE r.family='semantic' AND r.state='resolved') "
+            "WHERE r.family='semantic' AND r.state='resolved' AND r.type='describes') "
             "SELECT n.kind,count(*) AS total,"
             "sum(CASE WHEN linked.node IS NULL THEN 0 ELSE 1 END) AS linked,"
             "sum(CASE WHEN linked.node IS NULL THEN 1 ELSE 0 END) AS not_linked "
             "FROM nodes n LEFT JOIN linked ON linked.node=n.key "
             "WHERE n.kind!='discovery' GROUP BY n.kind ORDER BY n.kind")
     return dict(scope='repository-wide', nodes_by_kind=[dict(row) for row in rows],
-                basis='Distinct non-discovery nodes with a direct resolved semantic relationship to a discovery; '
+                basis='Distinct non-discovery nodes directly described by a discovery or linked by explained-by; '
                       'not-linked does not imply absence of context or measure semantic completeness.')
 
 
@@ -386,7 +386,7 @@ def search_nodes(connection, query, limit):
     return [dict(row) for row in rows]
 
 
-def discovery_record(connection, key):
+def discovery_record(connection, key, *, support_limit=None):
     row = connection.execute('SELECT node AS key,title,summary,terms,content FROM discoveries WHERE node=?',
                              (key,)).fetchone()
     if row is None:
@@ -398,11 +398,18 @@ def discovery_record(connection, key):
         JOIN observations v ON v.id=s.observation JOIN occurrences o ON o.id=v.occurrence
         WHERE s.node=? ORDER BY s.pointer,o.path,o.span,v.id
     """
-    for pointer, observation, path, content_id, span in connection.execute(locators, (key,)):
+    if support_limit is None:
+        rows = connection.execute(locators, (key,)).fetchall()
+    else:
+        rows = connection.execute(locators + ' LIMIT ?', (key, support_limit + 1)).fetchall()
+    for pointer, observation, path, content_id, span in rows[:support_limit]:
         support.setdefault(pointer, []).append(dict(id=observation, path=path, content_id=content_id,
                                                      span=json.loads(span)))
-    return dict(row, terms=json.loads(row['terms']), content=json.loads(row['content']),
-                support=[dict(pointer=ptr, evidence=items) for ptr, items in support.items()])
+    result = dict(row, terms=json.loads(row['terms']), content=json.loads(row['content']),
+                  support=[dict(pointer=ptr, evidence=items) for ptr, items in support.items()])
+    if support_limit is not None:
+        result['support_truncated'] = len(rows) > support_limit
+    return result
 
 
 def open_discovery(connection, key):
@@ -413,7 +420,7 @@ def open_discovery(connection, key):
     raise MappingError('no discovery with this exact key in the published map')
 
 
-def related_discoveries(connection, key, limit=8):
+def related_discoveries(connection, key, limit=8, *, contextual_only=False):
     """Return bounded previews of reviewed discoveries directly linked to a node.
 
     A missing link means only that no direct discovery is present in this
@@ -421,18 +428,20 @@ def related_discoveries(connection, key, limit=8):
     """
     if connection.execute('PRAGMA user_version').fetchone()[0] == 1:
         return [], False
+    outgoing_filter = " AND r.type='explained-by'" if contextual_only else ''
+    incoming_filter = " AND r.type='describes'" if contextual_only else ''
     preview = (
         "SELECT r.id,r.type AS relation,'outgoing' AS direction,d.node AS key,r.conditions,"
         "CASE WHEN length(d.title)>160 THEN substr(d.title,1,159)||'…' ELSE d.title END AS title,"
         "CASE WHEN length(d.summary)>320 THEN substr(d.summary,1,319)||'…' ELSE d.summary END AS summary "
         "FROM relationships r JOIN discoveries d ON d.node=r.target "
-        "WHERE r.source=? AND r.family='semantic' AND r.state='resolved' "
+        "WHERE r.source=? AND r.family='semantic' AND r.state='resolved' " + outgoing_filter +
         "UNION ALL "
         "SELECT r.id,r.type AS relation,'incoming' AS direction,d.node AS key,r.conditions,"
         "CASE WHEN length(d.title)>160 THEN substr(d.title,1,159)||'…' ELSE d.title END AS title,"
         "CASE WHEN length(d.summary)>320 THEN substr(d.summary,1,319)||'…' ELSE d.summary END AS summary "
         "FROM relationships r JOIN discoveries d ON d.node=r.source "
-        "WHERE r.target=? AND r.family='semantic' AND r.state='resolved' "
+        "WHERE r.target=? AND r.family='semantic' AND r.state='resolved' " + incoming_filter +
         'ORDER BY key,relation,direction,id LIMIT ?'
     )
     rows = connection.execute(preview, (key, key, limit + 1)).fetchall()
@@ -446,21 +455,180 @@ def related_discoveries(connection, key, limit=8):
     return items, len(rows) > limit
 
 
+SEMANTIC_FIELDS = ('role', 'purpose', 'behavior', 'flow', 'participates_in', 'entrypoints',
+                   'dependencies', 'configuration', 'inputs', 'outputs', 'conditions',
+                   'related_tests', 'gaps', 'limits')
+SEMANTIC_VALUE_LIMIT = 2048
+SEMANTIC_EVIDENCE_LIMIT = 8
+SEMANTIC_FRAGMENTS_LIMIT = 8
+SEMANTIC_SUPPORT_LIMIT = 128
+
+
+def _pointer_value(content, pointer):
+    """Read an already validated RFC 6901 pointer without interpreting its value."""
+    current = content
+    for segment in pointer.split('/')[1:]:
+        part = segment.replace('~1', '/').replace('~0', '~')
+        current = current[int(part)] if isinstance(current, list) else current[part]
+    return current
+
+
+def _discovery_task_statuses(connection, key):
+    # Discovery support locators record the question ID in occurrence.symbol.
+    # Preserve unknowns instead of equating acceptance with complete context.
+    rows = connection.execute(
+        'SELECT DISTINCT COALESCE(t.status,\'unknown\') '
+        'FROM discovery_support s JOIN observations v ON v.id=s.observation '
+        'JOIN occurrences o ON o.id=v.occurrence LEFT JOIN tasks t ON t.id=o.symbol '
+        'WHERE s.node=? ORDER BY 1', (key,)).fetchall()
+    return [row[0] for row in rows] or ['unknown']
+
+
+def _semantic_relation_evidence(items):
+    projected = []
+    for item in items[:SEMANTIC_EVIDENCE_LIMIT]:
+        row = dict(item)
+        limitation = row.get('limitation')
+        if isinstance(limitation, str) and len(limitation.encode('utf-8')) > SEMANTIC_VALUE_LIMIT:
+            row.pop('limitation')
+            row['limitation_omitted'] = True
+        projected.append(row)
+    return projected
+
+
+def semantic_context(connection, links, truncated, *, node_key, own=None, snapshot=None):
+    """Project grounded fragments while retaining the discovery as their owner."""
+    result = dict(status='not-linked', node_role_status='not-linked', entries=[], truncated=truncated, snapshot=snapshot,
+                  basis='Fields describe the linked discovery and its scope, which may include an entire flow; '
+                        'they are not automatically attributes of this node. Reviewed is limited to projected '
+                        'answered investigations, not complete node behavior. Missing links do not prove absence.')
+    associations = list(links)
+    if own is not None:
+        associations.insert(0, dict(key=own['key'], relation='self', direction='self',
+                                    conditions=[], relation_id=None, evidence=[]))
+    for link in associations:
+        discovery = discovery_record(connection, link['key'], support_limit=SEMANTIC_SUPPORT_LIMIT)
+        if discovery is None:
+            continue
+        content = discovery['content']
+        fields = {}
+        present = set(content).intersection(SEMANTIC_FIELDS) if isinstance(content, dict) else set()
+        subject_present = isinstance(content, dict) and 'subject_node' in content
+        subject = content.get('subject_node') if subject_present else None
+        subject_support = []
+        partial = set()
+        fully_supported = set()
+        fragments_truncated = set()
+        value_truncated = False
+        for support in discovery['support']:
+            pointer = support['pointer']
+            if subject_present and pointer in ('', '/subject_node'):
+                subject_support.append(dict(pointer='/subject_node', support_pointer=pointer,
+                                            evidence=support['evidence'][:SEMANTIC_EVIDENCE_LIMIT],
+                                            evidence_truncated=len(support['evidence']) > SEMANTIC_EVIDENCE_LIMIT))
+            if pointer == '':
+                fragments = [('/' + field, field, content[field]) for field in SEMANTIC_FIELDS if field in present]
+                fully_supported.update(present)
+            else:
+                top = pointer.split('/')[1].replace('~1', '/').replace('~0', '~')
+                if top not in present:
+                    continue
+                fragments = [(pointer, top, _pointer_value(content, pointer))]
+                if pointer != '/' + top:
+                    partial.add(top)
+                else:
+                    fully_supported.add(top)
+            for fragment_pointer, name, value in fragments:
+                if len(fields.get(name, [])) >= SEMANTIC_FRAGMENTS_LIMIT:
+                    fragments_truncated.add(name)
+                    continue
+                ref = dict(pointer=fragment_pointer, support_pointer=pointer,
+                           evidence=support['evidence'][:SEMANTIC_EVIDENCE_LIMIT],
+                           evidence_truncated=len(support['evidence']) > SEMANTIC_EVIDENCE_LIMIT)
+                if len(canonical(value).encode('utf-8')) > SEMANTIC_VALUE_LIMIT:
+                    ref['omitted'] = 'value exceeds projection limit; open discovery for full value'
+                    value_truncated = True
+                else:
+                    ref['value'] = value
+                fields.setdefault(name, []).append(ref)
+        unsupported = sorted(present - fields.keys())
+        if subject_present and (not isinstance(subject, str) or not subject_support):
+            unsupported.append('subject_node')
+        task_statuses = _discovery_task_statuses(connection, link['key'])
+        additional_content = not isinstance(content, dict) or bool(set(content) - set(SEMANTIC_FIELDS) - {'subject_node'})
+        subject_relation = ('shared' if not subject_present else 'unsupported'
+                            if 'subject_node' in unsupported else 'same-node' if subject == node_key else 'other-node')
+        role_supported = any(isinstance(item.get('value'), str) and item['value'].strip() and item['evidence']
+                             for item in fields.get('role', []))
+        field_scope = 'node' if subject_relation == 'same-node' and role_supported else 'discovery'
+        title = discovery['title']
+        title_truncated = len(title) > 160
+        if title_truncated:
+            title = title[:159] + '…'
+        conditions_omitted = len(canonical(link['conditions']).encode('utf-8')) > SEMANTIC_VALUE_LIMIT
+        subject_node_omitted = (subject_present and 'subject_node' not in unsupported and
+                                len(subject.encode('utf-8')) > SEMANTIC_VALUE_LIMIT)
+        relation_evidence = _semantic_relation_evidence(link['evidence'])
+        entry = dict(discovery=link['key'], title=title, title_truncated=title_truncated, field_scope=field_scope,
+                     subject_relation=subject_relation, subject_support=subject_support,
+                     relationship=link['relation'], direction=link['direction'],
+                     relation_id=link['relation_id'], conditions=None if conditions_omitted else link['conditions'],
+                     conditions_omitted=conditions_omitted, relation_evidence=relation_evidence,
+                     relation_evidence_truncated=len(link['evidence']) > SEMANTIC_EVIDENCE_LIMIT,
+                     fields=fields, additional_content=additional_content,
+                     support_truncated=discovery['support_truncated'],
+                     fragments_truncated=sorted(fragments_truncated),
+                     unsupported_fields=unsupported, partial_fields=sorted(partial - fully_supported),
+                     subject_node_omitted=subject_node_omitted,
+                     value_truncated=value_truncated, investigation_statuses=task_statuses,
+                     open=link['key'])
+        if subject_present and 'subject_node' not in unsupported and not subject_node_omitted:
+            entry['subject_node'] = subject
+        result['entries'].append(entry)
+    if result['entries']:
+        def entry_incomplete(entry):
+            return bool(
+            entry['unsupported_fields'] or entry['partial_fields'] or entry['value_truncated']
+            or entry['additional_content'] or not entry['fields'] or entry['support_truncated']
+            or entry['fragments_truncated'] or entry['relation_evidence_truncated']
+            or entry['title_truncated'] or entry['conditions_omitted'] or entry['subject_node_omitted']
+            or any(item.get('limitation_omitted') for item in entry['relation_evidence'])
+            or any(item['evidence_truncated'] for fragments in entry['fields'].values() for item in fragments)
+            or any(item['evidence_truncated'] for item in entry['subject_support'])
+            or (entry['subject_relation'] == 'same-node' and entry['field_scope'] != 'node')
+            or any(status != 'answered' for status in entry['investigation_statuses'])
+            or any(item.get('value') for name in ('gaps', 'limits')
+                   for item in entry['fields'].get(name, [])))
+
+        node_roles = [entry for entry in result['entries'] if entry['field_scope'] == 'node']
+        role_candidates = [entry for entry in result['entries'] if entry['subject_relation'] == 'same-node']
+        if node_roles:
+            result['node_role_status'] = 'partial' if truncated or any(map(entry_incomplete, role_candidates)) else 'reviewed'
+        incomplete = truncated or any(map(entry_incomplete, result['entries']))
+        result['status'] = 'partial' if incomplete else 'reviewed'
+    return result
+
+
 def inspect_node(connection, selector):
     current = connection.execute('PRAGMA user_version').fetchone()[0] != 1
     result = []
+    snapshot = metadata(connection, 'snapshot').get('snapshot')
     for row in find_nodes(connection, selector):
         key = row['key']
         node = dict(row, evidence=evidence(connection, 'node_observations', 'node', key),
                     incoming=[edge_record(connection, item) for item in adjacent(connection, key, 'in', [])],
                     outgoing=[edge_record(connection, item) for item in adjacent(connection, key, 'out', [])],
                     incoming_candidates=[edge_record(connection, item) for item in incoming_candidates(connection, key)])
-        if current and (discovery := discovery_record(connection, key)) is not None:
+        discovery = discovery_record(connection, key) if current else None
+        if discovery is not None:
             node['discovery'] = discovery
         context, truncated = related_discoveries(connection, key)
         node['related_discoveries'] = context
         node['related_discoveries_truncated'] = truncated
         node['context_status'] = 'self' if 'discovery' in node else 'linked' if context else 'not-linked'
+        contextual, contextual_truncated = related_discoveries(connection, key, contextual_only=True)
+        node['semantic_context'] = semantic_context(connection, contextual, contextual_truncated, node_key=key,
+                                                    own=discovery, snapshot=snapshot)
         result.append(node)
     return result
 
