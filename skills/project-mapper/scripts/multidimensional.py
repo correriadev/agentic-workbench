@@ -340,8 +340,11 @@ def extract_workflow(graph, source, paths):
             graph.relation('runs-script', 'file:' + source.path, key, 'resolved', [ev])
 
 
-def extract_graph(manifest, reader):
-    graph = Graph(PROFILE)
+def extract_graph(manifest, reader, *, csharp=False, profile=None):
+    graph = Graph(profile or PROFILE)
+    if csharp:
+        from csharp_profile import parser
+        csharp_parser = parser()
     coverage = []
     outcomes = {}
     entries = manifest['entries']
@@ -369,6 +372,7 @@ def extract_graph(manifest, reader):
         name = PurePosixPath(path).name
         target = suffix in JS_EXTENSIONS or name in {'package.json', 'mcp.json', 'wrangler.toml'}
         target = target or (path.startswith('.github/workflows/') and suffix in {'.yml', '.yaml'})
+        target = target or (csharp and suffix in {'.cs', '.csproj'})
         if not target:
             reason = 'No multidimensional extractor for this input.'
             outcomes[path] = dict(status='unsupported', reason=reason)
@@ -381,7 +385,14 @@ def extract_graph(manifest, reader):
             source = Source(reader, path)
             ev = graph.observe(source.anchor('source-file', path), 'file-inventory', 'source')
             graph.node('file:' + path, 'file', 'repository', path, [ev])
-            if suffix in JS_EXTENSIONS:
+            if csharp and suffix in {'.cs', '.csproj'}:
+                from csharp_profile import extract, extract_project
+                if suffix == '.cs':
+                    graph.member('code', 'csharp', 'file:' + path, [ev])
+                    reason = extract(graph, source, csharp_parser)
+                else:
+                    reason = extract_project(graph, source, paths)
+            elif suffix in JS_EXTENSIONS:
                 is_test = (bool(re.search(r'\.(?:test|spec)\.[cm]?[jt]sx?$', name)) or
                            'tests' in PurePosixPath(path).parts or '__tests__' in PurePosixPath(path).parts)
                 graph.member('test' if is_test else 'code', 'source', 'file:' + path, [ev])
@@ -423,6 +434,25 @@ def extract_graph(manifest, reader):
                              scoped_absence=False, findings=0, issues=[reason]))
     for source in workflows:
         extract_workflow(graph, source, paths)
+    if csharp:
+        projects = sorted(path for path in paths if path.lower().endswith('.csproj') and
+                          'dotnet-project:' + path in graph.nodes)
+        for path in sorted(p for p in paths if p.lower().endswith('.cs')):
+            parents = [p for p in projects if str(PurePosixPath(p).parent) == '.' or
+                       path.startswith(str(PurePosixPath(p).parent) + '/')]
+            if not parents:
+                continue
+            depth = max(len(PurePosixPath(p).parent.parts) for p in parents)
+            nearest = [p for p in parents if len(PurePosixPath(p).parent.parts) == depth]
+            try:
+                source = Source(reader, path)
+                ev = graph.observe(source.anchor('dotnet-project-candidate', path), 'dotnet-project-layout', 'candidate',
+                                   'Directory-based candidate; MSBuild compile inclusion is not evaluated.')
+            except (UnicodeError, ValueError):
+                continue
+            graph.relation('belongs-to-project', 'file:' + path, None, 'unresolved', [ev],
+                           candidates=['dotnet-project:' + p for p in nearest],
+                           reason='Project inclusion and imported MSBuild properties are not evaluated.')
     # Count distinct relations anchored to each file, not raw nodes or observations.
     observation_paths = {key: graph.occurrences[value['occurrence']]['path']
                          for key, value in graph.observations.items()}
