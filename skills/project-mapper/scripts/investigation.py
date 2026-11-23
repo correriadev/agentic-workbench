@@ -58,7 +58,12 @@ def validate_plan(plan, identity, entries, *, allow_legacy=False):
     eligible = {entry['path'] for entry in entries if entry['eligible']}
     dependencies = {}
     for item in plan['questions']:
-        fields(item, 'id question seeds depends_on', 'question')
+        keys = 'id question seeds depends_on'
+        if isinstance(item, dict) and 'required_relations' in item:
+            keys += ' required_relations'
+            for requirement in string_list(item['required_relations'], 'required relations'):
+                string(requirement, 'required relation')
+        fields(item, keys, 'question')
         key = slug(item['id'], 'question id')
         if len(key) > 128 or DEVICE.fullmatch(key) or key in dependencies:
             raise MappingError(f'duplicate or unusable question id: {key}')
@@ -81,7 +86,9 @@ def node_id(value, entries):
     if value.startswith('file:'):
         path = value.removeprefix('file:')
         if path not in entries or not entries[path]['eligible']:
-            raise MappingError(f'file endpoint outside the eligible snapshot: {path}')
+            raise MappingError(f'file endpoint outside the eligible snapshot: {path}. Check the exact path. '
+                               'If pinned source proves a generated output, use artifact: and cite its writer. '
+                               'Otherwise investigate or record the gap.')
 
 
 def legacy_node(key):

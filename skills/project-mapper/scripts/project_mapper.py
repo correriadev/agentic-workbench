@@ -345,22 +345,49 @@ def worker_prompt(root, args):
 def worker_input(root, args):
     stage = run_directory(output_paths(root)[0], args.run)
     manifest, plan = load_run(stage, allow_legacy=True)
+    if len(args.also) > 7:
+        raise MappingError('a read accepts at most eight ranges')
+    ranges = [(args.path, args.start, args.count)]
+    ranges.extend((path, int(start), int(count)) for path, start, count in args.also)
     with snapshot_reader(root, manifest) as reader:
+        allowed = None
         if 'questions' in plan:
             if args.task != '@' and args.task not in question_index(plan):
                 raise MappingError('unknown investigation question')
         else:
             task = plan['tasks'].get(args.task)
-            if not task or not args.task.startswith('review-') or args.path not in task['paths']:
+            if not task or not args.task.startswith('review-'):
                 raise MappingError('input path is outside this worker assignment')
-        if args.path not in reader.entries or not reader.entries[args.path]['eligible']:
-            raise MappingError('input path is outside eligible inventory')
-        source = Source(reader, args.path)
-        if args.start < 1 or args.count < 1 or args.count > 120:
-            raise MappingError('start must be positive and count must be in 1..120')
-        return dict(path=args.path, content_id=source.content_id, start=args.start,
-                    total_lines=len(source.lines), lines=[line.decode() for line in
-                                                         source.lines[args.start - 1:args.start - 1 + args.count]])
+            allowed = task['paths']
+        pages = []
+        source = None
+        for path, start, count in ranges:
+            if allowed is not None and path not in allowed:
+                raise MappingError('input path is outside this worker assignment')
+            if path not in reader.entries or not reader.entries[path]['eligible']:
+                raise MappingError('input path is outside eligible inventory')
+            if start < 1 or not 1 <= count <= 120:
+                raise MappingError('start must be positive and count must be in 1..120')
+            if source is None or source.path != path:
+                source = Source(reader, path)
+            pages.append(dict(path=path, content_id=source.content_id, start=start,
+                              total_lines=len(source.lines), lines=[line.decode() for line in
+                                                                   source.lines[start - 1:start - 1 + count]]))
+        return {'pages': pages} if args.also else pages[0]
+
+
+def draft_coverage(question, raw, pairs):
+    requirements = question.get('required_relations', [])
+    claims = raw['claims']
+    mappings = []
+    mapped = set()
+    for requirement, claim in pairs:
+        if not 1 <= requirement <= len(requirements) or not 1 <= claim <= len(claims):
+            raise MappingError('mapping outside the 1-based requirement or claim list')
+        mapped.add(requirement)
+        mappings.append(dict(requirement=requirements[requirement-1], claim=claims[claim-1]))
+    return dict(status=raw['status'], gap=raw['gap'], mappings=mappings,
+                unmapped=[text for i, text in enumerate(requirements, 1) if i not in mapped])
 
 
 def check_shard(root, args):
@@ -372,11 +399,15 @@ def check_shard(root, args):
             if question is None:
                 raise MappingError('unknown investigation question')
             raw = load(safe_path(stage, f'shards/{args.task}.json'))
-            decisions = load(safe_path(stage, 'decisions.json'))
             validate_shard(question['id'], raw, manifest, reader)
+            if args.command == 'preflight':
+                return draft_coverage(question, raw, args.covers)
+            decisions = load(safe_path(stage, 'decisions.json'))
             fingerprint = decision_fingerprint(plan['output_language'], question, raw, decisions)
             return dict(question=args.task, status=raw['status'], claims=len(raw['claims']),
                         discoveries=len(raw.get('discoveries', [])), fingerprint=fingerprint)
+        if args.command == 'preflight':
+            raise MappingError('preflight requires an investigation question')
         task = plan['tasks'].get(args.task)
         if not task or not args.task.startswith('review-'):
             raise MappingError('task does not own a review shard')
@@ -462,6 +493,8 @@ def arguments():
     read.add_argument('path')
     read.add_argument('--start', type=int, default=1)
     read.add_argument('--count', type=int, default=40)
+    read.add_argument('--also', nargs=3, metavar=('PATH', 'START', 'COUNT'), action='append', default=[],
+                      help='read another known range for this assignment (up to seven additional ranges)')
     search = commands.add_parser('search-input', help='find a literal in eligible snapshot text')
     search.add_argument('run')
     search.add_argument('literal')
@@ -470,6 +503,11 @@ def arguments():
     hints = commands.add_parser('hints', help='inspect optional Python extractor candidates for one input')
     hints.add_argument('run')
     hints.add_argument('path')
+    draft = commands.add_parser('preflight', help='validate an owned draft and list unmapped planned relations')
+    draft.add_argument('run')
+    draft.add_argument('task')
+    draft.add_argument('--covers', nargs=2, type=int, action='append', default=[],
+                       metavar=('REQUIREMENT', 'CLAIM'), help='inspect a proposed correspondence (1-based, repeatable)')
     check = commands.add_parser('check-shard', help='validate an assigned worker shard before publication')
     check.add_argument('run')
     check.add_argument('task')
@@ -520,7 +558,7 @@ def dispatch(root, args):
         return python_hints(root, args)
     if args.command == 'accept':
         return accept_shard(root, args)
-    if args.command == 'check-shard':
+    if args.command in ('preflight', 'check-shard'):
         return check_shard(root, args)
     with store.database(output_paths(root)[1]) as connection:
         store.check_schema(connection)

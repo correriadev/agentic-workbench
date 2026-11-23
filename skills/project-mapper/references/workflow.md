@@ -23,6 +23,8 @@ Preserve the initial snapshot identity in `plan.json`. Keep `output_language` se
 
 ## Dispatch
 
+When a question needs specific relationships, add an optional `required_relations` list to its plan entry. Describe what must be traced, including direction or conditions that matter. Leave the answer open. The worker's read-only preflight shows proposed claim mappings and any unmapped requirements. During review, reopen each witness and check the correspondence, including any stated gaps. Changing a requirement changes the question fingerprint.
+
 ```text
 python "<mapper>" . worker-prompt RUN launch
 python "<mapper>" . worker-prompt RUN launch --repair "The cited condition includes backend B. Recheck its registration."
