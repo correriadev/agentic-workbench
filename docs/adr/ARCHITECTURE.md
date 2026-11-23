@@ -34,7 +34,7 @@ agentic-workbench/
 ## LAYERS
 - **Core Engineering Skills**: Shared scope, implementation planning, test-driven construction, evidence planning, acceptance review and architecture review (`blueprint`, `forge`, `quality-gate`, `the-grumpy-tech-lead`, `project-memory`).
 - **Product & Discovery Skills**: Problem framing, backlog refinement, meta-prompt generation, and UI prototype parsing (`brainstorming`, `pbb-design`, `prompt-generator`, `read-ui-prototype`).
-- **Navigation, Mentorship & Delegation**: Repository mapping, AST graph discovery, contextual reasoning, outcome briefs, and CLI delegation wrappers (`project-mapper`, `codebase-memory`, `contextual-mentorship`, `outcome-delegation`, `ask-antigravity`, `ask-codex`, `ask-opencode`).
+- **Navigation, Mentorship & Delegation**: Repository mapping, AST graph discovery, contextual reasoning, outcome briefs, decision sparring, and CLI delegation wrappers (`project-mapper`, `codebase-memory`, `contextual-mentorship`, `outcome-delegation`, `decision-sparring`, `ask-antigravity`, `ask-codex`, `ask-opencode`).
 - **Operational Infrastructure**: Repository cleanup scripts and intentional local agent synchronization (`scripts/sync_skills.py`, `scripts/cleanup.ps1`, `scripts/cleanup.sh`).
 
 ## DEPENDENCY RULES
@@ -71,6 +71,7 @@ REQUIRED: Any import violating these rules must fail CI verification via: `pytho
 | `project-mapper` | Agents investigate a Git snapshot and publish reviewed discoveries with open JSON content, source ranges attached to specific findings, and links. SQLite provides a compact search index, exact reads and graph traversal. | `skills/project-mapper/` |
 | `contextual-mentorship` | Context-aware decision reasoning and mentorship | `skills/contextual-mentorship/` |
 | `outcome-delegation` | Self-contained outcome briefs and evidence-based result review | `skills/outcome-delegation/` |
+| `decision-sparring` | Evidence-focused challenge of a concrete decision | `skills/decision-sparring/` |
 | `ask-antigravity` | Local Antigravity CLI delegation wrapper | `skills/ask-antigravity/` |
 | `ask-codex` | Local OpenAI Codex CLI delegation wrapper | `skills/ask-codex/` |
 | `ask-opencode` | Local OpenCode CLI delegation wrapper | `skills/ask-opencode/` |
