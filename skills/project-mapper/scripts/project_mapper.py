@@ -1,7 +1,7 @@
 """Build, publish, inspect and verify a source-backed repository map."""
 
 import argparse
-from collections import Counter
+from collections import Counter, defaultdict
 from contextlib import closing, contextmanager
 from fnmatch import fnmatchcase
 import json
@@ -15,15 +15,26 @@ from uuid import uuid4
 sys.dont_write_bytecode = True
 
 import graph_store as store
+from multidimensional import PROFILE as STATIC_PROFILE, extract_graph
 from investigation import compile_investigation, new_plan, validate_plan, validate_shard
 from pipeline import (collect, envelope, final_coverage, load, make_plan, project, review_envelope,
                       reviews, safe_path, save, validate_baseline)
 from python_profile import MANIFEST, PROFILE, Source, extract
+from resolve import reconcile
 from scan_files import MappingError, canonical, digest, inventory, repository, snapshot_options, snapshot_reader
 
 
 OUTPUT = '.project-mapper'
 RUN = re.compile(r'run-[0-9a-f]{32}\Z')
+MULTIDIMENSIONAL_PROFILE = dict(STATIC_PROFILE, python_profile=PROFILE)
+# The investigation wire format derives kind from the ID prefix. Static
+# profiles may use a more descriptive kind for the same exact ID.
+LEGACY_KIND_ALIASES = {
+    'config': {'configuration'},
+    'npm-script': {'command'},
+    'external-module': {'module'},
+    'boundary': {'boundary', 'submodule', 'symlink', 'pruned-directory'},
+}
 
 
 def output_paths(root, *, create=False):
@@ -44,7 +55,7 @@ def run_directory(directory, name):
     return stage
 
 
-def start_run(root, commit, *, investigation=False, agent_review=False):
+def start_run(root, commit, *, investigation=False, agent_review=False, multidimensional=False):
     manifest = inventory(root, commit)
     directory, _, _ = output_paths(root, create=True)
     name = 'run-' + uuid4().hex
@@ -58,6 +69,20 @@ def start_run(root, commit, *, investigation=False, agent_review=False):
         decisions = safe_path(stage, 'decisions.json')
         save(decisions, {})
         result['decisions'] = str(decisions)
+        # Pin the static profile explicitly.  Investigations started without a
+        # map retain their historical publication and verification contract.
+        graph_path = output_paths(root)[1]
+        if graph_path.exists():
+            with store.database(graph_path) as connection:
+                store.check_integrity(connection)
+                current = store.metadata(connection)
+            profile = current.get('multidimensional_profile', current.get('profile'))
+            if current['snapshot'] == manifest['snapshot'] and profile == MULTIDIMENSIONAL_PROFILE:
+                save(safe_path(stage, 'static-profile.json'), profile)
+    elif multidimensional:
+        plan = dict(kind='multidimensional', snapshot=manifest['snapshot']['identity'],
+                    profile=MULTIDIMENSIONAL_PROFILE)
+        plan['id'] = digest(plan)
     else:
         with snapshot_reader(root, manifest) as reader:
             plan = make_plan(manifest, reader, agent_review)
@@ -65,6 +90,108 @@ def start_run(root, commit, *, investigation=False, agent_review=False):
         result['review_tasks'] = [dict(id=key, path=str(stage / item['output']), dependencies=item['dependencies'])
                                   for key, item in plan['tasks'].items() if key.startswith('review-')]
     save(safe_path(stage, 'plan.json'), plan)
+    return result
+
+
+def multidimensional_rows(manifest, plan, reader):
+    if plan.get('kind') != 'multidimensional' or plan.get('profile') != MULTIDIMENSIONAL_PROFILE:
+        raise MappingError('recorded multidimensional profile differs; use the original mapper or rebuild')
+    graph, coverage, outcomes, reports = extract_graph(manifest, reader)
+    python_outcomes = {entry['path']: extract(reader, entry['path']) for entry in manifest['entries']
+                       if entry['eligible'] and (entry['path'].endswith('.py') or entry['path'] == MANIFEST)}
+    python_graph = reconcile(python_outcomes)
+    for key, node in python_graph.nodes.items():
+        if key in graph.nodes and graph.nodes[key] != node:
+            raise MappingError(f'conflicting entity identity: {key}')
+        graph.nodes[key] = node
+    for field in ('occurrences', 'observations', 'provenance'):
+        current, incoming = getattr(graph, field), getattr(python_graph, field)
+        for key, value in incoming.items():
+            if key in current and current[key] != value:
+                raise MappingError(f'conflicting {field} identity: {key}')
+            current[key] = value
+    graph.node_observations.update(python_graph.node_observations)
+    for key, edge in python_graph.relationships.items():
+        if key in graph.relationships:
+            graph.relationships[key]['evidence'].update(edge['evidence'])
+        else:
+            graph.relationships[key] = edge
+    for key, evidence in python_graph.memberships.items():
+        graph.memberships.setdefault(key, set()).update(evidence)
+    graph.discrepancies.extend(python_graph.discrepancies)
+    issues_by_path = defaultdict(set)
+    for (issue_path, _), reasons in python_graph.issues.items():
+        issues_by_path[issue_path].update(reasons)
+    observations_by_path = Counter(python_graph.occurrences[item['occurrence']]['path']
+                                   for item in python_graph.observations.values())
+    for path, outcome in python_outcomes.items():
+        issues = sorted(issues_by_path[path])
+        state = outcome['status']
+        reason = outcome.get('reason', '')
+        if issues and state == 'analyzed':
+            state = 'partial'
+            reason = '; '.join(issues)
+        outcomes[path] = dict(status=state, reason=reason)
+        coverage.append(dict(area=path, family='python-static', status=state,
+                             reason=reason or 'Python AST and supported declarations examined.',
+                             task=None, paths=[path], method=['python-ast'], basis='Python profile; findings count observations',
+                             scoped_absence=False, findings=observations_by_path[path], issues=issues))
+    return store.records(manifest, plan, graph, coverage, outcomes, reports, {}, profile=MULTIDIMENSIONAL_PROFILE)
+
+
+def compose_multidimensional(manifest, reader, investigation):
+    """Replay both profiles and combine evidence without rewriting their identities."""
+    plan = dict(kind='multidimensional', snapshot=manifest['snapshot']['identity'],
+                profile=MULTIDIMENSIONAL_PROFILE)
+    plan['id'] = digest(plan)
+    base = multidimensional_rows(manifest, plan, reader)
+    result = dict(investigation)
+    # Inventory is shared: use extraction status, retaining cited counts in
+    # investigation_scope.  Metadata retains the exact investigation plan.
+    result['inventory'] = base['inventory']
+    for table in ('nodes', 'occurrences', 'provenance', 'observations', 'node_observations',
+                  'relationships', 'relationship_candidates', 'relationship_observations',
+                  'memberships', 'membership_observations', 'tasks', 'coverage',
+                  'discrepancies', 'discrepancy_observations'):
+        structural = base.get(table, [])
+        semantic = investigation.get(table, [])
+        if table == 'nodes':
+            indexed = {row[0]: row for row in structural}
+            for row in semantic:
+                prior = indexed.get(row[0])
+                # Legacy investigation endpoints derive their displayed name
+                # from the whole suffix of kind:name. Static symbols use the
+                # symbol's short name. An exact identifier is the binding;
+                # keep the static display and both evidence sets. Do not fold
+                # discovery nodes, mismatched kinds or external endpoints.
+                if prior:
+                    compatible = (prior[1], prior[3], prior[4]) == (row[1], row[3], row[4])
+                    prefix = row[0].partition(':')[0]
+                    allowed_kinds = {prefix} | LEGACY_KIND_ALIASES.get(prefix, set())
+                    legacy_identity = (row[2] == 'investigation' and ':' in row[0] and
+                                       row[1] == prefix and prior[1] in allowed_kinds and
+                                       row[3] == row[0].partition(':')[2] and
+                                       row[4] == prior[4] == 0)
+                    if not compatible and not legacy_identity:
+                        raise MappingError(f'conflicting entity identity: {row[0]}')
+                indexed.setdefault(row[0], row)
+            result[table] = list(indexed.values())
+        else:
+            composite = {'coverage', 'node_observations', 'relationship_candidates',
+                         'relationship_observations', 'membership_observations',
+                         'discrepancy_observations'}
+            indexed = {}
+            for row in (*structural, *semantic):
+                key = row[:2] if table in composite else row[0]
+                if key in indexed and indexed[key] != row:
+                    raise MappingError(f'conflicting {table} identity: {key}')
+                indexed[key] = row
+            result[table] = list(indexed.values())
+    metadata = dict(investigation['metadata'])
+    metadata['multidimensional_profile'] = canonical(MULTIDIMENSIONAL_PROFILE)
+    if json.loads(dict(base['metadata'])['status']) != 'complete':
+        metadata['status'] = canonical('partial')
+    result['metadata'] = list(metadata.items())
     return result
 
 
@@ -177,7 +304,7 @@ def write_readme(path, info, connection, script):
     item = connection.execute('SELECT source,type FROM relationships WHERE state=? ORDER BY '
                               "CASE WHEN type='calls' THEN 0 ELSE 1 END,id LIMIT 1", ('resolved',)).fetchone()
     prefix = f'python "{script.as_posix()}" .'
-    commands = [f'{prefix} coverage', f'{prefix} dimensions', f'{prefix} verify']
+    commands = [f'{prefix} coverage --summary', f'{prefix} dimensions --summary', f'{prefix} verify']
     if connection.execute('SELECT 1 FROM discoveries LIMIT 1').fetchone():
         commands.extend([f'{prefix} search "<words describing the behavior>" --limit 5',
                          f'{prefix} open "<key from search>"',
@@ -204,7 +331,7 @@ def write_readme(path, info, connection, script):
         *[f'- {row["area"]} / {row["family"]} — {row["reason"]}' for row in gaps[:12]],
         '' if gaps else 'No incomplete coverage assignments.', '',
         '## Inspect from the repository root', '', fence + 'text', *commands, fence, '',
-        'SQLite is authoritative for the snapshot and coverage. The coverage command lists every assignment.', '',
+        'SQLite is authoritative for the snapshot and coverage. Use coverage --area PATH to inspect an assignment.', '',
     ]
     with path.open('x', encoding='utf-8', newline='\n') as output:
         output.write('\n'.join(content))
@@ -236,6 +363,11 @@ def scope_info(info):
     return {'investigation_scope': info['investigation_scope']} if 'investigation_scope' in info else {}
 
 
+def has_multidimensional_profile(info):
+    profile = info.get('multidimensional_profile', info.get('profile', {}))
+    return isinstance(profile, dict) and profile.get('name') == 'multidimensional-static'
+
+
 def guard_promotion(path, info):
     if not path.exists():
         return
@@ -243,6 +375,18 @@ def guard_promotion(path, info):
         prior = store.metadata(current)
     if prior['snapshot'] != info['snapshot']:
         return
+    if has_multidimensional_profile(prior):
+        if ('questions' in info['plan'] and
+                info.get('multidimensional_profile') != MULTIDIMENSIONAL_PROFILE):
+            raise MappingError('active multidimensional map preserved; restart investigation from the current map')
+        previous_shards = prior.get('accepted_shards', {})
+        proposed_shards = info.get('accepted_shards', {})
+        same_run = (prior.get('investigation_run') is not None and
+                    prior['investigation_run'] == info.get('investigation_run'))
+        if (previous_shards.keys() - proposed_shards.keys() or
+                (not same_run and any(proposed_shards.get(key) != shard
+                                      for key, shard in previous_shards.items()))):
+            raise MappingError('active investigation preserved; new publication omits or changes accepted findings')
     if 'questions' in prior['plan'] and 'questions' not in info['plan']:
         raise MappingError('active investigation preserved; request Python hints within the investigation')
     proposed_plan = info['plan']
@@ -252,7 +396,9 @@ def guard_promotion(path, info):
     if migrating:
         proposed_plan = {key: value for key, value in proposed_plan.items() if key != 'output_language'}
     same_plan = prior['plan'] == proposed_plan
-    if prior['status'] == 'complete' and info['status'] != 'complete':
+    adding_partial_investigation = (prior.get('profile') == MULTIDIMENSIONAL_PROFILE and
+                                    info.get('multidimensional_profile') == MULTIDIMENSIONAL_PROFILE)
+    if prior['status'] == 'complete' and info['status'] != 'complete' and not adding_partial_investigation:
         raise MappingError('active complete graph preserved; new coverage is partial')
     if same_plan and set(prior.get('accepted_shards', {})) - set(info.get('accepted_shards', {})):
         raise MappingError('active investigation preserved; previously accepted questions are missing')
@@ -268,6 +414,16 @@ def publish(root, name, *, reviewed_english_plan=None):
                 raise MappingError('review the full current plan with check-plan and pass its fingerprint '
                                    'with --reviewed-english-plan')
             data = investigation_rows(stage, manifest, plan, reader)
+            profile_path = safe_path(stage, 'static-profile.json')
+            if profile_path.exists():
+                if load(profile_path) != MULTIDIMENSIONAL_PROFILE:
+                    raise MappingError('recorded multidimensional profile differs; use the original mapper or rebuild')
+                data = compose_multidimensional(manifest, reader, data)
+                metadata = dict(data['metadata'])
+                metadata['investigation_run'] = canonical(name)
+                data['metadata'] = list(metadata.items())
+        elif plan.get('kind') == 'multidimensional':
+            data = multidimensional_rows(manifest, plan, reader)
         else:
             data = baseline_rows(stage, manifest, plan, reader)
     # A separate publication attempt directory allows retries after a crash or invalid shard.
@@ -279,11 +435,27 @@ def publish(root, name, *, reviewed_english_plan=None):
         store.check_integrity(connection, data)
         info = store.metadata(connection)
         write_readme(candidate_readme, info, connection, Path(__file__).resolve())
-    with write_lock(directory):
+    # Coordinate with accept_shard (stage lock) as well as other publishers.
+    with write_lock(directory), write_lock(stage):
         if manifest != inventory(root, manifest['snapshot']['revision']):
             raise MappingError('input snapshot changed before publication')
         if 'questions' in plan and load(safe_path(stage, 'plan.json')) != plan:
             raise MappingError('plan changed during publication; review the current plan with check-plan')
+        if 'questions' in plan:
+            # The decision ledger and accepted shards must still be the exact
+            # inputs used to build this candidate. Another publisher may have
+            # revised a shard while this candidate was being assembled.
+            decisions = load(safe_path(stage, 'decisions.json'))
+            accepted = json.loads(dict(data['metadata'])['accepted_shards'])
+            if not isinstance(decisions, dict) or set(decisions) != set(accepted):
+                raise MappingError('accepted findings changed during publication; retry with the current decisions')
+            questions = question_index(plan)
+            shards = safe_path(stage, 'shards', directory=True)
+            for key, raw in accepted.items():
+                current = load(safe_path(shards, key + '.json'))
+                if current != raw or decision_fingerprint(plan['output_language'], questions[key], current,
+                                                          decisions) != decisions[key]:
+                    raise MappingError('accepted findings changed during publication; retry with the current decisions')
         output_paths(root)
         guard_promotion(graph_path, info)
         os.replace(candidate, graph_path)
@@ -307,6 +479,20 @@ def verify(root, connection):
     with snapshot_reader(root, manifest) as reader:
         if 'questions' in info['plan']:
             data = compile_investigation(manifest, info['plan'], info['accepted_shards'], reader, allow_legacy=True)
+            if 'multidimensional_profile' in info:
+                if info['multidimensional_profile'] != MULTIDIMENSIONAL_PROFILE:
+                    raise MappingError('recorded multidimensional profile differs; use the original mapper or rebuild')
+                data = compose_multidimensional(manifest, reader, data)
+                if 'investigation_run' in info:
+                    if not RUN.fullmatch(info['investigation_run']):
+                        raise MappingError('invalid recorded investigation run')
+                    metadata = dict(data['metadata'])
+                    metadata['investigation_run'] = canonical(info['investigation_run'])
+                    data['metadata'] = list(metadata.items())
+        elif info['plan'].get('kind') == 'multidimensional':
+            if info['profile'] != MULTIDIMENSIONAL_PROFILE:
+                raise MappingError('recorded multidimensional profile differs; use the original mapper or rebuild')
+            data = multidimensional_rows(manifest, info['plan'], reader)
         else:
             if info['profile'] != PROFILE:
                 raise MappingError('recorded Python profile differs; use the original mapper to replay or rebuild')
@@ -474,6 +660,7 @@ def arguments():
     parser.add_argument('repo', type=Path, help='root of the target Git repository')
     commands = parser.add_subparsers(dest='command', required=True)
     snapshot_options(commands.add_parser('investigate', help='start a supervisor-authored mapping plan'))
+    snapshot_options(commands.add_parser('map', help='publish a multidimensional static map of the snapshot'))
     snapshot_options(commands.add_parser('build', help='publish the optional static Python baseline'))
     prepare_args = commands.add_parser('prepare', help='inventory, plan and extract in an unpublished run')
     snapshot_options(prepare_args)
@@ -520,7 +707,9 @@ def arguments():
     coverage = commands.add_parser('coverage', help='show coverage, ignore policy and discrepancies')
     coverage.add_argument('--family')
     coverage.add_argument('--area')
-    commands.add_parser('dimensions', help='show evidence-backed memberships')
+    coverage.add_argument('--summary', action='store_true', help='aggregate coverage by family and status')
+    dimensions = commands.add_parser('dimensions', help='show evidence-backed memberships')
+    dimensions.add_argument('--summary', action='store_true', help='aggregate memberships by dimension and group')
     lookup = commands.add_parser('search', help='locate reviewed discoveries by words in their index')
     lookup.add_argument('query')
     lookup.add_argument('--limit', type=int, default=5, help='maximum candidates returned (1..100)')
@@ -540,6 +729,8 @@ def arguments():
 def dispatch(root, args):
     if args.command == 'investigate':
         return start_run(root, args.commit, investigation=True)
+    if args.command == 'map':
+        return publish(root, start_run(root, args.commit, multidimensional=True)['run'])
     if args.command == 'build':
         return publish(root, start_run(root, args.commit)['run'])
     if args.command == 'prepare':
@@ -563,12 +754,20 @@ def dispatch(root, args):
     with store.database(output_paths(root)[1]) as connection:
         store.check_schema(connection)
         if args.command == 'coverage':
+            if args.summary:
+                return store.summarize_coverage(connection, args.family, args.area)
             return store.inspect_coverage(connection, args.family, args.area)
         if args.command == 'dimensions':
+            if args.summary:
+                return dict(dimensions=store.summarize_dimensions(connection))
             return dict(memberships=store.dimensions(connection))
         if args.command == 'search':
             matches = store.search_discoveries(connection, args.query, args.limit)
-            return dict(snapshot=store.metadata(connection, 'snapshot')['snapshot'], matches=matches)
+            info = store.metadata(connection, 'snapshot', 'profile', 'multidimensional_profile')
+            result = dict(snapshot=info['snapshot'], matches=matches)
+            if info.get('profile') == MULTIDIMENSIONAL_PROFILE or 'multidimensional_profile' in info:
+                result['nodes'] = store.search_nodes(connection, args.query, args.limit)
+            return result
         if args.command == 'open':
             discovery = store.open_discovery(connection, args.key)
             return dict(snapshot=store.metadata(connection, 'snapshot')['snapshot'], **discovery)

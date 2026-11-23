@@ -1,5 +1,21 @@
 # Investigation protocol
 
+## Multidimensional map
+
+Start with `python "<mapper>" . map --commit HEAD` (or `--worktree`). The command inventories the snapshot and publishes `.project-mapper/graph.sqlite` plus its README. It reads source without running target code. `search` returns structural node candidates as well as discoveries, `node KEY` shows evidence and adjacent relationships, and `trace KEY` traverses them. Start with `coverage --summary` and `dimensions --summary`; use `coverage --area PATH` for details before interpreting missing results.
+
+The JavaScript/TypeScript profile uses lexical recognition, not an AST or type checker: imports, symbol definitions, configuration properties and tool-like objects are candidates, and a resolved file target does not establish runtime execution. It does not resolve calls or construct a complete MCP-to-service flow; investigate those relationships. The configuration profile covers selected package, MCP, Wrangler and GitHub Actions declarations. The existing Python AST profile is also included. The map does not determine deployed state or store arbitrary configuration values. See the recorded profile and coverage for exact limitations and unhandled inputs. A submodule is a boundary, not an indexed repository.
+
+To add reviewed semantic findings, run `investigate` on the same snapshot **after** publishing the multidimensional map. Publication composes the static facts and accepted discoveries; `verify` replays both. An investigation started without that map retains its original standalone behavior. The mapper protects an active investigation from replacement by a static-only rebuild on the same snapshot.
+
+## Semantic context
+
+Semantic investigation is part of the default mapping workflow. Group related files and symbols into components and concrete flows rather than generating an ungrounded description for every file. Cover the repository's detected entrypoints, major modules, configurations, integrations, infrastructure and tests, and trace their important cross-boundary connections. Dispatch independent assignments in parallel where available. Publish supported results progressively; explicitly report areas without reviewed context.
+
+For each investigated component or flow, create a discovery with a concise title and summary and content appropriate to the evidence: its role, entrypoints or callers, relevant inputs and outputs, dependencies, conditions, related tests and known gaps. Omit fields that cannot be established. Attach source ranges to the supported content fragments. Add an evidenced `describes` claim from that discovery to each relevant structural node, and explicit claims for verified flow relationships. A single discovery can contextualize several nodes. Do not claim a component's purpose, test coverage or deployed state from path names or imports alone.
+
+Use `node KEY` to find linked context and `open DISCOVERY_ID` for its content and supporting locators. No linked discovery means context is not available at that node; it does not prove that no information exists elsewhere. Report structural and semantic coverage separately: the count of indexed files or relations does not establish the number of completely understood features. Do not declare a complete semantic map while planned questions or important areas remain unexamined.
+
 ## Orient
 
 Set `<mapper>` to the absolute path of `scripts/project_mapper.py`. Pass the target Git root as its first argument. The initial `investigate` command returns the run ID and paths of the inventory, plan, decisions and shards directory. Before adding questions, use `@` as the reader's question ID.
@@ -66,7 +82,7 @@ python "<mapper>" . open ID
 python "<mapper>" . trace ID --direction both --depth 2
 ```
 
-Translate a non-English question into English search terms. Use the original spelling for source-literal searches and exact identifiers. Search returns compact candidates from discovery routing text. If nothing fits, reformulate with a project term. Open a candidate by exact ID, read the pertinent content and its supporting locators, then follow a specific relation to check scope or downstream effects. `node KEY` inspects a graph node and its links, including legacy endpoints. `dimensions` lists evidenced memberships. On an empty result, inspect coverage before inferring absence.
+Translate a non-English question into English search terms. Use the original spelling for source identifiers and exact names. Search returns compact discovery candidates and, on multidimensional maps, matching structural nodes. Open a discovery by exact ID, or use `node KEY` for a structural node, then follow relations and inspect supporting locators. `dimensions` lists evidenced memberships. On an empty result, inspect coverage before inferring absence.
 
 ## Optional Python baseline
 

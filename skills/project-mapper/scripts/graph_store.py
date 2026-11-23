@@ -261,9 +261,52 @@ def inspect_coverage(connection, family=None, area=None):
                 discrepancies=discrepancies)
 
 
+def semantic_context_counts(connection):
+    """Count direct discovery links; this is not a measure of understanding."""
+    if connection.execute('PRAGMA user_version').fetchone()[0] == 1:
+        rows = connection.execute(
+            "SELECT kind,count(*) AS total,0 AS linked,count(*) AS not_linked FROM nodes "
+            "WHERE kind!='discovery' GROUP BY kind ORDER BY kind")
+    else:
+        rows = connection.execute(
+            "WITH linked(node) AS ("
+            "SELECT r.source FROM relationships r JOIN discoveries d ON d.node=r.target "
+            "WHERE r.family='semantic' AND r.state='resolved' UNION "
+            "SELECT r.target FROM relationships r JOIN discoveries d ON d.node=r.source "
+            "WHERE r.family='semantic' AND r.state='resolved') "
+            "SELECT n.kind,count(*) AS total,"
+            "sum(CASE WHEN linked.node IS NULL THEN 0 ELSE 1 END) AS linked,"
+            "sum(CASE WHEN linked.node IS NULL THEN 1 ELSE 0 END) AS not_linked "
+            "FROM nodes n LEFT JOIN linked ON linked.node=n.key "
+            "WHERE n.kind!='discovery' GROUP BY n.kind ORDER BY n.kind")
+    return dict(scope='repository-wide', nodes_by_kind=[dict(row) for row in rows],
+                basis='Distinct non-discovery nodes with a direct resolved semantic relationship to a discovery; '
+                      'not-linked does not imply absence of context or measure semantic completeness.')
+
+
+def summarize_coverage(connection, family=None, area=None):
+    info = metadata(connection, 'snapshot', 'status', 'profile', 'ignore_policy', 'investigation_scope')
+    rows = connection.execute(
+        'SELECT family,status,count(*) AS count FROM coverage '
+        'WHERE (? IS NULL OR family=?) AND (? IS NULL OR area=?) '
+        'GROUP BY family,status ORDER BY family,status', (family, family, area, area))
+    return dict(snapshot=info['snapshot'], status=info['status'], profile=info['profile'],
+                ignore_policy=info['ignore_policy'], summary=[dict(row) for row in rows],
+                inventory_counts=dict(connection.execute('SELECT status,count(*) FROM inventory GROUP BY status')),
+                discrepancy_count=connection.execute('SELECT count(*) FROM discrepancies').fetchone()[0],
+                semantic_context=semantic_context_counts(connection),
+                **({'investigation_scope': info['investigation_scope']} if 'investigation_scope' in info else {}))
+
+
 def dimensions(connection):
     return [dict(row, evidence=evidence(connection, 'membership_observations', 'membership', row['id']))
             for row in connection.execute('SELECT * FROM memberships ORDER BY dimension,group_key,node')]
+
+
+def summarize_dimensions(connection):
+    return [dict(row) for row in connection.execute(
+        'SELECT dimension,group_key,count(*) AS count FROM memberships '
+        'GROUP BY dimension,group_key ORDER BY dimension,group_key')]
 
 
 def find_nodes(connection, selector):
@@ -328,6 +371,21 @@ def search_discoveries(connection, query, limit):
     return hits
 
 
+def search_nodes(connection, query, limit):
+    """Find bounded structural candidates without claiming semantic relevance."""
+    if not 1 <= limit <= 100:
+        raise MappingError('search limit must be between 1 and 100')
+    query = query.strip()
+    if not query:
+        raise MappingError('search requires a query')
+    rows = connection.execute(
+        'SELECT key,kind,namespace,name,external FROM nodes '
+        'WHERE instr(lower(name),lower(?)) > 0 OR instr(lower(key),lower(?)) > 0 '
+        'ORDER BY CASE WHEN key=? THEN 0 WHEN name=? THEN 1 ELSE 2 END, length(name),key LIMIT ?',
+        (query, query, query, query, limit))
+    return [dict(row) for row in rows]
+
+
 def discovery_record(connection, key):
     row = connection.execute('SELECT node AS key,title,summary,terms,content FROM discoveries WHERE node=?',
                              (key,)).fetchone()
@@ -355,6 +413,39 @@ def open_discovery(connection, key):
     raise MappingError('no discovery with this exact key in the published map')
 
 
+def related_discoveries(connection, key, limit=8):
+    """Return bounded previews of reviewed discoveries directly linked to a node.
+
+    A missing link means only that no direct discovery is present in this
+    snapshot; it is not a statement that the node has no semantic context.
+    """
+    if connection.execute('PRAGMA user_version').fetchone()[0] == 1:
+        return [], False
+    preview = (
+        "SELECT r.id,r.type AS relation,'outgoing' AS direction,d.node AS key,r.conditions,"
+        "CASE WHEN length(d.title)>160 THEN substr(d.title,1,159)||'…' ELSE d.title END AS title,"
+        "CASE WHEN length(d.summary)>320 THEN substr(d.summary,1,319)||'…' ELSE d.summary END AS summary "
+        "FROM relationships r JOIN discoveries d ON d.node=r.target "
+        "WHERE r.source=? AND r.family='semantic' AND r.state='resolved' "
+        "UNION ALL "
+        "SELECT r.id,r.type AS relation,'incoming' AS direction,d.node AS key,r.conditions,"
+        "CASE WHEN length(d.title)>160 THEN substr(d.title,1,159)||'…' ELSE d.title END AS title,"
+        "CASE WHEN length(d.summary)>320 THEN substr(d.summary,1,319)||'…' ELSE d.summary END AS summary "
+        "FROM relationships r JOIN discoveries d ON d.node=r.source "
+        "WHERE r.target=? AND r.family='semantic' AND r.state='resolved' "
+        'ORDER BY key,relation,direction,id LIMIT ?'
+    )
+    rows = connection.execute(preview, (key, key, limit + 1)).fetchall()
+    items = []
+    for row in rows[:limit]:
+        item = dict(row)
+        item['relation_id'] = item.pop('id')
+        item['conditions'] = json.loads(item['conditions'])
+        item['evidence'] = evidence(connection, 'relationship_observations', 'relationship', item['relation_id'])
+        items.append(item)
+    return items, len(rows) > limit
+
+
 def inspect_node(connection, selector):
     current = connection.execute('PRAGMA user_version').fetchone()[0] != 1
     result = []
@@ -366,6 +457,10 @@ def inspect_node(connection, selector):
                     incoming_candidates=[edge_record(connection, item) for item in incoming_candidates(connection, key)])
         if current and (discovery := discovery_record(connection, key)) is not None:
             node['discovery'] = discovery
+        context, truncated = related_discoveries(connection, key)
+        node['related_discoveries'] = context
+        node['related_discoveries_truncated'] = truncated
+        node['context_status'] = 'self' if 'discovery' in node else 'linked' if context else 'not-linked'
         result.append(node)
     return result
 
@@ -412,24 +507,30 @@ def trace(connection, selector, direction, types, depth, max_nodes, max_edges):
             nodes.add(other)
             edges[row['id']] = row
             queue.append((other, level + 1, row['type'] == 'contains' and row['target'] == key))
-    info = metadata(connection, 'snapshot', 'status', 'investigation_scope')
+    info = metadata(connection, 'snapshot', 'status', 'investigation_scope', 'profile',
+                    'multidimensional_profile')
     question_scope = info.get('investigation_scope')
-    relevant, reached_areas = set(), set()
+    relevant, reached_areas, reached_paths = set(), set(), set()
+    multidimensional = (info.get('profile', {}).get('name') == 'multidimensional-static' or
+                        'multidimensional_profile' in info)
+    for key in nodes:
+        for (path,) in connection.execute(
+            'SELECT DISTINCT o.path FROM node_observations n JOIN observations v ON n.observation=v.id '
+            'JOIN occurrences o ON v.occurrence=o.id WHERE n.node=?', (key,)
+        ):
+            reached_paths.add(path)
+            reached_areas.add(path.split('/', 1)[0] if '/' in path else '.')
     if question_scope is None:
-        profile = metadata(connection, 'profile')['profile']
+        profile = info['profile']
         relevant = {family for family, kinds in profile['edge_types'].items()
                     if not types or set(types).intersection(kinds)}
-        for key in nodes:
-            for (path,) in connection.execute(
-                'SELECT DISTINCT o.path FROM node_observations n JOIN observations v ON n.observation=v.id '
-                'JOIN occurrences o ON v.occurrence=o.id WHERE n.node=?', (key,)
-            ):
-                reached_areas.add(path.split('/', 1)[0] if '/' in path else '.')
     gaps = []
     for row in connection.execute("SELECT area,family,status,reason FROM coverage WHERE status NOT IN "
                                   "('analyzed','inapplicable','excluded') ORDER BY area,family"):
         # Open questions may identify bridges beyond the evidence already reached.
-        if row['family'] == 'investigation' or (row['family'] in relevant and row['area'] in reached_areas):
+        if (row['family'] == 'investigation' or (row['family'] in relevant and row['area'] in reached_areas)
+                or (multidimensional and row['family'] in {'multidimensional-static', 'python-static'}
+                    and row['area'] in reached_paths)):
             gaps.append(dict(row))
     scope = {'investigation_scope': question_scope} if question_scope is not None else {'repository_status': info['status']}
     return dict(snapshot=info['snapshot'], status=info['status'], **scope, seeds=seeds[:max_nodes], nodes=sorted(nodes),
