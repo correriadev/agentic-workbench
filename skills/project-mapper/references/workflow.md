@@ -1,5 +1,11 @@
 # Investigation protocol
 
+## JSON export
+
+`python "<mapper>" . export --output map.json` streams the published SQLite tables to a new file inside `.project-mapper/`. It never overwrites an existing file. SQLite remains authoritative; editing the JSON does not change the graph. The export includes snapshot metadata, graph, semantic discoveries, evidence, inventory and coverage. It contains the graph's stored content, including accepted findings; review before sharing.
+
+Add `--dimension NAME` to select matching memberships, all edges incident to those nodes, their endpoints and unresolved candidates, plus supporting evidence. The selection identifies this one-hop scope; inventory, metadata, tasks, coverage and discrepancies remain global. No result for a dimension means the export is rejected. Output is a snapshot; regenerate after changes. JSON-valued SQLite columns are represented as JSON values and other fields retain their SQLite values. The command checks SQLite integrity but does not replay semantic claims against the source; use `verify` separately when needed.
+
 ## Multidimensional map
 
 Start with `python "<mapper>" . map --commit HEAD` (or `--worktree`). The command inventories the snapshot and publishes `.project-mapper/graph.sqlite` plus its README. It reads source without running target code. `search` returns structural node candidates as well as discoveries, `node KEY` shows evidence and adjacent relationships, and `trace KEY` traverses them. Start with `coverage --summary` and `dimensions --summary`; use `coverage --area PATH` for details before interpreting missing results.

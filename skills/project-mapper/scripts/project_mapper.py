@@ -16,6 +16,7 @@ from uuid import uuid4
 sys.dont_write_bytecode = True
 
 import graph_store as store
+from export_json import write_export
 from multidimensional import PROFILE as STATIC_PROFILE, extract_graph
 from investigation import compile_investigation, new_plan, validate_plan, validate_shard
 from pipeline import (collect, envelope, final_coverage, load, make_plan, project, review_envelope,
@@ -1026,6 +1027,9 @@ def arguments():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('repo', type=Path, help='root of the target Git repository')
     commands = parser.add_subparsers(dest='command', required=True)
+    export = commands.add_parser('export', help='export a published graph to JSON')
+    export.add_argument('--output', required=True, help='new JSON filename inside .project-mapper')
+    export.add_argument('--dimension', help='export one dimension and its one-hop graph neighbors')
     investigate = commands.add_parser('investigate', help='start a supervisor-authored mapping plan')
     snapshot_options(investigate)
     investigate.add_argument('--from-graph', action='store_true',
@@ -1118,6 +1122,32 @@ def arguments():
 
 
 def dispatch(root, args):
+    if args.command == 'export':
+        directory, graph_path, _ = output_paths(root)
+        name = args.output
+        if (not name.endswith('.json') or name in {'.json', '..json'} or '/' in name or
+                '\\' in name or ':' in name or name in {'.', '..'}):
+            raise MappingError('output must be a new JSON filename inside .project-mapper')
+        destination = safe_path(directory, name)
+        opening_stamp = graph_stamp(graph_path)
+        created = False
+        try:
+            with store.database(graph_path) as connection:
+                if graph_stamp(graph_path) != opening_stamp:
+                    raise MappingError('graph changed while opening export; retry')
+                store.check_integrity(connection)
+                snapshot = store.metadata(connection, 'snapshot')['snapshot']
+                with destination.open('x', encoding='utf-8', newline='\n') as output:
+                    created = True
+                    counts = write_export(connection, output, dimension=args.dimension)
+                    if graph_stamp(graph_path) != opening_stamp:
+                        raise MappingError('graph changed during export; retry')
+            return dict(path=str(destination), snapshot=snapshot,
+                        dimension=args.dimension, counts=counts)
+        except BaseException:
+            if created:
+                destination.unlink(missing_ok=True)
+            raise
     if args.command == 'investigate':
         return start_run(root, args.commit, investigation=True, from_graph=args.from_graph)
     if args.command == 'map':
