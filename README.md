@@ -83,6 +83,7 @@ Todas as skills ficam isoladas em `skills/<nome>/` e contêm sua especificação
 | Skill | Papel |
 |---|---|
 | [`brainstorming`](skills/brainstorming/SKILL.md) | Exploração conceitual, restrições e alternativas antes da escrita de código. |
+| [`experiment-design`](skills/experiment-design/SKILL.md) | Desenha experimentos para apoiar decisões e interpreta as evidências de comparações. |
 | [`pbb-design`](skills/pbb-design/SKILL.md) | Product Backlog Building; alinhamento de problemas, expectativas, personas e PBIs. |
 | [`read-ui-prototype`](skills/read-ui-prototype/SKILL.md) | Extrai especificações semânticas e acessíveis a partir de protótipos de tela e imagens. |
 | [`researcher`](skills/researcher/SKILL.md) | Orquestração de pesquisa profunda em árvore macro-to-micro com síntese em `docs/research/`. |
@@ -95,6 +96,7 @@ Todas as skills ficam isoladas em `skills/<nome>/` e contêm sua especificação
 | [`codebase-memory`](skills/codebase-memory/SKILL.md) | Exploração estrutural do código via Knowledge Graph (AST) com o servidor MCP. |
 | [`project-mapper`](skills/project-mapper/SKILL.md) | Agentes investigam o repositório e publicam descobertas em JSON livre, com relações e evidências por trecho. A consulta em SQLite permite localizar uma descoberta, abri-la e seguir suas ligações. |
 | [`contextual-mentorship`](skills/contextual-mentorship/SKILL.md) | Sessões de mentoria técnica guiada, reflexão e aprendizado colaborativo. |
+| [`outcome-delegation`](skills/outcome-delegation/SKILL.md) | Briefs verificáveis para delegação e avaliação de resultados contra o contrato original. |
 | [`ask-antigravity`](skills/ask-antigravity/SKILL.md) | Delega tarefas e revisões para a CLI local do Google Antigravity (`agy`). |
 | [`ask-codex`](skills/ask-codex/SKILL.md) | Delega tarefas e revisões isoladas para a CLI local do OpenAI Codex. |
 | [`ask-opencode`](skills/ask-opencode/SKILL.md) | Delega tarefas e pareceres técnicos para a CLI local do OpenCode. |

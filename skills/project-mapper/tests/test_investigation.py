@@ -1,5 +1,7 @@
 import json
 from pathlib import Path
+import subprocess
+import sys
 import unittest
 
 from test_acceptance import fixture, invoke, test_directory
@@ -92,6 +94,66 @@ class Investigation(unittest.TestCase):
             self.assertIn('active complete graph preserved', result.stderr)
             self.assertEqual(graph.read_bytes(), original)
             self.assertEqual(invoke(repo, 'verify'), before)
+
+    def test_batch_reopens_exact_ranges_after_checkpoint(self):
+        with test_directory() as repo:
+            rev = fixture(repo, FILES)
+            run, shard = start_launch(repo, '--commit', rev)
+            decisions = Path(run['decisions']).read_bytes()
+            accepted = shard.read_bytes()
+            add_question(run, 'next', 'Which command verifies the report?', ['tools/verify.mjs'])
+            prefix = ('read-input', run['run'], 'next')
+            first = ('scripts/run.ps1', '--start', '3', '--count', '1')
+            second = ('tools/verify.mjs', '--start', '2', '--count', '1')
+            pages = invoke(repo, *prefix, *first, '--also', second[0], '2', '1')
+            self.assertEqual(pages['pages'], [invoke(repo, *prefix, *first), invoke(repo, *prefix, *second)])
+            for invalid in [('unknown', '1', '1'), (second[0], '0', '1'), (second[0], '1', '121')]:
+                failed = invoke(repo, *prefix, *first, '--also', *invalid, ok=False)
+                self.assertNotEqual(failed.returncode, 0)
+                self.assertEqual(failed.stdout, '')
+            self.assertEqual(shard.read_bytes(), accepted)
+            self.assertEqual(Path(run['decisions']).read_bytes(), decisions)
+
+    def test_batch_rejects_changed_worktree_and_excess_ranges(self):
+        with test_directory() as repo:
+            fixture(repo, FILES)
+            run = invoke(repo, 'investigate', '--worktree')
+            first = ('read-input', run['run'], '@', 'package.json')
+            more = ('--also', 'scripts/run.ps1', '1', '1')
+            self.assertEqual(len(invoke(repo, *first, *(more * 7))['pages']), 8)
+            self.assertIn('at most eight', invoke(repo, *first, *(more * 8), ok=False).stderr)
+            (repo / 'scripts/run.ps1').write_text('changed')
+            failed = invoke(repo, *first, *more, ok=False)
+            self.assertIn('identity mismatch', failed.stderr)
+            self.assertEqual(failed.stdout, '')
+
+    def test_resume_after_supervisor_exit_keeps_accepted_shard(self):
+        with test_directory() as repo:
+            revision = fixture(repo, FILES)
+            child_code = (
+                'from test_investigation import *\n'
+                'import sys\n'
+                'run, _ = start_launch(Path(sys.argv[1]), "--commit", sys.argv[2])\n'
+                'print(run["run"], flush=True)\n'
+                'sys.stdin.read()\n'
+            )
+            with subprocess.Popen([sys.executable, '-B', '-c', child_code, str(repo), revision],
+                                  cwd=Path(__file__).parent, stdin=subprocess.PIPE,
+                                  stdout=subprocess.PIPE, text=True) as supervisor:
+                run_id = supervisor.stdout.readline().strip()
+                supervisor.kill()
+            stage = repo / '.project-mapper' / run_id
+            decisions = (stage / 'decisions.json').read_bytes()
+            shard = (stage / 'shards/launch.json').read_bytes()
+            run = dict(plan=str(stage / 'plan.json'), run=run_id)
+            add_question(run, 'followup', 'What reads the report?', ['tools/verify.mjs'])
+            reopened = invoke(repo, 'read-input', run_id, 'followup', 'tools/verify.mjs',
+                              '--also', 'scripts/run.ps1', '4', '1')
+            self.assertEqual(len(reopened['pages']), 2)
+            self.assertEqual(publish_investigation(repo, run)['status'], 'partial')
+            self.assertEqual(invoke(repo, 'verify')['investigation_scope']['answered'], 1)
+            self.assertEqual((stage / 'decisions.json').read_bytes(), decisions)
+            self.assertEqual((stage / 'shards/launch.json').read_bytes(), shard)
 
     def test_supervisor_adds_question_and_publishes_conditional_cross_language_chain(self):
         with test_directory() as repo:

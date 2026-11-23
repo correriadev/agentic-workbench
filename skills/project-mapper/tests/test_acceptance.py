@@ -260,6 +260,10 @@ class Mapping(unittest.TestCase):
             self.assertEqual(found['lines'], ['# Architecture'])
             denied = invoke(repo, 'read-input', run['run'], tests_task['id'], input_path, ok=False)
             self.assertNotEqual(denied.returncode, 0)
+            denied = invoke(repo, 'read-input', run['run'], root_task['id'], input_path,
+                            '--also', plan['tasks'][tests_task['id']]['paths'][0], '1', '1', ok=False)
+            self.assertIn('outside this worker assignment', denied.stderr)
+            self.assertEqual(denied.stdout, '')
             good = dict(plan=plan['id'], task=root_task['id'], snapshot=plan['snapshot'],
                         status='partial', inputs=[input_path], findings=[
                             dict(path=input_path, content_id=found['content_id'], line=1,
