@@ -1,30 +1,19 @@
 ---
 name: journey-verifier
-description: Generate and execute a separate, versioned end-to-end test repository for a feature, change or journey in a real target. Use when independent observations and reproducible dependency control matter.
+description: Plan, generate and verify a versioned end-to-end suite from a target checkout or an evidence handoff such as a REA bundle. Use for behavior verification, suite reconstruction, isolated environment setup and independent proof of side effects.
 ---
 
 # Journey Verifier
 
-## Project context
+Take a requested scope, evidence and a separate suite directory. Initialize or
+resume it from this skill directory.
 
-When this skill needs context for an existing project, first check for its
-`.project-mapper/graph.sqlite`. With a compatible installed
-`project_mapper.py`, query from the project root using
-`python "<mapper>" . --offline` followed by `coverage --summary`,
-`search "<term>"`, `node <key>`, `open <id>`, or
-`trace <key> --direction both --depth 2` as needed. Check graph identity,
-snapshot, coverage and gaps; reopen decisive current sources. A map is a lead,
-not proof of runtime behavior or permission to write. If the map or compatible
-CLI is absent, unreadable or incomplete, consult `docs/README.md` and its
-index, then relevant source and tests; if unavailable, use the root README,
-manifests and source. Report material gaps. Do not create or update the map
-unless requested; preserve this skill's scope and any supplied exact paths.
+- Checkout — `python scripts/init_suite.py TARGET SUITE`
+- Evidence handoff — `python scripts/init_suite.py --bundle BUNDLE SUITE`
 
-Take a target checkout, the requested behavior and an output location outside the target. Run `python scripts/init_suite.py TARGET SUITE` from this skill directory to initialize or resume a separate repository. Inspect local differences and pin the source revision. Deliver one documented, noninteractive command from the suite, even when the target already has extensive tests.
+The bundle initializer fingerprints the file. Verify its records through the evidence tool.
 
-1. **Establish the oracle.** Read requirements, operator contracts, tests, fixtures, clients, helpers, assertions and available run records. Record what each existing check distinguishes, its inputs, dependencies and observed execution. Separate a test definition from a passing run. For each important gap, name a plausible defect and the independent observation that would expose it. Mark implementation-only expectations as characterizations. Record disputed product behavior as an open decision.
-2. **Locate and check evidence.** When a Project Mapper publication is available, use its public CLI: `python MAPPER TARGET verify`, `coverage`, `search "question"`, `open ID` and `trace ID --direction both` (prefix each subcommand with the same mapper and target). Record mapper version, mapped snapshot, scope and material gaps. Inspect the actual returned content, locators and relationships; their shapes and names vary. Reopen decisive ranges at the mapped revision and follow other writers, callers and observers. Empty results, partial maps and unavailable CLI publications require source investigation. Record the limitation and continue. Identify the actual tested build separately, including patches, image or executable identity and effective settings.
-3. **Trace the participants.** Start from each executable, including clients, devices and background processes. Follow startup probes, build-time substitutions, runtime precedence, SDK initialization, outbound traffic, inbound callbacks and asynchronous effects. For each dependency material to this journey record caller, effective destination, required behavior, isolation/control point and observation point. Verify reachability from the caller's network or filesystem context.
-4. **Build the harness.** Reuse suitable launchers, fixtures, frameworks and diagnostic clients at pinned revisions. Generate the missing adapters, scenario inputs, stateful doubles and scoped faults in the output repository. Derive simulated behavior from the consumer's requests and parsing. Cite provider contracts, documentation or independent observations for claims about the provider. Label the rest as assumptions. Use separate evidence for what the target accepted, what a dependency received and what actually changed.
-5. **Execute and preserve evidence.** Follow the [run contract](references/run.md). Version deterministic fixtures, actions and assertions. AI-assisted exploration may suggest cases; CI must decide each recorded outcome from explicit observations. Demonstrate sensitivity with a disposable defect, then repeat against the intended build from clean state.
-6. **Hand off.** Give the repository path, exact commands, pinned inputs, observed results, redacted evidence, cleanup outcome and any blocked observations. Identify supplied cases separately from independently discovered ones.
+1. **Choose the task.** Derive tests for mapped behavior, or reconstruct an existing suite from evidence of its discovery, assertions, fixtures and reporting. Use the [planning contract](references/plan.md) to bind scenarios, revisions, governance and gaps. Keep runnable build identity separate from source revision.
+2. **Qualify the environment.** Map runtime, configuration, dependencies, owned state, observers and teardown. Prove the smallest real path from readiness through independent observation and cleanup before broad execution. Continue with cases whose prerequisites hold.
+3. **Build and challenge the suite.** Reuse pinned launchers, fixtures and tools. Put each assertion at the cheapest layer retaining its signal. Freeze acceptance before candidate feedback. Prove material assertions detect a controlled defect at the intended boundary. For blind work, keep reference inputs and verification cases with the verifier.
+4. **Run and report.** Follow the [run contract](references/run.md). Deliver one documented noninteractive command, scenario and gap records, retained observations and a verdict matrix using the [report contract](references/report.md). Preserve the first candidate and run before enriching its handoff.

@@ -1,10 +1,18 @@
 # Run contract
 
-Choose the smallest environment that exercises the real public entry and the mechanisms under test. A process and temporary directory may suffice. Reuse an existing stack only after checking its resource names, published ports, readiness contract and destructive cleanup scope.
+## Admit and qualify the run
 
-- Assign each run its own identity, disposable resources and evidence directory. Record ownership before starting resources that can partially initialize. Use unique business and observation identifiers when conflating their roles could hide a defect.
-- Check readiness through the caller's path, including consequential configuration or provider behavior. Verify initial state through the authority that owns it. Scope fault controls to the test request and retain a control observation for unaffected traffic.
-- Invoke the real executable through the public interface. Wait against an explicit completion predicate with a deadline. Assert independent state or external effects using a channel separate from the response being verified. Establish what an empty observation means and whether the observer itself was available.
-- Save sanitized, per-assertion expected/actual values, relevant before/after state, build identity and failure stage. Missing required evidence is inconclusive and gives CI a nonzero exit. An observed contradiction fails. Preserve partial evidence on exceptions.
-- In a finally block or equivalent teardown, revert only run-owned resources. Record cleanup errors separately and retain the first behavioral failure. A cleanup failure also prevents a successful exit. Exercise a failed run and a fresh retry.
-- Document prerequisites, fixture provenance, simulator assumptions, pending decisions and how to inspect the artifacts. Keep credentials, personal data and live destinations out of fixtures and evidence.
+- Use the smallest authorized isolated environment exercising the required mechanisms. Separate an attached environment, an environment provisioned on the same host, a fresh process and a separately provisioned worker in the receipt. Reuse a stack only after verifying its effective configuration, ports, state, observer reachability and cleanup authority.
+- Pin result-affecting inputs before execution. Include the artifact bytes, effective runtime and shell, dependency builds, settings and schema, fixture and check revisions, and real/simulated modes. Check them from the process that will use them. Record incomplete preparation as a gap. A new digest or changed condition invalidates the affected proof. Reuse a verified setup only while those inputs and ownership match and reset is observed.
+- Run a bounded smoke test before the broad suite. Verify each material dependency's readiness through its consumer, the target's public entry, and the observer's connection to the expected store or equivalent authority. Validate required schema/fixture facts there. Observe an expected initial state and one correlated effect or controlled absence, then verify cleanup. A healthy port or successful response alone cannot qualify the run.
+
+## Observe and challenge
+
+- Give each attempt its own identity and evidence location. Use distinct business and observation IDs where conflation could hide a defect. Invoke the actual entry and observe dependency inputs and effects independently of the response. Check observer availability and initial state before interpreting missing data. Wait for an explicit completion predicate within a deadline.
+- In a disposable environment, inject the scoped defect without changing unrelated inputs. Prove the defect actually occurred and check an unaffected control. Require the intended assertion to fail, preserve its raw exit and evidence, and rerun on restored state. Compare baseline and candidate with equivalent inputs, resets, fault activation and observers. Treat runner, environment or observer failures as incomplete proof of behavioral detection.
+- Diagnose the earliest failing stage. Distinguish input/discovery, provisioning/readiness, fixture/observer, behavior/assertion, cleanup, and report/publication. Preserve partial evidence and record actual stages separately when multiple fail. Before retrying an uncertain side effect, reconcile it through its correlation key and owning observer. Retain attempts when a retry or repair changes the result.
+
+## Clean up and retain
+
+- Record ownership before acquisition. Use finally-style cleanup on success, failure and cancellation, and attempt all independently owned resources. Touch only run-owned effects. Retain the primary failure and record cleanup failures and remaining resources separately. Exercise partial startup and cleanup failure or retry when material to the lifecycle.
+- Write artifacts under the current attempt and preserve the smallest complete proof. Redact secrets, personal data and live endpoints at capture. Verify report links and generated output when required by the [report contract](report.md).
