@@ -3,6 +3,7 @@
 from collections import deque
 from contextlib import closing, contextmanager
 import json
+from pathlib import PurePosixPath
 import re
 import sqlite3
 import unicodedata
@@ -428,11 +429,29 @@ def incoming_candidates(connection, key, types=()):
     return connection.execute(query + ' ORDER BY r.id', (key, *types))
 
 
-def search_discoveries(connection, query, limit):
+def search_anchors(connection, query):
+    """Find exact structural identifiers and file basenames or stems."""
+    rows = connection.execute(
+        "SELECT key,kind,name FROM nodes WHERE kind!='discovery' AND "
+        "(key=? OR name=? OR (kind='file' AND instr('/'||name,'/'||?)>0)) "
+        "ORDER BY key", (query, query, query))
+    for row in rows:
+        if query in (row['key'], row['name']):
+            yield row['key']
+        elif row['kind'] == 'file':
+            path = PurePosixPath(row['name'])
+            if query in (path.name, path.stem):
+                yield row['key']
+
+
+def search_discoveries(connection, query, limit, *, terms=None):
     if not 1 <= limit <= 100:
         raise MappingError('search limit must be between 1 and 100')
-    if not query.strip():
+    query = query.strip()
+    if not query:
         raise MappingError('search requires a query')
+    if terms is not None and not terms.strip():
+        raise MappingError('search terms must not be empty')
     if connection.execute('PRAGMA user_version').fetchone()[0] == 1:
         return []
     # Preview fields precede content in the row. Do not decode the authored JSON to route a reader.
@@ -441,17 +460,36 @@ def search_discoveries(connection, query, limit):
                "ELSE d.summary END AS summary FROM discoveries d")
     exact = connection.execute(preview + ' WHERE d.node=?', (query,)).fetchone()
     hits = [dict(exact)] if exact else []
-    words = sorted(tokens(query))
-    if not words or len(hits) == limit:
+    if len(hits) == limit:
         return hits
+    words = sorted(tokens(query if terms is None else terms))
     if len(words) > 128:
         raise MappingError('search accepts up to 128 distinct words per query')
     marks = ','.join('?' for _ in words)
+    anchors = list(search_anchors(connection, query))
+    if anchors:
+        # Use keywords to disambiguate source identities with the same short name.
+        linked = ("WITH anchors AS (SELECT value AS key FROM json_each(?)), linked AS ("
+                  "SELECT r.source AS node FROM anchors a JOIN relationships r ON r.target=a.key "
+                  "WHERE r.type='describes' AND r.family='semantic' AND r.state='resolved' UNION "
+                  "SELECT r.target FROM anchors a JOIN relationships r ON r.source=a.key "
+                  "WHERE r.type='explained-by' AND r.family='semantic' AND r.state='resolved'), "
+                  "scores AS (SELECT t.node,COUNT(*) AS matches,SUM(t.weight) AS score "
+                  "FROM discovery_terms t JOIN linked l ON l.node=t.node "
+                  f"WHERE t.term IN ({marks}) GROUP BY t.node) ")
+        sql = (linked + preview + ' JOIN linked l ON l.node=d.node LEFT JOIN scores s ON s.node=d.node '
+               'WHERE d.node!=? ORDER BY s.matches DESC,s.score DESC,(lower(d.title)=lower(?)) DESC,d.node LIMIT ?')
+        params = (canonical(anchors), *words, query, query, limit - len(hits))
+        hits.extend(dict(row) for row in connection.execute(sql, params))
+    if not words or len(hits) == limit:
+        return hits
     # Limit candidates before fetching previews. Exact keys take precedence over lexical matches.
     ranked = ('WITH ranked AS (SELECT node,COUNT(*) AS matches,SUM(weight) AS score FROM discovery_terms '
-              f'WHERE term IN ({marks}) AND node!=? GROUP BY node ORDER BY matches DESC,score DESC,node LIMIT ?) ')
+              f'WHERE term IN ({marks}) AND node NOT IN (SELECT value FROM json_each(?)) '
+              'GROUP BY node ORDER BY matches DESC,score DESC,node LIMIT ?) ')
     sql = ranked + preview + ' JOIN ranked r ON d.node=r.node ORDER BY r.matches DESC,r.score DESC,r.node'
-    hits.extend(dict(row) for row in connection.execute(sql, (*words, query, limit - len(hits))))
+    selected = canonical([query, *(item['key'] for item in hits)])
+    hits.extend(dict(row) for row in connection.execute(sql, (*words, selected, limit - len(hits))))
     return hits
 
 
@@ -750,7 +788,7 @@ def inspect_node(connection, selector):
     return result
 
 
-def trace(connection, selector, direction, types, depth, max_nodes, max_edges):
+def trace(connection, selector, direction, types, depth, max_nodes, max_edges, *, summary=False):
     seeds = [row['key'] for row in find_nodes(connection, selector)]
     nodes = set(seeds[:max_nodes])
     queue = deque((key, 0, False) for key in seeds[:max_nodes])
@@ -809,17 +847,21 @@ def trace(connection, selector, direction, types, depth, max_nodes, max_edges):
         profile = info['profile']
         relevant = {family for family, kinds in profile['edge_types'].items()
                     if not types or set(types).intersection(kinds)}
-    gaps = []
-    for row in connection.execute("SELECT area,family,status,reason FROM coverage WHERE status NOT IN "
-                                  "('analyzed','inapplicable','excluded') ORDER BY area,family"):
-        # Open questions may identify bridges beyond the evidence already reached.
-        if (row['family'] == 'investigation' or (row['family'] in relevant and row['area'] in reached_areas)
-                or (multidimensional and row['family'] in {'multidimensional-static', 'python-static'}
-                    and row['area'] in reached_paths)):
-            gaps.append(dict(row))
+    # Open questions may identify bridges beyond the evidence already reached.
+    coverage_filter = (" FROM coverage WHERE status NOT IN ('analyzed','inapplicable','excluded') "
+                       "AND (family='investigation' "
+                       "OR (family IN (SELECT value FROM json_each(?)) AND area IN (SELECT value FROM json_each(?))) "
+                       "OR (family IN ('multidimensional-static','python-static') "
+                       "AND area IN (SELECT value FROM json_each(?))))")
+    columns = 'family,status,COUNT(*) AS count' if summary else 'area,family,status,reason'
+    order = ' GROUP BY family,status ORDER BY family,status' if summary else ' ORDER BY area,family'
+    params = (canonical(sorted(relevant)), canonical(sorted(reached_areas)),
+              canonical(sorted(reached_paths) if multidimensional else []))
+    gaps = [dict(row) for row in connection.execute('SELECT ' + columns + coverage_filter + order, params)]
+    coverage_key = 'coverage_frontier_summary' if summary else 'coverage_frontier'
     scope = {'investigation_scope': question_scope} if question_scope is not None else {'repository_status': info['status']}
     return dict(snapshot=info['snapshot'], status=info['status'], **scope, seeds=seeds[:max_nodes], nodes=sorted(nodes),
                 edges=[edge_record(connection, row) for _, row in sorted(edges.items())],
                 truncated=bool(limits), limits=sorted(limits), analysis_incomplete=bool(gaps or unresolved),
-                coverage_frontier=gaps,
+                **{coverage_key: gaps},
                 unresolved_frontier=[edge_record(connection, row) for _, row in sorted(unresolved.items())])

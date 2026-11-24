@@ -30,6 +30,7 @@ from scan_files import MappingError, canonical, digest, inventory, repository, s
 
 OUTPUT = '.project-mapper'
 RUN = re.compile(r'run-[0-9a-f]{32}\Z')
+PUBLISHED_QUERIES = {'coverage', 'dimensions', 'search', 'open', 'node', 'trace'}
 MULTIDIMENSIONAL_PROFILE = dict(STATIC_PROFILE, python_profile=PROFILE)
 CSHARP_MULTIDIMENSIONAL_PROFILE = dict(MULTIDIMENSIONAL_PROFILE, csharp_profile=CSHARP_PROFILE)
 
@@ -672,10 +673,10 @@ def write_readme(path, info, connection, script):
     if connection.execute('SELECT 1 FROM discoveries LIMIT 1').fetchone():
         commands.extend([f'{prefix} search "<words describing the behavior>" --limit 5',
                          f'{prefix} open "<key from search>"',
-                         f'{prefix} trace "<key from search>" --direction both --depth 1'])
+                         f'{prefix} trace "<key from search>" --direction both --depth 1 --summary'])
     if item:
         commands.extend([f'{prefix} node "{item["source"]}"',
-                         f'{prefix} trace "{item["source"]}" --type {item["type"]} --direction both'])
+                         f'{prefix} trace "{item["source"]}" --type {item["type"]} --direction both --summary'])
     snapshot = info['snapshot']
     fence = chr(96) * 3
     content = [
@@ -1174,6 +1175,8 @@ def arguments():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('repo', type=Path, help='root of the target Git repository')
     parser.add_argument('--offline', action='store_true', help='query an existing graph without invoking Git')
+    parser.add_argument('--expect-revision', metavar='COMMIT',
+                        help='require this full commit hash in the published graph before querying or verifying it')
     commands = parser.add_subparsers(dest='command', required=True)
     export = commands.add_parser('export', help='export a published graph to JSON')
     export.add_argument('--output', required=True, help='new JSON filename inside .project-mapper')
@@ -1249,6 +1252,7 @@ def arguments():
     lookup = commands.add_parser('search', help='locate reviewed discoveries by words in their index')
     lookup.add_argument('query')
     lookup.add_argument('--limit', type=int, default=5, help='maximum candidates returned (1..100)')
+    lookup.add_argument('--terms', help='search discoveries with these terms while retaining the original exact lookup')
     commands.add_parser('open', help='read one discovery and its supporting evidence by exact ID').add_argument('key')
     node = commands.add_parser('node', help='look up a node by key or exact name')
     node.add_argument('selector')
@@ -1270,6 +1274,7 @@ def arguments():
     trace.add_argument('--depth', type=int, default=4)
     trace.add_argument('--max-nodes', type=int, default=100)
     trace.add_argument('--max-edges', type=int, default=250)
+    trace.add_argument('--summary', action='store_true', help='summarize coverage gaps while keeping edge evidence')
     commands.add_parser('verify', help='check schema, source identity and independently replay claims')
     return parser, parser.parse_args()
 
@@ -1338,6 +1343,13 @@ def dispatch(root, args):
         if pinned_query and graph_stamp(graph_path) != opening_stamp:
             raise MappingError('graph changed while opening query; retry')
         store.check_schema(connection)
+        if args.expect_revision:
+            snapshot = store.metadata(connection, 'snapshot')['snapshot']
+            if snapshot['mode'] != 'commit':
+                raise MappingError('expected a committed graph, found a worktree snapshot')
+            if snapshot['revision'] != args.expect_revision.lower():
+                raise MappingError(f"published graph revision {snapshot['revision']} differs from "
+                                   f"expected revision {args.expect_revision.lower()}")
         if args.command == 'graph-unit':
             result = graph_unit(root, args, connection)
             if graph_stamp(graph_path) != opening_stamp:
@@ -1352,7 +1364,7 @@ def dispatch(root, args):
                 return dict(dimensions=store.summarize_dimensions(connection))
             return dict(memberships=store.dimensions(connection))
         if args.command == 'search':
-            matches = store.search_discoveries(connection, args.query, args.limit)
+            matches = store.search_discoveries(connection, args.query, args.limit, terms=args.terms)
             info = store.metadata(connection, 'snapshot', 'profile', 'multidimensional_profile')
             result = dict(snapshot=info['snapshot'], matches=matches)
             if supported_multidimensional_profile(info.get('profile')) or 'multidimensional_profile' in info:
@@ -1379,7 +1391,7 @@ def dispatch(root, args):
             if args.run:
                 manifest, plan, generation = graph_for_run(root, args.run, connection)
             result = store.trace(connection, args.selector, args.direction, args.type, args.depth,
-                                 args.max_nodes, args.max_edges)
+                                 args.max_nodes, args.max_edges, summary=args.summary)
             if args.run:
                 stage = run_directory(output_paths(root)[0], args.run)
                 if any(item.get('node_ids') for item in plan.get('questions', [])):
@@ -1394,9 +1406,13 @@ def dispatch(root, args):
 def main():
     parser, args = arguments()
     try:
+        if args.expect_revision is not None:
+            if args.command not in PUBLISHED_QUERIES | {'verify'}:
+                raise MappingError('--expect-revision is supported for published graph queries and verify')
+            if not re.fullmatch(r'[0-9a-fA-F]{40}|[0-9a-fA-F]{64}', args.expect_revision):
+                raise MappingError('--expect-revision requires a full Git commit hash')
         if args.offline:
-            if (args.command not in {'coverage', 'dimensions', 'search', 'open', 'node', 'trace'}
-                    or getattr(args, 'run', None)):
+            if args.command not in PUBLISHED_QUERIES or getattr(args, 'run', None):
                 raise MappingError('offline mode supports published graph queries without run assignments only')
             root = args.repo.resolve(strict=True)
             if not root.is_dir():
