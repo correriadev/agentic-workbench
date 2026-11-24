@@ -4,7 +4,7 @@ Directory-based areas are scheduling buckets, not claims about architecture or
 features. Unresolved and cross-unit edges are leads to investigate, not facts.
 """
 
-from collections import defaultdict
+from collections import defaultdict, deque
 from pathlib import PurePosixPath
 
 import graph_store
@@ -15,6 +15,11 @@ from scan_files import MappingError, digest
 MAX_FILES_PER_UNIT = 32
 MAX_NODES_PER_UNIT = 160
 FRONTIER_PREVIEW = 12
+FLOW_DEPTH = 5
+FLOW_REFERENCES = {'imports', 'calls', 'registers', 'configures-entry', 'runs-script',
+                   'declares-service', 'declares-registration', 'depends-on', 'references-project',
+                   'belongs-to-project', 'uses-binding', 'uses-config'}
+FLOW_ENTRIES = {'configures-entry', 'runs-script'}
 
 
 def area_for(path):
@@ -25,6 +30,78 @@ def area_for(path):
 
 def printable(value):
     return bool(value) and value == value.strip() and value.isprintable()
+
+
+def flow_questions(connection, paths_by_node):
+    """Follow bounded reference leads. Keep direction and runtime review in the source investigation."""
+    roots, tests = set(), set()
+    for key, dimension in connection.execute(
+            "SELECT node,dimension FROM memberships WHERE dimension IN "
+            "('entrypoint','declared-entry-point','configuration','test','declared-test-suite')"):
+        if dimension in {'test', 'declared-test-suite'}:
+            tests.add(key)
+        elif dimension != 'configuration' or key.startswith('mcp-server:'):
+            if dimension != 'declared-entry-point' or key.startswith('entry-point:'):
+                roots.add(key)
+    references = defaultdict(set)
+    callers, destinations = set(), set()
+    for relation, source, target in connection.execute(
+            "SELECT type,source,target FROM relationships WHERE family='structural' "
+            "UNION ALL SELECT r.type,r.source,c.node FROM relationships r "
+            "JOIN relationship_candidates c ON c.relationship=r.id WHERE r.family='structural'"):
+        if relation in FLOW_ENTRIES:
+            roots.add(source)
+        if not target or not paths_by_node.get(source) or not paths_by_node.get(target):
+            continue
+        if relation in FLOW_REFERENCES:
+            references[source].add(target)
+            if source in tests and relation in {'imports', 'calls'}:
+                references[target].add(source)
+            if relation in {'imports', 'calls', 'references-project'} and source not in tests:
+                if paths_by_node[source] != paths_by_node[target]:
+                    callers.add(source)
+                    destinations.add(target)
+        elif relation in {'declares-endpoint', 'declares-tool'}:
+            references[target].add(source)
+
+    covered = set()
+    remaining = callers - roots
+    for anchor in [*sorted(roots), *sorted(remaining - destinations), *sorted(remaining & destinations)]:
+        if (not printable(anchor) or not paths_by_node.get(anchor) or
+                anchor not in roots and anchor in covered):
+            continue
+        keys, paths = set(), set()
+        pending = deque([(anchor, 0)])
+        queued = {anchor}
+        truncated = False
+        while pending:
+            key, depth = pending.popleft()
+            seeds = paths_by_node[key]
+            if len(keys) == MAX_NODES_PER_UNIT:
+                truncated = True
+                break
+            if len(paths | seeds) > MAX_FILES_PER_UNIT:
+                truncated = True
+                continue
+            keys.add(key)
+            paths.update(seeds)
+            neighbors = references[key] | {'file:' + path for path in seeds if paths_by_node.get('file:' + path)}
+            for neighbor in sorted(neighbors - queued):
+                if not printable(neighbor):
+                    continue
+                if depth == FLOW_DEPTH:
+                    truncated = True
+                    break
+                queued.add(neighbor)
+                pending.append((neighbor, depth + 1))
+        if not keys:
+            continue
+        covered.update(keys)
+        yield dict(id='unit-flow-' + digest(anchor)[:24],
+                   question=f'From {anchor}, which source-supported steps lead to the first material effect '
+                            'or unresolved boundary, and under what conditions?',
+                   seeds=sorted(paths), depends_on=[], node_ids=sorted(keys),
+                   scope=dict(kind='flow', anchor=anchor)), truncated
 
 
 def plan_from_graph(connection, manifest, reader=None):
@@ -139,8 +216,9 @@ def plan_from_graph(connection, manifest, reader=None):
         for paths, keys in batches:
             task_id = 'unit-' + digest([area, paths, keys])[:24]
             task = dict(id=task_id,
-                        question='What roles, interactions, inputs, outputs, conditions, tests, and gaps are supported for these graph anchors?',
-                        seeds=paths, depends_on=[], node_ids=keys)
+                        question='What does each seed file declare or implement, and what direct boundary, if any, '
+                                 'does it expose in source?',
+                        seeds=paths, depends_on=[], node_ids=keys, scope=dict(kind='file'))
             questions.append(task)
             units.append(dict(id=task_id, area=area, area_basis='directory scheduling bucket',
                               initial_status='pending', path_count=len(paths), node_count=len(keys),
@@ -148,6 +226,18 @@ def plan_from_graph(connection, manifest, reader=None):
                               frontier_count=0, frontier_preview=[], frontier_truncated=False))
             for key in keys:
                 assignments[key].add(task_id)
+
+    for task, truncated in flow_questions(connection, paths_by_node):
+        paths, keys = task['seeds'], task['node_ids']
+        questions.append(task)
+        units.append(dict(id=task['id'], area=area_for(min(paths_by_node[task['scope']['anchor']])),
+                          area_basis='flow anchor and source references',
+                          initial_status='pending', path_count=len(paths), node_count=len(keys),
+                          unverified_paths=[path for path in paths if path in unverified],
+                          lead_traversal_truncated=truncated,
+                          frontier_count=0, frontier_preview=[], frontier_truncated=False))
+        for key in keys:
+            assignments[key].add(task['id'])
 
     unit_index = {unit['id']: unit for unit in units}
     # For each edge, count only units for which it crosses the unit boundary,
@@ -168,7 +258,7 @@ def plan_from_graph(connection, manifest, reader=None):
     plan = dict(snapshot=manifest['snapshot']['identity'], output_language='en', questions=questions)
     assigned_paths = {path for task in questions for path in task['seeds']}
     report = dict(snapshot=manifest['snapshot']['identity'],
-                  strategy='Directory-based bounded scheduling; not an architectural classification.',
+                  strategy='Bounded file assignments and flow leads from entrypoints and source references.',
                   units=units, unassigned=unassigned,
                   unmapped_paths=sorted(eligible - assigned_paths),
                   unreadable_paths=[dict(path=path, status='boundary', reason=reason)
@@ -181,5 +271,5 @@ def plan_from_graph(connection, manifest, reader=None):
                               assigned_multiple=sum(len(value) > 1 for value in assignments.values()),
                               unassigned=len(unassigned), areas=len(areas), units=len(units)),
                   limits=dict(files_per_unit=MAX_FILES_PER_UNIT, nodes_per_unit=MAX_NODES_PER_UNIT,
-                              frontier_preview=FRONTIER_PREVIEW))
+                              frontier_preview=FRONTIER_PREVIEW, flow_depth=FLOW_DEPTH))
     return plan, report

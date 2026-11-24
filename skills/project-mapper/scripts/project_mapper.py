@@ -18,7 +18,9 @@ sys.dont_write_bytecode = True
 import graph_store as store
 from export_json import write_export
 from multidimensional import PROFILE as STATIC_PROFILE, extract_graph
-from investigation import compile_investigation, new_plan, validate_plan, validate_shard
+from csharp_profile import PROFILE as CSHARP_PROFILE
+from investigation import (compile_investigation, draft_subject_diagnostics, new_plan, validate_discrepancies,
+                           validate_plan, validate_shard)
 from pipeline import (collect, envelope, final_coverage, load, make_plan, project, review_envelope,
                       reviews, safe_path, save, validate_baseline)
 from python_profile import MANIFEST, PROFILE, Source, extract
@@ -29,6 +31,11 @@ from scan_files import MappingError, canonical, digest, inventory, repository, s
 OUTPUT = '.project-mapper'
 RUN = re.compile(r'run-[0-9a-f]{32}\Z')
 MULTIDIMENSIONAL_PROFILE = dict(STATIC_PROFILE, python_profile=PROFILE)
+CSHARP_MULTIDIMENSIONAL_PROFILE = dict(MULTIDIMENSIONAL_PROFILE, csharp_profile=CSHARP_PROFILE)
+
+
+def supported_multidimensional_profile(profile):
+    return profile in (MULTIDIMENSIONAL_PROFILE, CSHARP_MULTIDIMENSIONAL_PROFILE)
 # The investigation wire format derives kind from the ID prefix. Static
 # profiles may use a more descriptive kind for the same exact ID.
 LEGACY_KIND_ALIASES = {
@@ -36,6 +43,14 @@ LEGACY_KIND_ALIASES = {
     'npm-script': {'command'},
     'external-module': {'module'},
     'boundary': {'boundary', 'submodule', 'symlink', 'pruned-directory'},
+    'csharp-type': {'class', 'interface', 'struct', 'record', 'enum'},
+    'csharp-method': {'method'},
+    'csharp-endpoint': {'endpoint'},
+    'csharp-reference': {'type-reference'},
+    'csharp-call': {'call-reference'},
+    'csharp-registration': {'registration'},
+    'dotnet-project': {'project'},
+    'nuget': {'dependency'},
 }
 
 
@@ -69,12 +84,15 @@ def graph_fingerprint(path):
     checksum = hashlib.sha256()
     with os.fdopen(os.open(path, flags), 'rb') as source:
         opened = os.fstat(source.fileno())
-        if [opened.st_dev, opened.st_ino, opened.st_size, opened.st_mtime_ns, opened.st_ctime_ns] != before:
+        handle_stamp = [opened.st_dev, opened.st_ino, opened.st_size, opened.st_mtime_ns, opened.st_ctime_ns]
+        # Windows path and handle stats can report different meanings for ctime.
+        size = 4 if os.name == 'nt' else 5
+        if handle_stamp[:size] != before[:size]:
             raise MappingError('graph changed while opening it')
         for block in iter(lambda: source.read(1024 * 1024), b''):
             checksum.update(block)
         after = os.fstat(source.fileno())
-        if [after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns] != before:
+        if [after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns] != handle_stamp:
             raise MappingError('graph changed while hashing it')
     if graph_stamp(path) != before:
         raise MappingError('graph changed while hashing it')
@@ -107,7 +125,8 @@ def check_graph_pin(stage, graph_path, snapshot):
     return pin['sha256']
 
 
-def start_run(root, commit, *, investigation=False, agent_review=False, multidimensional=False, from_graph=False):
+def start_run(root, commit, *, investigation=False, agent_review=False, multidimensional=False, from_graph=False,
+              csharp=False):
     manifest = inventory(root, commit)
     directory, _, _ = output_paths(root, create=True)
     name = 'run-' + uuid4().hex
@@ -137,7 +156,7 @@ def start_run(root, commit, *, investigation=False, agent_review=False, multidim
                 if from_graph:
                     if current['snapshot'] != manifest['snapshot']:
                         raise MappingError('graph snapshot differs from the requested investigation snapshot')
-                    if profile != MULTIDIMENSIONAL_PROFILE:
+                    if not supported_multidimensional_profile(profile):
                         raise MappingError('graph-derived investigation requires a multidimensional graph')
                     # A graph can pass SQLite's integrity checks yet have been
                     # altered. Replay source-backed rows once before planning.
@@ -154,10 +173,10 @@ def start_run(root, commit, *, investigation=False, agent_review=False, multidim
                     result['graph_plan'] = str(safe_path(stage, 'graph-plan.json'))
                     save(safe_path(stage, 'graph-plan.json'), report)
                     save_graph_pin(stage, dict(snapshot=manifest['snapshot']['identity'], **pin))
-                if current['snapshot'] == manifest['snapshot'] and profile == MULTIDIMENSIONAL_PROFILE:
+                if current['snapshot'] == manifest['snapshot'] and supported_multidimensional_profile(profile):
                     save(safe_path(stage, 'static-profile.json'), profile)
     elif multidimensional:
-        plan = multidimensional_plan(manifest)
+        plan = multidimensional_plan(manifest, CSHARP_MULTIDIMENSIONAL_PROFILE if csharp else MULTIDIMENSIONAL_PROFILE)
     else:
         with snapshot_reader(root, manifest) as reader:
             plan = make_plan(manifest, reader, agent_review)
@@ -169,9 +188,12 @@ def start_run(root, commit, *, investigation=False, agent_review=False, multidim
 
 
 def multidimensional_rows(manifest, plan, reader):
-    if plan.get('kind') != 'multidimensional' or plan.get('profile') != MULTIDIMENSIONAL_PROFILE:
+    profile = plan.get('profile')
+    if plan.get('kind') != 'multidimensional' or not supported_multidimensional_profile(profile):
         raise MappingError('recorded multidimensional profile differs; use the original mapper or rebuild')
-    graph, coverage, outcomes, reports = extract_graph(manifest, reader)
+    static_profile = {key: value for key, value in profile.items() if key not in {'python_profile', 'csharp_profile'}}
+    graph, coverage, outcomes, reports = extract_graph(manifest, reader, csharp='csharp_profile' in profile,
+                                                        profile=static_profile)
     python_outcomes = {entry['path']: extract(reader, entry['path']) for entry in manifest['entries']
                        if entry['eligible'] and (entry['path'].endswith('.py') or entry['path'] == MANIFEST)}
     python_graph = reconcile(python_outcomes)
@@ -211,12 +233,12 @@ def multidimensional_rows(manifest, plan, reader):
                              reason=reason or 'Python AST and supported declarations examined.',
                              task=None, paths=[path], method=['python-ast'], basis='Python profile; findings count observations',
                              scoped_absence=False, findings=observations_by_path[path], issues=issues))
-    return store.records(manifest, plan, graph, coverage, outcomes, reports, {}, profile=MULTIDIMENSIONAL_PROFILE)
+    return store.records(manifest, plan, graph, coverage, outcomes, reports, {}, profile=profile)
 
 
-def multidimensional_plan(manifest):
+def multidimensional_plan(manifest, profile=MULTIDIMENSIONAL_PROFILE):
     plan = dict(kind='multidimensional', snapshot=manifest['snapshot']['identity'],
-                profile=MULTIDIMENSIONAL_PROFILE)
+                profile=profile)
     plan['id'] = digest(plan)
     return plan
 
@@ -268,7 +290,7 @@ def compose_multidimensional(manifest, reader, investigation, *, base=None):
                 indexed[key] = row
             result[table] = list(indexed.values())
     metadata = dict(investigation['metadata'])
-    metadata['multidimensional_profile'] = canonical(MULTIDIMENSIONAL_PROFILE)
+    metadata['multidimensional_profile'] = dict(base['metadata'])['profile']
     if json.loads(dict(base['metadata'])['status']) != 'complete':
         metadata['status'] = canonical('partial')
     result['metadata'] = list(metadata.items())
@@ -427,6 +449,7 @@ def check_plan(root, name, *, summary=False, question=None, listing=False, offse
         next_offset = offset + len(items)
         return dict(snapshot=plan['snapshot'], fingerprint=fingerprint, total=len(plan['questions']),
                     questions=[dict(id=item['id'], question=item['question'], area=area(item),
+                                    **({'scope': item['scope']} if 'scope' in item else {}),
                                     progress=progress(item), seeds=len(item['seeds']),
                                     node_ids=len(item.get('node_ids', [])))
                                for item in items],
@@ -484,6 +507,114 @@ def investigation_rows(stage, manifest, plan, reader):
             raise MappingError(f'review the current language contract, evidence, question and prerequisites: {key}')
         accepted[key] = raw
     return compile_investigation(manifest, plan, accepted, reader)
+
+
+def import_investigation(root, source_root, source_run):
+    """Copy a reviewed run to a separate C# map after replaying both snapshots."""
+    source_root = repository(source_root)
+    if root.resolve() == source_root.resolve():
+        raise MappingError('import requires a separate target checkout; the source run remains untouched')
+    source_directory, source_graph, _ = output_paths(source_root)
+    stage = run_directory(source_directory, source_run)
+    manifest, plan = load_run(stage)
+    if 'questions' not in plan or not plan['questions']:
+        raise MappingError('source must contain a nonempty investigation plan')
+    opening = graph_stamp(source_graph)
+    with store.database(source_graph) as connection:
+        verify(source_root, connection)
+        old_info = store.metadata(connection)
+    if old_info.get('investigation_run') not in (None, source_run):
+        raise MappingError('published source graph belongs to a different investigation run')
+    check_run_assignments(source_root, manifest, plan['questions'], stage=stage)
+    decisions = load(safe_path(stage, 'decisions.json'))
+    if not isinstance(decisions, dict):
+        raise MappingError('invalid source decisions')
+    if set(old_info.get('accepted_shards', {})) - set(decisions):
+        raise MappingError('published source findings are missing from current run decisions')
+    shards = safe_path(stage, 'shards', directory=True)
+    allowed = {item['id'] + '.json' for item in plan['questions']}
+    if {p.name for p in shards.iterdir()} - allowed:
+        raise MappingError('source run contains unowned shard files')
+    copied = {name: load(safe_path(shards, name)) for name in sorted(allowed)
+              if safe_path(shards, name).exists()}
+    questions = question_index(plan)
+    for key, fingerprint in decisions.items():
+        if (key not in questions or key + '.json' not in copied or
+                decision_fingerprint(plan['output_language'], questions[key], copied[key + '.json'], decisions) != fingerprint):
+            raise MappingError('source has a stale or missing accepted shard; review it before import')
+    with snapshot_reader(source_root, manifest) as reader:
+        investigation_rows(stage, manifest, plan, reader)
+    if manifest != inventory(root, manifest['snapshot']['revision']):
+        raise MappingError('source and target inventories differ; use the exact same snapshot')
+    _, target_graph, _ = output_paths(root)
+    with store.database(target_graph) as connection:
+        verify(root, connection)
+        target_info = store.metadata(connection)
+        if target_info.get('profile') != CSHARP_MULTIDIMENSIONAL_PROFILE:
+            raise MappingError('target must contain a C# static map without an active investigation')
+        check_graph_assignment(connection, manifest, plan['questions'])
+    # Recompile all accepted evidence, and ensure it composes with the new static nodes,
+    # before writing a target run. This checks structure, not the truth of agent claims.
+    accepted = {key: copied[key + '.json'] for key in decisions}
+    with snapshot_reader(root, manifest) as reader:
+        semantic = compile_investigation(manifest, plan, accepted, reader)
+        base = multidimensional_rows(manifest, multidimensional_plan(manifest, CSHARP_MULTIDIMENSIONAL_PROFILE), reader)
+        compose_multidimensional(manifest, reader, semantic, base=base)
+    if (graph_stamp(source_graph) != opening or load(safe_path(stage, 'plan.json')) != plan or
+            load(safe_path(stage, 'decisions.json')) != decisions or
+            {name: load(safe_path(shards, name)) for name in copied} != copied or
+            {p.name for p in shards.iterdir()} != set(copied)):
+        raise MappingError('source run changed during import; retry against a stable checkpoint')
+    result = start_run(root, manifest['snapshot']['revision'], investigation=True, from_graph=True)
+    destination = run_directory(output_paths(root)[0], result['run'])
+    generated = load(safe_path(destination, 'plan.json'))
+    assigned = {node for question in plan['questions'] for node in question.get('node_ids', [])}
+    originally_assigned = assigned.copy()
+    flow_anchors = {item['scope']['anchor'] for item in plan['questions']
+                    if item.get('scope', {}).get('kind') == 'flow'}
+    question_ids = {question['id'] for question in plan['questions']}
+    added = 0
+    for question in generated['questions']:
+        anchor = question['scope'].get('anchor')
+        if anchor in flow_anchors:
+            continue
+        existing = originally_assigned if anchor else assigned
+        new_nodes = [node for node in question.get('node_ids', []) if node not in existing and
+                     node.startswith(('csharp-', 'dotnet-project:', 'nuget:'))]
+        if not new_nodes:
+            continue
+        question = dict(question)
+        if question['id'] in question_ids:
+            question['id'] = 'unit-imported-' + digest(question)[:24]
+        if question['id'] in question_ids:
+            raise MappingError('imported C# assignment ID collides with the source plan')
+        plan['questions'].append(question)
+        question_ids.add(question['id'])
+        if anchor:
+            flow_anchors.add(anchor)
+        assigned.update(question['node_ids'])
+        added += 1
+    temporary_plan = safe_path(destination, f'plan-{uuid4().hex}.tmp')
+    save(temporary_plan, plan)
+    os.replace(temporary_plan, safe_path(destination, 'plan.json'))
+    for name, raw in copied.items():
+        save(safe_path(destination, 'shards/' + name), raw)
+    temporary_decisions = safe_path(destination, f'decisions-{uuid4().hex}.tmp')
+    save(temporary_decisions, decisions)
+    os.replace(temporary_decisions, safe_path(destination, 'decisions.json'))
+    # The generated report described a different plan; do not leave misleading coverage.
+    report = safe_path(destination, 'graph-plan.json')
+    if report.exists():
+        report.unlink()
+    result.pop('graph_plan', None)
+    with store.database(target_graph) as connection:
+        csharp_nodes = {row[0] for row in connection.execute(
+            "SELECT DISTINCT n.node FROM node_observations n JOIN observations o ON o.id=n.observation "
+            "WHERE o.basis IN ('csharp-tree-sitter', 'dotnet-project-xml')")}
+    result.update(imported_from=source_run, accepted=len(decisions), shards=len(copied), added_questions=added,
+                  unassigned_csharp_nodes=len(csharp_nodes - assigned),
+                  note='Review the copied and extended plan before publishing; inspect remaining unassigned nodes.')
+    return result
 
 
 def expected_plan(manifest, plan, reader):
@@ -593,7 +724,7 @@ def write_lock(directory):
 
 
 def scope_info(info):
-    return {'investigation_scope': info['investigation_scope']} if 'investigation_scope' in info else {}
+    return {key: info[key] for key in ('investigation_scope', 'deferred_claims') if key in info}
 
 
 def has_multidimensional_profile(info):
@@ -610,7 +741,7 @@ def guard_promotion(path, info):
         return
     if has_multidimensional_profile(prior):
         if ('questions' in info['plan'] and
-                info.get('multidimensional_profile') != MULTIDIMENSIONAL_PROFILE):
+                info.get('multidimensional_profile') != prior.get('multidimensional_profile', prior.get('profile'))):
             raise MappingError('active multidimensional map preserved; restart investigation from the current map')
         previous_shards = prior.get('accepted_shards', {})
         proposed_shards = info.get('accepted_shards', {})
@@ -629,8 +760,8 @@ def guard_promotion(path, info):
     if migrating:
         proposed_plan = {key: value for key, value in proposed_plan.items() if key != 'output_language'}
     same_plan = prior['plan'] == proposed_plan
-    adding_partial_investigation = (prior.get('profile') == MULTIDIMENSIONAL_PROFILE and
-                                    info.get('multidimensional_profile') == MULTIDIMENSIONAL_PROFILE)
+    adding_partial_investigation = (supported_multidimensional_profile(prior.get('profile')) and
+                                    info.get('multidimensional_profile') == prior.get('profile'))
     if prior['status'] == 'complete' and info['status'] != 'complete' and not adding_partial_investigation:
         raise MappingError('active complete graph preserved; new coverage is partial')
     if same_plan and set(prior.get('accepted_shards', {})) - set(info.get('accepted_shards', {})):
@@ -652,9 +783,10 @@ def publish(root, name, *, reviewed_english_plan=None):
             data = investigation_rows(stage, manifest, plan, reader)
             profile_path = safe_path(stage, 'static-profile.json')
             if profile_path.exists():
-                if load(profile_path) != MULTIDIMENSIONAL_PROFILE:
+                static_profile = load(profile_path)
+                if not supported_multidimensional_profile(static_profile):
                     raise MappingError('recorded multidimensional profile differs; use the original mapper or rebuild')
-                replayed_base = multidimensional_rows(manifest, multidimensional_plan(manifest), reader)
+                replayed_base = multidimensional_rows(manifest, multidimensional_plan(manifest, static_profile), reader)
                 data = compose_multidimensional(manifest, reader, data, base=replayed_base)
                 metadata = dict(data['metadata'])
                 metadata['investigation_run'] = canonical(name)
@@ -672,6 +804,7 @@ def publish(root, name, *, reviewed_english_plan=None):
         store.check_integrity(connection, data)
         info = store.metadata(connection)
         write_readme(candidate_readme, info, connection, Path(__file__).resolve())
+        diagnostics = store.context_diagnostics(connection, limit=13) if 'questions' in plan else []
     graph_assignment = 'questions' in plan and any(item.get('node_ids') for item in plan['questions'])
     candidate_pin = graph_fingerprint(candidate) if graph_assignment else None
     # Coordinate with accept_shard (stage lock) as well as other publishers.
@@ -724,6 +857,8 @@ def publish(root, name, *, reviewed_english_plan=None):
     return dict(path=str(graph_path), snapshot=info['snapshot'], status=info['status'],
                 readme_written=readme_written, run=name, **scope_info(info), relationships=len(data['relationships']),
                 nodes=len(data['nodes']), discoveries=len(data.get('discoveries', [])),
+                **(dict(context_diagnostics=diagnostics[:12], context_diagnostics_truncated=len(diagnostics) > 12)
+                   if diagnostics else {}),
                 supplemental_fingerprint=info['supplemental_fingerprint'])
 
 
@@ -735,17 +870,20 @@ def verify(root, connection, *, replayed_base=None):
         raise MappingError('current input snapshot differs from published graph')
     if replayed_base is not None:
         base_metadata = {key: json.loads(value) for key, value in replayed_base['metadata']}
+        base_profile = info.get('multidimensional_profile', info.get('profile'))
         if (base_metadata.get('snapshot') != manifest['snapshot'] or
                 base_metadata.get('inventory_identity') != digest(manifest) or
-                base_metadata.get('profile') != MULTIDIMENSIONAL_PROFILE or
-                base_metadata.get('plan') != multidimensional_plan(manifest)):
+                base_metadata.get('profile') != base_profile or
+                base_metadata.get('plan') != multidimensional_plan(manifest, base_profile)):
             raise MappingError('replayed static base differs from verification snapshot or profile')
     with snapshot_reader(root, manifest) as reader:
         if 'questions' in info['plan']:
             data = compile_investigation(manifest, info['plan'], info['accepted_shards'], reader, allow_legacy=True)
             if 'multidimensional_profile' in info:
-                if info['multidimensional_profile'] != MULTIDIMENSIONAL_PROFILE:
+                if not supported_multidimensional_profile(info['multidimensional_profile']):
                     raise MappingError('recorded multidimensional profile differs; use the original mapper or rebuild')
+                if replayed_base is None:
+                    replayed_base = multidimensional_rows(manifest, multidimensional_plan(manifest, info['multidimensional_profile']), reader)
                 data = compose_multidimensional(manifest, reader, data, base=replayed_base)
                 if 'investigation_run' in info:
                     if not RUN.fullmatch(info['investigation_run']):
@@ -754,7 +892,7 @@ def verify(root, connection, *, replayed_base=None):
                     metadata['investigation_run'] = canonical(info['investigation_run'])
                     data['metadata'] = list(metadata.items())
         elif info['plan'].get('kind') == 'multidimensional':
-            if info['profile'] != MULTIDIMENSIONAL_PROFILE:
+            if not supported_multidimensional_profile(info['profile']):
                 raise MappingError('recorded multidimensional profile differs; use the original mapper or rebuild')
             data = (replayed_base if replayed_base is not None else
                     multidimensional_rows(manifest, info['plan'], reader))
@@ -879,6 +1017,7 @@ def draft_coverage(question, raw, pairs):
         mapped.add(requirement)
         mappings.append(dict(requirement=requirements[requirement-1], claim=claims[claim-1]))
     return dict(status=raw['status'], gap=raw['gap'], mappings=mappings,
+                context_diagnostics=draft_subject_diagnostics(raw),
                 unmapped=[text for i, text in enumerate(requirements, 1) if i not in mapped])
 
 
@@ -893,11 +1032,13 @@ def check_shard(root, args):
             check_run_assignments(root, manifest, [question], stage=stage)
             raw = load(safe_path(stage, f'shards/{args.task}.json'))
             validate_shard(question['id'], raw, manifest, reader)
+            validate_discrepancies(raw)
             if args.command == 'preflight':
                 return draft_coverage(question, raw, args.covers)
             decisions = load(safe_path(stage, 'decisions.json'))
             fingerprint = decision_fingerprint(plan['output_language'], question, raw, decisions)
             return dict(question=args.task, status=raw['status'], claims=len(raw['claims']),
+                        context_diagnostics=draft_subject_diagnostics(raw),
                         discoveries=len(raw.get('discoveries', [])), fingerprint=fingerprint)
         if args.command == 'preflight':
             raise MappingError('preflight requires an investigation question')
@@ -991,6 +1132,7 @@ def graph_unit(root, args, connection):
     check_graph_assignment(connection, manifest, [question])
     result = dict(snapshot=manifest['snapshot'], graph_fingerprint=generation,
                   question=dict(id=question['id'], question=question['question'],
+                    **({'scope': question['scope']} if 'scope' in question else {}),
                   depends_on=question['depends_on'], seed_count=len(question['seeds']),
                   node_count=len(question['node_ids'])), question_fingerprint=digest(question))
     result.update(role_coverage(connection, question['node_ids']))
@@ -1004,12 +1146,17 @@ def graph_unit(root, args, connection):
         values = ','.join('( ? )' for _ in keys)
         rows = connection.execute(
             f'WITH assigned(key) AS (VALUES {values}) '
-            'SELECT id,type,family,source,target,state FROM relationships '
+            'SELECT id,type,family,source,target,state,reason,conditions FROM relationships '
             'WHERE source IN (SELECT key FROM assigned) OR target IN (SELECT key FROM assigned) '
             'ORDER BY id LIMIT ? OFFSET ?', (*keys, args.limit + 1, args.edge_offset)).fetchall()
         more_nodes = args.node_offset + len(nodes) < len(keys)
         more_edges = len(rows) > args.limit
-        result.update(nodes=nodes, edges=[dict(row) for row in rows[:args.limit]],
+        edges = [dict(row, conditions=json.loads(row['conditions'])) for row in rows[:args.limit]]
+        for edge in edges:
+            if edge['state'] == 'unresolved':
+                edge['candidates'] = [row[0] for row in connection.execute(
+                    'SELECT node FROM relationship_candidates WHERE relationship=? ORDER BY node', (edge['id'],))]
+        result.update(seeds=question['seeds'], nodes=nodes, edges=edges,
                       next_node_offset=args.node_offset + len(nodes) if more_nodes else None,
                       next_edge_offset=args.edge_offset + args.limit if more_edges else None,
                       next_nodes=(dict(node_offset=args.node_offset + len(nodes), expect_graph=generation)
@@ -1034,7 +1181,12 @@ def arguments():
     snapshot_options(investigate)
     investigate.add_argument('--from-graph', action='store_true',
                              help='derive semantic assignments from a verified graph of the same snapshot')
-    snapshot_options(commands.add_parser('map', help='publish a multidimensional static map of the snapshot'))
+    migrate = commands.add_parser('import-run', help='copy and revalidate an investigation into a separate C# checkout')
+    migrate.add_argument('--source-repo', type=Path, required=True)
+    migrate.add_argument('--source-run', required=True)
+    map_args = commands.add_parser('map', help='publish a multidimensional static map of the snapshot')
+    snapshot_options(map_args)
+    map_args.add_argument('--csharp', action='store_true', help='enable the optional pinned C# syntax parser')
     snapshot_options(commands.add_parser('build', help='publish the optional static Python baseline'))
     prepare_args = commands.add_parser('prepare', help='inventory, plan and extract in an unpublished run')
     snapshot_options(prepare_args)
@@ -1150,8 +1302,13 @@ def dispatch(root, args):
             raise
     if args.command == 'investigate':
         return start_run(root, args.commit, investigation=True, from_graph=args.from_graph)
+    if args.command == 'import-run':
+        return import_investigation(root, args.source_repo, args.source_run)
     if args.command == 'map':
-        return publish(root, start_run(root, args.commit, multidimensional=True)['run'])
+        if args.csharp:
+            from csharp_profile import parser
+            parser()  # Fail before creating a run when the optional parser is unavailable.
+        return publish(root, start_run(root, args.commit, multidimensional=True, csharp=args.csharp)['run'])
     if args.command == 'build':
         return publish(root, start_run(root, args.commit)['run'])
     if args.command == 'prepare':
@@ -1197,7 +1354,7 @@ def dispatch(root, args):
             matches = store.search_discoveries(connection, args.query, args.limit)
             info = store.metadata(connection, 'snapshot', 'profile', 'multidimensional_profile')
             result = dict(snapshot=info['snapshot'], matches=matches)
-            if info.get('profile') == MULTIDIMENSIONAL_PROFILE or 'multidimensional_profile' in info:
+            if supported_multidimensional_profile(info.get('profile')) or 'multidimensional_profile' in info:
                 result['nodes'] = store.search_nodes(connection, args.query, args.limit)
             return result
         if args.command == 'open':
