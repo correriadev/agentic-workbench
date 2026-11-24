@@ -349,6 +349,13 @@ def validate_new_evidence(evidence, old, tasks, previous, revision, obligations)
 
 
 def verify_finding_evidence(record, evidence, tasks, revision, obligations, assessment, obligation_id, status):
+    if status != "INCONCLUSIVE":
+        if obligations[obligation_id]["status"] == "pending":
+            raise ValueError("Pending obligation requires an inconclusive finding")
+        values = record.get("observed_values")
+        if (values is None or isinstance(values, dict) and not values
+                or isinstance(values, str) and not values.strip()):
+            raise ValueError("A conclusive finding requires recorded observed values")
     if record.get("event") == "result":
         start = evidence[record["attempt_id"]]
         validate_result(record, start)
@@ -373,13 +380,72 @@ def verify_finding_evidence(record, evidence, tasks, revision, obligations, asse
         raise ValueError("Finding cites unrelated, stale or failed evidence")
 
 
+def qa_evidence(folder, candidate, obligation_id, limit):
+    scope_bytes = (folder / "SCOPE.md").read_bytes()
+    scope = digest(scope_bytes)
+    qa, qa_digest = read(folder / "qa.json")
+    contract = qa.get("contract") if qa else None
+    if not contract or (contract["scope_revision"], contract["change_id"]) != (scope, folder.name):
+        raise ValueError("Replan the missing, stale or legacy QA contract")
+    revision = contract_digest(contract)
+    obligations = validate_qa(contract, scope_bytes.decode(), folder)
+    if obligation_id not in obligations:
+        raise ValueError(f"Unknown QA obligation: {obligation_id}")
+    document, tasks_digest = read(folder / "tasks.json")
+    if document is not None:
+        validate_blueprint(folder, document)
+    document = document or {}
+    tasks = indexed(document.get("tasks", []))
+    evidence = indexed(document.get("evidence", []))
+    finished = {row["attempt_id"] for row in evidence.values() if row.get("event") == "result"}
+    results = dict(observed_results=[], excluded_results=[], unfinished_attempts=[])
+    for record in reversed(list(evidence.values())):
+        event = record.get("event")
+        start = evidence.get(record["attempt_id"], {}) if event == "result" else record
+        if start.get("event") == "started":
+            links = start["definition"]["check"]["qa_ids"]
+        else:
+            links = start.get("qa_ids", [])
+        if start.get("candidate") != candidate or obligation_id not in links:
+            continue
+        if event == "started":
+            if record["id"] not in finished:
+                results["unfinished_attempts"].append(record)
+            continue
+        try:
+            # No verdict is supplied when projecting possible conclusive evidence.
+            verify_finding_evidence(record, evidence, tasks, revision, obligations,
+                                    {"candidate": candidate}, obligation_id, status=None)
+        except (ValueError, KeyError, TypeError) as error:
+            results["excluded_results"].append(dict(id=record["id"], reason=str(error)))
+        else:
+            results["observed_results"].append(dict(result=record, start=start if event == "result" else None))
+    return dict(candidate=candidate, obligation=obligations[obligation_id], scope_revision=scope,
+                qa_revision=revision, qa_digest=qa_digest, tasks_digest=tasks_digest,
+                counts={key: len(rows) for key, rows in results.items()},
+                **{key: rows[:limit] for key, rows in results.items()})
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("folder", type=Path)
-    parser.add_argument("operation", choices=("inspect", "plan", "build", "qa-plan", "qa-check", "scope"))
+    parser.add_argument("operation", choices=("inspect", "plan", "build", "qa-plan", "qa-check", "qa-evidence", "scope"))
+    parser.add_argument("candidate", nargs="?", help="exact execution candidate for qa-evidence")
+    parser.add_argument("--obligation", help="published QA obligation for qa-evidence")
+    parser.add_argument("--limit", type=int, help="maximum records per result category for qa-evidence (default 5)")
     parser.add_argument("--expect", help="Current destination file digest, or absent")
     args = parser.parse_args()
     folder = args.folder
+    if args.operation == "qa-evidence":
+        if not nonempty_text(args.candidate) or not nonempty_text(args.obligation):
+            parser.error("qa-evidence requires a candidate and --obligation")
+        limit = args.limit if args.limit is not None else 5
+        if limit < 1:
+            parser.error("--limit must be positive")
+        print(json.dumps(qa_evidence(folder, args.candidate, args.obligation, limit), ensure_ascii=False))
+        return
+    if any(arg is not None for arg in (args.candidate, args.obligation, args.limit)):
+        parser.error("candidate, --obligation and --limit are supported only by qa-evidence")
     proposed = None if args.operation == "inspect" else (
         sys.stdin.read() if args.operation == "scope" else json.load(sys.stdin)
     )
@@ -492,8 +558,6 @@ def main():
                             revision, obligations, value, key, status,
                         )
                     if obligations[key]["blocking"]:
-                        if obligations[key]["status"] == "pending" and status != "INCONCLUSIVE":
-                            raise ValueError("Pending obligation requires inconclusive finding")
                         blocking.append(status)
                 expected = ("FAIL" if "FAIL" in blocking else
                             "INCONCLUSIVE" if "INCONCLUSIVE" in blocking or value.get("contract_gap")
