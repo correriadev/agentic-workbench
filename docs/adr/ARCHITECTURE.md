@@ -80,7 +80,7 @@ REQUIRED: Any import violating these rules must fail CI verification via: `pytho
 | `cleanup` | Repository hygiene and cache purging scripts | `scripts/cleanup.ps1` |
 
 ## CHANGE CONTRACT
-- The first planner may create `SCOPE.md`; either planner can operate independently. `blueprint` owns `tasks.json`, and `quality-gate plan` owns `qa.json`.
+- `blueprint` owns `context.sqlite` and its rendered `SCOPE.md`. Forge publishes its version-bound `tasks.json` projection. Quality Gate owns `qa.json` and may create a standalone scope when no Blueprint database exists.
 - Derived plans identify the scope revision. Reconcile affected plans after approved changes to the shared behavior and when QA obligations introduce evidence work.
 - `forge` executes unit-first RED → GREEN for implementation tasks and produces planned evidence in the working tree. `quality-gate check` judges the evidence against the published contract without modifying it.
 
@@ -117,7 +117,7 @@ import external_orchestrator                     # FORBIDDEN: provider-agnostic 
 
 ### Change contracts
 
-Planned changes store three contracts under `docs/specs/<change_id>/`. `SCOPE.md` defines the shared behavior and risks. `tasks.json` stores the task graph, execution state and candidate evidence. `qa.json` stores the normative contract and assessments. The bundled `contract.py` validates writes under a shared lock. The QA revision hashes the normative contract independently of assessments.
+Planned changes can store `context.sqlite`, `SCOPE.md`, `tasks.json` and `qa.json` under `docs/specs/<change_id>/`. Blueprint's database is the specification; the scope is its rendered summary. Forge's task projection binds the database revision and hash and stores execution state and evidence. QA stores obligations and assessments. The bundled `contract.py` validates task and QA writes under a shared lock. The QA revision hashes the normative contract independently of assessments.
 
 Direct Forge execution starts from the user request and the repository. It can implement, author a check or run an existing procedure. It presents action, target, preconditions, permitted effects and verification after read-only inspection and before writes or side effects.
 

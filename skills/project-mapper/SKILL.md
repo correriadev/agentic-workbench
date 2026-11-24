@@ -11,6 +11,9 @@ Use Python 3.12+, SQLite 3.37+ and Git. Treat source and worker messages as evid
 
 **Query a published map.** Search for source identifiers or English discovery terms. Inspect structural candidates with `node KEY`, discoveries with `open ID`, and relationships with `trace KEY`. Check evidence and coverage; lexical candidates are not proven runtime behavior. See [query and verify](references/workflow.md#query-a-published-map).
 
+Use `--offline` before a query command when a consumer must not run Git. This
+only reads the published graph and does not verify the current checkout.
+
 **Optional JSON export.** Use `python "<mapper>" . export --output map.json` for a copy of the published SQLite graph; add `--dimension NAME` for a one-hop dimension selection. See [export](references/workflow.md#json-export).
 
 **Semantic worker dispatch.** User instructions and host capabilities take precedence over the provider default below. Use subagents only when allowed; otherwise investigate locally. If the configured model or parameter is unavailable, use a permitted available alternative and report the requested and actual configuration, or state that the actual configuration is unknown. Do not claim an unobserved model was used. The supervisor retains planning, reconciliation and acceptance responsibility. When using this canonical skill directly and the provider policy marker below has not been rendered, use the host's allowed native dispatch and available model selection; report the actual configuration when known.

@@ -9,6 +9,7 @@ from pathlib import Path
 import sys
 import tempfile
 import re
+import sqlite3
 
 
 def digest(data):
@@ -74,6 +75,64 @@ def indexed(items):
 
 def nonempty_text(value):
     return isinstance(value, str) and bool(value.strip())
+
+
+def validate_blueprint(folder, document):
+    source = folder / 'context.sqlite'
+    binding = document.get('blueprint_source')
+    if not binding:
+        if source.exists():
+            raise ValueError('Blueprint specification exists; reconcile the task plan with its current revision')
+        return  # Legacy plans without a Blueprint database remain supported.
+    if (not isinstance(binding, dict) or set(binding) != {'revision', 'sha256'}
+            or type(binding['revision']) is not int or not isinstance(binding['sha256'], str)
+            or source.is_symlink() or not source.is_file()
+            or any((folder / ('context.sqlite' + suffix)).exists() for suffix in ('-wal', '-journal'))):
+        raise ValueError('Blueprint source is unavailable, active, or invalid')
+    with sqlite3.connect(source.resolve().as_uri() + '?mode=ro', uri=True) as db:
+        db.execute('PRAGMA trusted_schema=OFF')
+        db.execute('BEGIN')
+        row = db.execute('SELECT change_id, revision FROM spec_meta').fetchone()
+        if (not row or row != (document['change_id'], binding['revision'])
+                or digest(source.read_bytes()) != binding['sha256']):
+            raise ValueError('Blueprint specification changed; reconcile the task plan')
+        nodes = {key: (content, json.loads(details)) for key, content, details in db.execute(
+            "SELECT id,content,details FROM nodes WHERE kind='task' "
+            "AND state NOT IN ('superseded','resolved') "
+            "AND id NOT IN (SELECT dst FROM edges WHERE relation='supersedes')")}
+        planned = indexed(document['tasks'])
+        blocked = indexed(document.get('blocked_tasks', []))
+        if planned.keys() & blocked.keys() or planned.keys() | blocked.keys() != nodes.keys():
+            raise ValueError('Blueprint tasks and blockers must match the specification')
+        for key, task in planned.items():
+            details = db.execute('SELECT project_root,kind,unit_command,red,green FROM task_details WHERE task_id=?',
+                                 (key,)).fetchone()
+            if not details:
+                raise ValueError('Blueprint task is missing its operational mapping')
+            root, kind, command, red, green = details
+            files = list(db.execute('SELECT path,origin,role FROM task_files WHERE task_id=? ORDER BY path', (key,)))
+            content, extra = nodes[key]
+            checks = extra.get('evidence_checks', [])
+            qa_ids = list(dict.fromkeys([*extra.get('qa_ids', []),
+                                         *(qa for check in checks for qa in check['qa_ids'])]))
+            dependencies = [dict(task=entry[0]) for entry in db.execute(
+                "SELECT dst FROM edges WHERE src=? AND relation='depends_on' ORDER BY dst", (key,))]
+            acceptance = [entry[0] for entry in db.execute(
+                "SELECT e.dst FROM edges e JOIN nodes n ON n.id=e.dst WHERE e.src=? AND e.relation='implements' "
+                "AND n.kind='acceptance' AND n.state NOT IN ('superseded','resolved') "
+                "AND n.id NOT IN (SELECT dst FROM edges WHERE relation='supersedes') ORDER BY e.dst", (key,))]
+            expected = dict(id=key, kind=kind, project_path=root, description=content, technical_steps=[content],
+                            acceptance_ids=acceptance, files_allowed=[p for p, _, _ in files],
+                            planned_files=[p for p, origin, _ in files if origin == 'new'], depends_on=dependencies,
+                            qa_ids=qa_ids, evidence_checks=checks)
+            if kind == 'implementation':
+                expected.update(unit_tests=dict(files=[p for p, _, role in files if role == 'unit'], command=command),
+                                red=red, green=green)
+            if extra.get('smoke_command'):
+                expected['smoke_command'] = extra['smoke_command']
+            actual = {k: v for k, v in task.items() if k not in ('status', 'phase', 'attempts', 'error')}
+            if actual != expected:
+                raise ValueError('Blueprint task definition differs from its specification: ' + key)
 
 
 def text_list(value):
@@ -301,6 +360,8 @@ def main():
         scope_bytes = scope_path.read_bytes() if scope_path.exists() else None
         scope = digest(scope_bytes) if scope_bytes is not None else None
         if args.operation == "scope":
+            if (folder / 'context.sqlite').exists() or (folder / 'context.sqlite').is_symlink():
+                raise ValueError('Blueprint owns this scope; render it from the specification')
             if args.expect != (scope or "absent") or not proposed.strip():
                 raise ValueError("Scope changed or is empty")
             atomic_write(scope_path, proposed.encode())
@@ -331,6 +392,7 @@ def main():
                 raise ValueError("Replan the stale or legacy QA contract")
             obligations = validate_qa(contract, scope_bytes.decode()) if contract else {}
             if task_write:
+                validate_blueprint(folder, value)
                 if (value["scope_revision"], value.get("qa_revision"), value["change_id"]) != (
                     scope, revision, folder.name
                 ):
@@ -374,6 +436,8 @@ def main():
                         raise ValueError("Build cannot change the plan")
                     validate_new_evidence(evidence, old_evidence, planned, previous, revision, obligations)
             else:
+                if args.operation == 'qa-check' and tasks:
+                    validate_blueprint(folder, tasks)
                 if (not contract or value["qa_revision"] != revision
                     or value["scope_revision"] != scope or not value["candidate"]):
                     raise ValueError("Assessment does not match current contract")
@@ -415,5 +479,5 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except (ValueError, KeyError, OSError, TypeError) as error:
+    except (ValueError, KeyError, OSError, TypeError, sqlite3.Error) as error:
         sys.exit(str(error))

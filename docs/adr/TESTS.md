@@ -57,7 +57,7 @@ REQUIRED: Maintain the following minimum coverage levels:
 - PROHIBITED: Modifying test assertions or ignoring validation exit codes to force green verification status.
 
 ## CONSTRUCTION AND QA EVIDENCE
-- `blueprint` documents explicit `unit_tests.files` and an executable focused `unit_tests.command` in `tasks.json` for implementation tasks, with test paths included in `files_allowed`.
+- `blueprint` records focused unit files, runner source, command and RED/GREEN outcomes in `context.sqlite`; its Forge projection maps them to `unit_tests` and `files_allowed` in `tasks.json`.
 - `forge` reads `docs/README.md` first, creates or updates only mapped test files in RED and verifies a failure caused by missing acceptance behavior (not by syntax, imports or environment).
 - GREEN edits only allowed production files; the mapped tests remain frozen. The same unit-test command must exit 0 before the task is completed. Build/typecheck smoke checks are supplementary.
 - Missing test mappings and pre-existing unrelated test failures block execution; do not bypass or weaken the tests to reach GREEN. Neither git nor worktrees are used.

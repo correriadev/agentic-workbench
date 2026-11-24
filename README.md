@@ -51,7 +51,7 @@ Uma vez sincronizadas, invoque as skills em qualquer projeto pelo nome ou objeti
 
 ### Construção e validação
 
-`blueprint` e `quality-gate plan` podem ser chamados de forma independente e em qualquer ordem. A primeira skill cria o `SCOPE.md` compartilhado quando necessário. `blueprint` gera `tasks.json`; `quality-gate plan` investiga o código e gera as obrigações de evidência em `qa.json`. Quando ambos os planos existem, reconcilie as obrigações com as tarefas e use a mesma revisão de escopo.
+`blueprint` registra a especificação em `context.sqlite` e gera o resumo `SCOPE.md`. Sua projeção versionada é publicada para execução como `tasks.json`. `quality-gate plan` registra obrigações de evidência em `qa.json` e também pode usar um escopo independente quando não há banco do Blueprint. Reconcilie as obrigações e as revisões antes da execução.
 
 `forge` executa as tarefas na working tree, começa pelos testes unitários em RED e só então implementa em GREEN. Também executa as verificações planejadas para produzir evidências. Quando houver contrato de QA, `quality-gate check` julga a evidência vinculada ao candidato e registra o veredito.
 
@@ -74,7 +74,7 @@ Todas as skills ficam isoladas em `skills/<nome>/` e contêm sua especificação
 |---|---|
 | [`the-grumpy-tech-lead`](skills/the-grumpy-tech-lead/SKILL.md) | Revisor socrático; audita vazamentos de recursos, queries N+1, contratos e integridade de design. |
 | [`project-memory`](skills/project-memory/SKILL.md) | Mantém a memória documental em `docs/` (`.digest.md`, `.graph.json`, ADRs). |
-| [`blueprint`](skills/blueprint/SKILL.md) | Inicializa ou reutiliza o escopo e gera o plano de implementação e evidência em `tasks.json`. |
+| [`blueprint`](skills/blueprint/SKILL.md) | Planeja a alteração em SQLite, gera o resumo e projeta tarefas para o Forge. |
 | [`quality-gate`](skills/quality-gate/SKILL.md) | Define as obrigações de evidência em `plan` e avalia o candidato em `check`. |
 | [`journey-verifier`](skills/journey-verifier/SKILL.md) | Gera um repositório E2E separado, executa a jornada contra o alvo real e registra efeitos observados por canais independentes. |
 | [`forge`](skills/forge/SKILL.md) | Implementa mudanças, cria verificações e executa procedimentos existentes, incluindo E2E. |
@@ -168,8 +168,8 @@ python skills/project-memory/scripts/validate_ontology.py docs
 ### Forge em modo direto ou planejado
 
 - **Direto.** A Forge pode implementar uma mudança, criar uma verificação ou executar um cenário existente. Após a inspeção somente leitura, apresenta na sessão a ação, o alvo, as pré-condições, os efeitos previstos e a verificação antes da primeira escrita ou de uma execução com efeitos. RED → GREEN se aplica a mudanças de comportamento do produto. Esse modo dispensa os três contratos.
-- **Planejado.** Indique o plano ou o `change_id`. Em `docs/specs/<change_id>/`, `SCOPE.md` registra a intenção e os critérios, `tasks.json` guarda o plano, os estados e as evidências, e `qa.json` guarda as obrigações em `contract` e os vereditos em `assessments`. Quando houver QA formal, use `quality-gate plan`, reconcilie as tarefas com `blueprint`, execute com `forge` e avalie com `quality-gate check`. Um contrato planejado inválido deve ser reconciliado antes da execução.
+- **Planejado.** Indique o plano ou o `change_id`. Em `docs/specs/<change_id>/`, `context.sqlite` guarda a especificação, `SCOPE.md` é seu resumo, `tasks.json` guarda a projeção, os estados e as evidências, e `qa.json` guarda as obrigações e os vereditos. Quando houver QA formal, use `quality-gate plan`, reconcilie as tarefas com `blueprint`, publique a projeção com `forge` e avalie com `quality-gate check`. Contratos inválidos devem ser reconciliados antes da execução.
 
-Para E2E, a Forge segue o runbook e reutiliza o runner do projeto. Confere o ambiente e a versão servida, executa o cenário e registra as observações ou os bloqueios. No modo planejado, associa cada `evidence_check` de `tasks.json` às obrigações de `qa.json.contract` e registra a evidência por obrigação e candidato, incluindo falhas observadas. Uma suíte verde com observações faltantes deixa uma lacuna. O veredito cabe a `quality-gate check`.
+Para E2E, a Forge segue o runbook e reutiliza o runner do projeto. Confere o ambiente e a versão servida, executa o cenário e registra as observações ou os bloqueios. No modo planejado, associa cada `evidence_check` de `tasks.json` às obrigações de `qa.json.contract` e registra a evidência por obrigação e candidato, incluindo falhas observadas. Uma suíte verde com observações faltantes deixa uma lacuna. O veredito cabe a `quality-gate check`. Quando disponível, Blueprint e Forge consultam o grafo do Project Mapper como apoio à investigação e conferem as fontes atuais.
 
 Os scripts `contract.py` acompanham as skills e validam as gravações. A revisão de QA identifica o conteúdo de `qa.json.contract`. Registrar um veredito preserva essa revisão.

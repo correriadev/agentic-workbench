@@ -15,6 +15,7 @@ run `python /path/to/blueprint/contract.py docs/specs/<change-id> <operation>`.
 | `gaps` | Deterministic findings and task readiness |
 | `validate` | Integrity and planning findings, with a nonzero exit on a blocked plan |
 | `render-scope` | Atomically regenerate the human summary for the current revision |
+| `export-forge` | Print a version-bound Forge task projection; writes nothing |
 
 ## Apply format
 
@@ -75,6 +76,27 @@ The implementation task's `task_files` entries are the file allowlist and
 `role: unit` denotes its RED/GREEN files. Map the task to its unit scenario
 directly, including the same focused command. Use `runner_source` for
 configuration or an inspected example that grounds that command.
+
+## Handoff to Forge
+
+After reviewing `gaps`, `coverage` and `validate`, run `render-scope`, then
+`export-forge`. This prints JSON for Forge's existing `plan` operation; it does
+not publish `tasks.json`. Give the JSON and the current Forge `inspect` digest
+to Forge, which publishes it with its own contract script. The projection binds
+the exact Blueprint database revision and SHA-256, current scope and QA revision.
+Reconcile any rejection; do not remove the binding. Existing execution evidence
+is retained, while projected tasks return to pending when replanned.
+
+For explicit formal QA mapping, put `qa_ids` and `evidence_checks` on the task
+node's `details`. Each check needs an `id`, `command`, `qa_ids`, and `files`
+as project-relative references; all QA IDs must identify ready obligations in the
+current `qa.json.contract`. Evidence tasks require at least one mapped check.
+Reading or running an existing check does not authorize editing its files.
+The exporter leaves an unready task and its dependents in `blocked_tasks`,
+including missing production paths, missing QA mappings or pending obligations;
+it never invents a mapping. If recording these mappings changes the scope
+revision, rerender and reconcile QA before exporting. Legacy plans remain
+readable without this projection when no Blueprint database exists.
 
 Planning readiness is a structural result. The validator compares declared
 observable IDs and checks task mappings, but cannot prove that a test body,

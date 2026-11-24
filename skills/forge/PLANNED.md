@@ -5,7 +5,14 @@ Read this reference only after selecting planned mode. Apply the common project 
 Sections: task contract, state and DAG, preflight, RED, GREEN, builder audit, evidence handoff, reporting and contract commands.
 
 <task_contract>
-`tasks.json` is produced by `blueprint`. Each implementation task defines:
+When `context.sqlite` exists, obtain Blueprint's `export-forge` JSON for its
+current rendered scope and publish that projection through this skill's `plan`
+contract operation. It records the Blueprint revision and database SHA-256;
+`plan`, `build` and Quality Gate `check` reject a changed source or altered
+task definitions. The projection keeps prior evidence and restarts tasks when
+replanned. Reconcile a changed scope or QA contract with Blueprint before
+execution. Existing `tasks.json` plans without a Blueprint database remain
+supported. Each implementation task defines:
 ```json
 {
   "id": "T1",
@@ -43,6 +50,9 @@ Sections: task contract, state and DAG, preflight, RED, GREEN, builder audit, ev
 
 ### 0. Preflight
 1. Validate `SCOPE.md`, parseable tasks JSON, unique IDs, acyclic DAG, absolute existing project roots, test mappings, allowed paths and states. Verify `blocked_tasks` IDs are disjoint from executable tasks and absent from their dependency lists; execute only the ready tasks and report outstanding blockers. Never edit QA or scope files.
+   For a Blueprint-bound plan, verify its source binding and inspect affected
+   task nodes, blockers and source references. The contract checks identity and
+   task fields, not whether the assertions or source interpretation are correct.
 2. Read `<project_context>`, verify targeted unit runner command and optional build/typecheck `smoke_command`; reject unavailable/unsafe commands.
 3. Check mapped existing tests for preexisting failures and halt if found; missing-file errors for planned `[NEW]` tests do not count as RED.
 4. Snapshot working-tree files (paths, mtimes, optionally hashes) excluding `.git`, dependencies and caches to audit actual writes, not only builder claims.
@@ -108,9 +118,10 @@ Run `inspect` to obtain `scope_revision`, `qa_revision` and destination digests.
 For updates run the designated operation with `--expect <destination_digest>`
 (or `--expect absent` for a new file), supplying the proposed JSON on stdin.
 Use the digests from before analysis. If the destination changed, reread and
-reconcile before retrying. Use the script for every contract write. Blueprint and Quality Gate plan use
-`scope --expect <scope_revision-or-absent>` with Markdown on stdin to create
-or revise SCOPE.md under the same lock, following the shared scope rules.
+reconcile before retrying. Use the script for every task or QA contract write.
+When no Blueprint database exists, Quality Gate plan may use `scope --expect
+<scope_revision-or-absent>` to create or revise the shared scope. Otherwise
+Blueprint renders the scope from its own database.
 Declare each material risk on its own Markdown line or table row beginning
 with its `R<number>` ID.
 The QA revision hashes canonical JSON of `qa.json.contract`; assessments do

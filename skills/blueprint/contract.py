@@ -12,6 +12,7 @@ import sys
 import tempfile
 
 from completeness import assess, coverage, repository_path, structural_checks
+from forge_export import export_forge
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 ID = re.compile(r"[A-Za-z][A-Za-z0-9_.:-]{0,127}")
@@ -274,7 +275,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("folder", type=Path)
     parser.add_argument("operation", choices=("init", "apply", "inspect", "get", "trace", "impact",
-                                              "coverage", "gaps", "validate", "render-scope"))
+                                              "coverage", "gaps", "validate", "render-scope", "export-forge"))
     parser.add_argument("node", nargs="?")
     parser.add_argument("--expect", type=int)
     parser.add_argument("--depth", type=int, default=6, choices=range(1, 21))
@@ -326,6 +327,11 @@ def main():
             result = render(db, folder)
         elif operation == "coverage":
             result = coverage(db, args.node)
+        elif operation == "export-forge":
+            scope = folder / "SCOPE.md"
+            if scope.is_symlink() or not scope.is_file() or scope.read_bytes() != scope_text(db).encode():
+                raise ValueError("Render the current Blueprint scope before exporting")
+            result = export_forge(db, folder, metadata(db), scope.read_bytes())
         else:
             result = assess(db)
             if operation == "validate":
