@@ -1,3 +1,4 @@
+from collections import Counter
 from contextlib import closing
 import json
 from pathlib import Path
@@ -7,7 +8,7 @@ import subprocess
 import sys
 import unittest
 
-from test_acceptance import fixture, invoke, test_directory
+from test_acceptance import fixture, git, invoke, test_directory
 from test_investigation import accept, add_question, publish_investigation, save
 
 
@@ -38,6 +39,30 @@ class MultidimensionalCLI(unittest.TestCase):
             self.assertNotEqual(query('verify').returncode, 0)
             self.assertNotEqual(query('node', 'file:package.json', '--run', 'invalid').returncode, 0)
 
+    def test_expected_revision_rejects_stale_commits_and_worktree_maps(self):
+        with test_directory() as repo:
+            revision = fixture(repo, {'package.json': '{"name":"demo"}\n'})
+            invoke(repo, 'map', '--commit', revision)
+            (repo / 'package.json').write_text('{"name":"updated"}\n', encoding='utf-8')
+            git(repo, 'add', 'package.json')
+            git(repo, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test',
+                '-c', 'commit.gpgsign=false', 'commit', '-qm', 'advance')
+            head = git(repo, 'rev-parse', 'HEAD').decode().strip()
+            self.assertEqual(invoke(repo, 'verify')['snapshot']['revision'], revision)
+            for mode, command in (((), ('verify',)), (('--offline',), ('search', 'package.json'))):
+                with self.subTest(command=command):
+                    stale = invoke(repo, *mode, '--expect-revision', head, *command, ok=False)
+                    self.assertNotEqual(stale.returncode, 0)
+                    self.assertIn('differs from expected revision', stale.stderr)
+                    self.assertEqual(stale.stdout, '')
+                    self.assertEqual(invoke(repo, *mode, '--expect-revision', revision, *command)
+                                     ['snapshot']['revision'], revision)
+            invalid = invoke(repo, '--expect-revision', 'HEAD', 'verify', ok=False)
+            self.assertIn('requires a full Git commit hash', invalid.stderr)
+            invoke(repo, 'map', '--worktree')
+            worktree = invoke(repo, '--expect-revision', head, 'verify', ok=False)
+            self.assertIn('found a worktree snapshot', worktree.stderr)
+
     def test_map_and_enrichment_replay_the_same_snapshot(self):
         with test_directory() as repo:
             revision = fixture(repo, {
@@ -58,6 +83,11 @@ class MultidimensionalCLI(unittest.TestCase):
             trace = invoke(repo, 'trace', 'file:scripts/rea.mjs')
             self.assertTrue(trace['analysis_incomplete'])
             self.assertTrue(any(row['family'] == 'multidimensional-static' for row in trace['coverage_frontier']))
+            compact = invoke(repo, 'trace', 'file:scripts/rea.mjs', '--summary')
+            self.assertEqual(Counter({(row['family'], row['status']): row['count']
+                                      for row in compact.pop('coverage_frontier_summary')}),
+                             Counter((row['family'], row['status']) for row in trace.pop('coverage_frontier')))
+            self.assertEqual(compact, trace)
 
             run = invoke(repo, 'investigate', '--commit', revision)
             add_question(run, 'start', 'Where is the entry declared?', ['package.json'])

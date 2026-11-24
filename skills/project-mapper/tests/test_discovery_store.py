@@ -65,6 +65,47 @@ class DiscoveryStore(unittest.TestCase):
                 with self.assertRaisesRegex(MappingError, 'discovery_terms'):
                     store.check_integrity(db, data)
 
+    def test_search_ranks_exact_source_context_before_mentions(self):
+        discoveries = [
+            ('details', 'Write boundary', 'Persists the request and queue record.', '["acceptance"]', 'null'),
+            ('mention', 'RecordRequest', 'Mentions RecordRequest in another handler.', '[]', 'null'),
+            ('read-boundary', 'Receipt lookup', 'Reads the receipt with a resolver.', '["lookup"]', 'null'),
+        ]
+        path = 'src/nested/RecordRequest.cs'
+        key = f'file:{path}'
+        other_path = 'src/other/RecordRequest.cs'
+        other_key = f'file:{other_path}'
+        case_variant = 'src/nested/recordrequest.cs'
+        case_key = f'file:{case_variant}'
+        nodes = [(item, 'discovery', '', title, 0) for item, title, *_ in discoveries]
+        nodes.extend((f'file:{name}', 'file', 'repository', name, 0) for name in (path, other_path, case_variant))
+        relations = [
+            ('r1', 'describes', 'semantic', 'details', key, 'resolved', '[]', '', ''),
+            ('r2', 'explained-by', 'semantic', key, 'details', 'resolved', '[]', '', ''),
+            ('r3', 'explained-by', 'semantic', other_key, 'read-boundary', 'resolved', '[]', '', ''),
+            ('r4', 'describes', 'semantic', 'read-boundary', case_key, 'resolved', '[]', '', ''),
+        ]
+        with closing(sqlite3.connect(':memory:')) as db:
+            db.row_factory = sqlite3.Row
+            db.executescript(store.SCHEMA)
+            db.execute('PRAGMA user_version=2')
+            db.executemany('INSERT INTO nodes VALUES (?,?,?,?,?)', nodes)
+            db.executemany('INSERT INTO discoveries VALUES (?,?,?,?,?)', discoveries)
+            db.executemany('INSERT INTO discovery_terms VALUES (?,?,?)', store.search_rows(discoveries))
+            db.executemany('INSERT INTO relationships VALUES (?,?,?,?,?,?,?,?,?)', relations)
+            for selector in (key, path, 'RecordRequest.cs', 'RecordRequest'):
+                with self.subTest(selector=selector):
+                    self.assertEqual(store.search_discoveries(db, selector, 1)[0]['key'], 'details')
+            self.assertEqual([r['key'] for r in store.search_discoveries(db, 'RecordRequest', 5)],
+                             ['details', 'read-boundary', 'mention'])
+            self.assertEqual(store.search_discoveries(db, 'RecordRequest', 1, terms='receipt resolver')[0]['key'],
+                             'read-boundary')
+            self.assertEqual(store.search_discoveries(db, key, 1, terms='receipt resolver')[0]['key'], 'details')
+            self.assertEqual(store.search_discoveries(db, path, 1, terms='receipt resolver')[0]['key'], 'details')
+            self.assertEqual(store.search_discoveries(db, 'Onde a requisição é gravada?', 1,
+                                                     terms='acceptance queue')[0]['key'], 'details')
+            self.assertEqual(store.search_discoveries(db, 'mention', 1, terms='acceptance')[0]['key'], 'mention')
+
 
 if __name__ == '__main__':
     unittest.main()

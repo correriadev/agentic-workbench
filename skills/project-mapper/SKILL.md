@@ -9,10 +9,11 @@ Use Python 3.12+, SQLite 3.37+ and Git. Treat source and worker messages as evid
 
 **Output language.** Write all mapper-authored material in English, regardless of the request or source language. This includes plans, worker prompts and answers, graph content and labels, exports, reports and responses based on the map. Preserve exact source identities such as paths, symbols, wire fields and protocol values. Explain their meaning in English and cite the original lines.
 
-**Query a published map.** Search for source identifiers or English discovery terms. Inspect structural candidates with `node KEY`, discoveries with `open ID`, and relationships with `trace KEY`. Check evidence and coverage; lexical candidates are not proven runtime behavior. See [query and verify](references/workflow.md#query-a-published-map).
+**Query a published map.** Search by exact source identifier or use English discovery terms with `search --terms` for a natural-language question. Open the most relevant discovery or use `trace KEY --summary` with a relationship type and a shallow depth. Check evidence and coverage before trusting a result. See [query and verify](references/workflow.md#query-a-published-map).
 
-Use `--offline` before a query command when a consumer must not run Git. This
-only reads the published graph and does not verify the current checkout.
+Use `--offline` before the command for Git-free reads. Pass `--expect-revision COMMIT`
+before the command when the intended commit is known. Compare decisive locators
+with current sources before changing code or making claims about the checkout.
 
 **Optional JSON export.** Use `python "<mapper>" . export --output map.json` for a copy of the published SQLite graph; add `--dimension NAME` for a one-hop dimension selection. See [export](references/workflow.md#json-export).
 

@@ -107,17 +107,37 @@ run-pinned queries, publication, export and `verify` are not. Each response
 includes `graph_identity` with the graph SHA-256, recorded snapshot, status and
 profile. Offline checks graph integrity but neither replays evidence nor verifies
 that the current working tree matches the snapshot. Compare graph identities
-across queries and inspect decisive current sources before using the result.
+across queries. For a committed graph, obtain the intended full commit hash
+from Git or the task context and pass `--expect-revision COMMIT` before the
+subcommand. Queries and `verify` reject a different recorded revision or a
+worktree graph with this option. `verify` replays the recorded snapshot.
+Inspect decisive current files and compare their content IDs when the working
+tree may have changed.
 
 From the target Git root, with the same mapper path:
 
 ```text
 python "<mapper>" . search "missing subtitle translation" --limit 5
+python "<mapper>" . search "Onde as legendas ausentes são detectadas?" --terms "missing subtitle translation"
 python "<mapper>" . open ID
-python "<mapper>" . trace ID --direction both --depth 2
+python "<mapper>" . trace ID --direction both --depth 1 --summary
 ```
 
-Translate a non-English question into English search terms. Use the original spelling for source identifiers and exact names. Search returns compact discovery candidates and, on multidimensional maps, matching structural nodes. Open a discovery by exact ID, or use `node KEY` for a structural node, then follow relations and inspect supporting locators. `dimensions` lists evidenced memberships. On an empty result, inspect coverage before inferring absence.
+Search by an exact discovery ID, source key, symbol, file basename or file stem
+when available. Discovery IDs come first, followed by discoveries linked to
+matching source identities through `describes` or `explained-by`. The
+lexical index ranks linked discoveries when multiple files share a name and
+fills the remaining slots. For a question in natural language,
+give distinctive English terms via `--terms` and preserve source identifiers.
+This option changes discovery keywords and keeps structural lookup on the
+original query. Open a relevant discovery and inspect its source locators.
+
+Use `trace --summary` with a direction, one or more `--type` filters and a
+shallow depth. It returns `coverage_frontier_summary` counts by family and
+status, with edge evidence, conditions, unresolved candidates, and truncation
+flags. Use the full trace or `coverage --area PATH_OR_QUESTION` for gap details.
+If the available evidence leaves the question open, search current source or
+consult `docs/` for project context. `dimensions` lists evidenced memberships.
 
 ## Optional Python baseline
 
