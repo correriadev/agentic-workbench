@@ -2,9 +2,10 @@
 
 For each project root, locate an installed compatible Project Mapper
 `scripts/project_mapper.py` and an existing `.project-mapper/graph.sqlite`.
-The map is optional. If absent, incompatible or unreadable, use source, tests
-and project documentation directly and report any material missing context.
-Do not create, update or regenerate a map as part of Forge's read-only context
+The map is optional. If absent, incompatible, incomplete or unreadable, follow
+`docs/README.md` and its index; if docs are absent, use the root README,
+manifests, source and tests. Report any material missing context.
+Do not create, update or regenerate a map as part of Execute Scope's read-only context
 step; those operations have separate write effects.
 
 Use only the CLI's Git-free offline mode, from the target root:
@@ -19,9 +20,9 @@ python "<mapper>" . --offline trace "<key>" --direction both --depth 2
 
 In direct mode, use entrypoints, callers, conditions, adjacent tests, runners
 and cross-boundary effects as leads for the plan. In planned mode, open the
-task in the Blueprint database, and trace its related behavior, risk and source
+task in the New Scope database, and trace its related behavior, risk and source
 nodes; `tasks.json` intentionally does not copy all specification details. When
-the Blueprint CLI is available, run `python "<blueprint>/contract.py"
+the New Scope CLI is available, run `python "<new-scope>/contract.py"
 "<spec-folder>" get <task-id>` and `trace <task-id> --depth 3`, then `get`
 relevant linked nodes. Otherwise inspect the same database read-only. Start
 from any `details.project_mapper` references on those nodes; inspect the

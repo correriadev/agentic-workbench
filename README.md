@@ -51,9 +51,9 @@ Uma vez sincronizadas, invoque as skills em qualquer projeto pelo nome ou objeti
 
 ### Construção e validação
 
-`blueprint` registra a especificação em `context.sqlite` e gera o resumo `SCOPE.md`. Sua projeção versionada é publicada para execução como `tasks.json`. `quality-gate plan` registra obrigações de evidência em `qa.json` e também pode usar um escopo independente quando não há banco do Blueprint. Reconcilie as obrigações e as revisões antes da execução.
+`new-scope` registra a especificação em `context.sqlite` e gera o resumo `SCOPE.md`. Sua projeção versionada é publicada para execução como `tasks.json`. `qa-scope plan` registra obrigações de evidência em `qa.json` e também pode usar um escopo independente quando não há banco do New Scope. Reconcilie as obrigações e as revisões antes da execução.
 
-`forge` executa as tarefas na working tree, começa pelos testes unitários em RED e só então implementa em GREEN. Também executa as verificações planejadas para produzir evidências. Quando houver contrato de QA, `quality-gate check` julga a evidência vinculada ao candidato e registra o veredito.
+`execute-scope` executa as tarefas na working tree, começa pelos testes unitários em RED e só então implementa em GREEN. Também executa as verificações planejadas para produzir evidências. Quando houver contrato de QA, `qa-scope check` julga a evidência vinculada ao candidato e registra o veredito.
 
 ### Pesquisa Aprofundada e Meta-Engenharia
 *Para investigar tópicos complexos ou criar/auditar novas skills.*
@@ -74,10 +74,10 @@ Todas as skills ficam isoladas em `skills/<nome>/` e contêm sua especificação
 |---|---|
 | [`the-grumpy-tech-lead`](skills/the-grumpy-tech-lead/SKILL.md) | Revisor socrático; audita vazamentos de recursos, queries N+1, contratos e integridade de design. |
 | [`project-memory`](skills/project-memory/SKILL.md) | Mantém a memória documental em `docs/` (`.digest.md`, `.graph.json`, ADRs). |
-| [`blueprint`](skills/blueprint/SKILL.md) | Planeja a alteração em SQLite, gera o resumo e projeta tarefas para o Forge. |
-| [`quality-gate`](skills/quality-gate/SKILL.md) | Define as obrigações de evidência em `plan` e avalia o candidato em `check`. |
+| [`new-scope`](skills/new-scope/SKILL.md) | Planeja a alteração em SQLite, gera o resumo e projeta tarefas para o Execute Scope. |
+| [`qa-scope`](skills/qa-scope/SKILL.md) | Define as obrigações de evidência em `plan` e avalia o candidato em `check`. |
 | [`journey-verifier`](skills/journey-verifier/SKILL.md) | Gera um repositório E2E separado, executa a jornada contra o alvo real e registra efeitos observados por canais independentes. |
-| [`forge`](skills/forge/SKILL.md) | Implementa mudanças, cria verificações e executa procedimentos existentes, incluindo E2E. |
+| [`execute-scope`](skills/execute-scope/SKILL.md) | Implementa mudanças, cria verificações e executa procedimentos existentes, incluindo E2E. |
 
 ### 💡 Produto, Design & Pesquisa
 | Skill | Papel |
@@ -122,10 +122,10 @@ O script [`scripts/sync_skills.py`](scripts/sync_skills.py) gerencia a distribui
 
 ```bash
 # Sincronizar apenas uma skill específica
-python scripts/sync_skills.py --skill blueprint
+python scripts/sync_skills.py --skill new-scope
 
 # Sincronizar uma skill para um único agente
-python scripts/sync_skills.py --skill forge --target codex
+python scripts/sync_skills.py --skill execute-scope --target codex
 
 # Limpeza e higienização de arquivos residuais
 python scripts/sync_skills.py --dry-run
@@ -133,6 +133,7 @@ python scripts/sync_skills.py --dry-run
 
 - **Espelhamento Limpo:** Remove arquivos órfãos nos diretórios de destino via `shutil.rmtree` + `shutil.copytree`.
 - **Purga de Skills Obsoletas:** Remove automaticamente pastas antigas descontinuadas.
+- **Nomes renomeados:** Após inspecionar `python scripts/sync_skills.py --dry-run --prune-renamed`, use `--prune-renamed` para remover as instalações antigas de `blueprint`, `quality-gate` e `forge` correspondentes às skills sincronizadas. Sem essa opção elas são preservadas e sinalizadas.
 
 ---
 
@@ -165,11 +166,11 @@ python skills/project-memory/scripts/generate_docs_graph.py docs
 python skills/project-memory/scripts/validate_ontology.py docs
 ```
 
-### Forge em modo direto ou planejado
+### Execute Scope em modo direto ou planejado
 
-- **Direto.** A Forge pode implementar uma mudança, criar uma verificação ou executar um cenário existente. Após a inspeção somente leitura, apresenta na sessão a ação, o alvo, as pré-condições, os efeitos previstos e a verificação antes da primeira escrita ou de uma execução com efeitos. RED → GREEN se aplica a mudanças de comportamento do produto. Esse modo dispensa os três contratos.
-- **Planejado.** Indique o plano ou o `change_id`. Em `docs/specs/<change_id>/`, `context.sqlite` guarda a especificação, `SCOPE.md` é seu resumo, `tasks.json` guarda a projeção, os estados e as evidências, e `qa.json` guarda as obrigações e os vereditos. Quando houver QA formal, use `quality-gate plan`, reconcilie as tarefas com `blueprint`, publique a projeção com `forge` e avalie com `quality-gate check`. Contratos inválidos devem ser reconciliados antes da execução.
+- **Direto.** A Execute Scope pode implementar uma mudança, criar uma verificação ou executar um cenário existente. Após a inspeção somente leitura, apresenta na sessão a ação, o alvo, as pré-condições, os efeitos previstos e a verificação antes da primeira escrita ou de uma execução com efeitos. RED → GREEN se aplica a mudanças de comportamento do produto. Esse modo dispensa os três contratos.
+- **Planejado.** Indique o plano ou o `change_id`. Em `docs/specs/<change_id>/`, `context.sqlite` guarda a especificação, `SCOPE.md` é seu resumo, `tasks.json` guarda a projeção, os estados e as evidências, e `qa.json` guarda as obrigações e os vereditos. Quando houver QA formal, use `qa-scope plan`, reconcilie as tarefas com `new-scope`, publique a projeção com `execute-scope` e avalie com `qa-scope check`. Contratos inválidos devem ser reconciliados antes da execução.
 
-Para E2E, a Forge segue o runbook e reutiliza o runner do projeto. Confere o ambiente e a versão servida, executa o cenário e registra as observações ou os bloqueios. No modo planejado, associa cada `evidence_check` de `tasks.json` às obrigações de `qa.json.contract` e registra a evidência por obrigação e candidato, incluindo falhas observadas. Uma suíte verde com observações faltantes deixa uma lacuna. O veredito cabe a `quality-gate check`. Quando disponível, Blueprint e Forge consultam o grafo do Project Mapper como apoio à investigação e conferem as fontes atuais.
+Para E2E, a Execute Scope segue o runbook e reutiliza o runner do projeto. Confere o ambiente e a versão servida, executa o cenário e registra as observações ou os bloqueios. No modo planejado, associa cada `evidence_check` de `tasks.json` às obrigações de `qa.json.contract` e registra a evidência por obrigação e candidato, incluindo falhas observadas. Uma suíte verde com observações faltantes deixa uma lacuna. O veredito cabe a `qa-scope check`. Todas as skills consultam o grafo do Project Mapper quando disponível para tarefas de projeto e usam `docs/` quando o mapa não estiver disponível ou estiver incompleto.
 
 Os scripts `contract.py` acompanham as skills e validam as gravações. A revisão de QA identifica o conteúdo de `qa.json.contract`. Registrar um veredito preserva essa revisão.

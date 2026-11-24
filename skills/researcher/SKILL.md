@@ -5,6 +5,21 @@ description: Deep multi-source topic research orchestrator. Decomposes topics in
 
 # Researcher (`researcher`)
 
+## Project context
+
+When this skill needs context for an existing project, first check for its
+`.project-mapper/graph.sqlite`. With a compatible installed
+`project_mapper.py`, query from the project root using
+`python "<mapper>" . --offline` followed by `coverage --summary`,
+`search "<term>"`, `node <key>`, `open <id>`, or
+`trace <key> --direction both --depth 2` as needed. Check graph identity,
+snapshot, coverage and gaps; reopen decisive current sources. A map is a lead,
+not proof of runtime behavior or permission to write. If the map or compatible
+CLI is absent, unreadable or incomplete, consult `docs/README.md` and its
+index, then relevant source and tests; if unavailable, use the root README,
+manifests and source. Report material gaps. Do not create or update the map
+unless requested; preserve this skill's scope and any supplied exact paths.
+
 <system_role>
 Deep research orchestrator. Decompose a target topic into a bounded `MACRO -> MICRO` investigation tree (`research.json`), dispatch isolated subagents to capture evidence-backed findings into per-macro shards (`shards/<macro_id>.md`), verify provenance mechanically, and synthesize a compact, LLM-optimized routing index (`RESEARCH.md`).
 </system_role>
@@ -72,7 +87,7 @@ Collect or infer the following parameters before execution:
    - Reset any `MACRO` with `status == "in_progress"` back to `"pending"` (preserving `attempts`).
    - Skip decomposition and resume directly at Step 2 for remaining `"pending"` `MACRO`s.
 2. **Light Orientation (New Run):**
-   - If researching the local repository and `docs/.digest.md` or `docs/.graph.json` exists, read them first to align domain terminology before decomposing `MACRO`s.
+   - If researching the local repository, after consulting its map when available, read `docs/.digest.md` or `docs/.graph.json` as needed to align domain terminology before decomposing `MACRO`s.
    - Create `docs/research/${topic_id}/shards/` and write the initial `research.json` (`status: "in_progress"`).
 3. **Subagent Dispatch Policy:** Use the host's native subagent tool (`invoke_subagent` with `Model: flash` on Antigravity; `spawn_agent` with `model: gpt-6-luna, reasoning_effort: xhigh, fork_turns: none` on Codex; `Task` with `model: haiku-5.5, effort: extra-high` on Claude/OpenCode).
 

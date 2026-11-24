@@ -8,9 +8,9 @@ import sys
 import tempfile
 import unittest
 
-BLUEPRINT = Path(__file__).resolve().parents[1] / 'contract.py'
-FORGE = Path(__file__).resolve().parents[2] / 'forge/contract.py'
-QUALITY = Path(__file__).resolve().parents[2] / 'quality-gate/contract.py'
+PLANNER = Path(__file__).resolve().parents[1] / 'contract.py'
+EXECUTOR = Path(__file__).resolve().parents[2] / 'execute-scope/contract.py'
+QUALITY = Path(__file__).resolve().parents[2] / 'qa-scope/contract.py'
 MAPPER = Path(__file__).resolve().parents[2] / 'project-mapper/scripts/project_mapper.py'
 
 
@@ -19,7 +19,7 @@ def node(key, kind, content, state='planned', origin='inference', **details):
                 origin=origin, details=details)
 
 
-class ForgeHandoff(unittest.TestCase):
+class ScopeHandoff(unittest.TestCase):
     def setUp(self):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
@@ -60,15 +60,19 @@ class ForgeHandoff(unittest.TestCase):
         return json.loads(result.stdout) if result.stdout else result.stderr
 
     def bp(self, operation, *args, **kwargs):
-        return self.call(BLUEPRINT, operation, *args, **kwargs)
+        return self.call(PLANNER, operation, *args, **kwargs)
 
-    def forge(self, operation, *args, **kwargs):
-        return self.call(FORGE, operation, *args, **kwargs)
+    def executor(self, operation, *args, **kwargs):
+        return self.call(EXECUTOR, operation, *args, **kwargs)
 
     def publish(self):
         self.bp('apply', '--expect', '0', payload=self.plan)
         self.bp('render-scope')
         return self.bp('export-forge')
+
+    def test_new_export_name_keeps_legacy_projection_compatible(self):
+        legacy = self.publish()
+        self.assertEqual(self.bp('export-execute-scope'), legacy)
 
     def test_ready_plan_becomes_a_version_bound_forge_contract(self):
         plan = self.publish()
@@ -76,14 +80,14 @@ class ForgeHandoff(unittest.TestCase):
         self.assertEqual(plan['tasks'][0]['files_allowed'], ['app.py', 'tests/test_new.py'])
         self.assertEqual(plan['tasks'][0]['unit_tests']['files'], ['tests/test_new.py'])
         self.assertEqual(plan['tasks'][0]['phase'], 'red_pending')
-        self.forge('plan', '--expect', 'absent', payload=plan)
+        self.executor('plan', '--expect', 'absent', payload=plan)
         plan['tasks'][0]['status'] = 'in_progress'
-        self.forge('build', '--expect', self.forge('inspect')['tasks_digest'], payload=plan)
+        self.executor('build', '--expect', self.executor('inspect')['tasks_digest'], payload=plan)
         self.bp('apply', '--expect', '1', payload=dict(request_id='revision', reason='New decision',
                 nodes=[node('D1', 'decision', 'New decision.', 'confirmed', 'human')]))
-        result = self.forge('build', '--expect', self.forge('inspect')['tasks_digest'],
+        result = self.executor('build', '--expect', self.executor('inspect')['tasks_digest'],
                             payload=plan, ok=False)
-        self.assertIn('Blueprint', result)
+        self.assertIn('New Scope', result)
 
     def test_missing_production_file_blocks_task_and_dependents(self):
         self.plan['task_files'].pop()
@@ -97,16 +101,16 @@ class ForgeHandoff(unittest.TestCase):
         plan = self.publish()
         self.assertEqual(plan['tasks'], [])
         self.assertEqual([item['id'] for item in plan['blocked_tasks']], ['T1', 'T2'])
-        self.forge('plan', '--expect', 'absent', payload=plan)
+        self.executor('plan', '--expect', 'absent', payload=plan)
 
     def test_plan_cannot_add_files_or_change_tests_after_export(self):
         plan = self.publish()
         forged = copy.deepcopy(plan)
         forged['tasks'][0]['files_allowed'].append('unplanned.py')
-        self.assertIn('Blueprint', self.forge('plan', '--expect', 'absent', payload=forged, ok=False))
+        self.assertIn('New Scope', self.executor('plan', '--expect', 'absent', payload=forged, ok=False))
         forged = copy.deepcopy(plan)
         forged['tasks'][0]['unit_tests']['command'] = 'python -m unittest all_tests'
-        self.assertIn('Blueprint', self.forge('plan', '--expect', 'absent', payload=forged, ok=False))
+        self.assertIn('New Scope', self.executor('plan', '--expect', 'absent', payload=forged, ok=False))
 
     def test_changed_scope_must_be_rendered_before_export(self):
         self.publish()
@@ -115,8 +119,8 @@ class ForgeHandoff(unittest.TestCase):
 
     def test_quality_gate_cannot_overwrite_a_blueprint_scope(self):
         self.publish()
-        current = self.forge('inspect')['scope_revision']
-        self.assertIn('Blueprint', self.call(QUALITY, 'scope', '--expect', current,
+        current = self.executor('inspect')['scope_revision']
+        self.assertIn('New Scope', self.call(QUALITY, 'scope', '--expect', current,
                                             payload='different scope', ok=False))
 
     def test_real_project_map_reference_survives_handoff(self):
@@ -140,7 +144,7 @@ class ForgeHandoff(unittest.TestCase):
             node='file:tests/test_existing.py', limitations='Static source candidate.')
         self.plan['node_sources'] = [dict(node_id='B1', source_id='SRC1')]
         exported = self.publish()
-        self.forge('plan', '--expect', 'absent', payload=exported)
+        self.executor('plan', '--expect', 'absent', payload=exported)
         observed = self.bp('get', 'B1')
         self.assertEqual(observed['details']['project_mapper']['graph_sha256'], mapped['graph_identity']['sha256'])
         self.assertEqual(observed['sources'][0]['path'], 'tests/test_existing.py')
@@ -166,10 +170,10 @@ class ForgeHandoff(unittest.TestCase):
         self.call(QUALITY, 'qa-plan', '--expect', 'absent', payload=qa)
         plan = self.bp('export-forge')
         self.assertEqual(plan['tasks'][0]['evidence_checks'], [check])
-        self.forge('plan', '--expect', 'absent', payload=plan)
+        self.executor('plan', '--expect', 'absent', payload=plan)
 
         def update():
-            self.forge('build', '--expect', self.forge('inspect')['tasks_digest'], payload=plan)
+            self.executor('build', '--expect', self.executor('inspect')['tasks_digest'], payload=plan)
 
         plan['tasks'][0]['status'] = 'in_progress'
         update()
@@ -193,11 +197,11 @@ class ForgeHandoff(unittest.TestCase):
         assessment = dict(id='gate', candidate='candidate', scope_revision=scope, qa_revision=plan['qa_revision'],
                           status='PASS', findings=[dict(id='QA-1', status='PASS', rationale='Result observed.',
                                                        evidence_ids=['result'])])
-        self.call(QUALITY, 'qa-check', '--expect', self.forge('inspect')['qa_digest'], payload=assessment)
+        self.call(QUALITY, 'qa-check', '--expect', self.executor('inspect')['qa_digest'], payload=assessment)
         self.bp('apply', '--expect', '1', payload=dict(request_id='revision', reason='New decision',
                 nodes=[node('D1', 'decision', 'New decision.', 'confirmed', 'human')]))
         assessment['id'] = 'stale'
-        self.assertIn('Blueprint', self.call(QUALITY, 'qa-check', '--expect', self.forge('inspect')['qa_digest'],
+        self.assertIn('New Scope', self.call(QUALITY, 'qa-check', '--expect', self.executor('inspect')['qa_digest'],
                                             payload=assessment, ok=False))
 
 

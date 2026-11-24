@@ -8,15 +8,15 @@ O **Agentic Workbench** mantém uma coleção enxuta de skills auto-contidas em 
 
 ## Estrutura do Repositório
 
-- `skills/` — Skills canônicas independentes de provedor (`blueprint`, `forge`, `quality-gate`, `project-memory`, `the-grumpy-tech-lead`, `brainstorming`, `pbb-design`, `prompt-generator`, `read-ui-prototype`, `codebase-memory`, `contextual-mentorship`, `ask-antigravity`, `ask-codex`, `ask-opencode`).
+- `skills/` — Skills canônicas independentes de provedor (`new-scope`, `execute-scope`, `qa-scope`, `project-memory`, `the-grumpy-tech-lead`, `brainstorming`, `pbb-design`, `prompt-generator`, `read-ui-prototype`, `codebase-memory`, `contextual-mentorship`, `ask-antigravity`, `ask-codex`, `ask-opencode`).
 - `docs/` — Memória arquitetural do repositório (`README.md`, `.digest.md`, `.graph.json`, `adr/ARCHITECTURE.md`, `adr/TESTS.md`).
 - `scripts/` — Scripts de limpeza e sincronização (`cleanup.ps1`, `cleanup.sh`, `sync_skills.py`).
 
 ## Diretrizes de Edição
 
-1. **Orientação Rápida:** Comece por `docs/README.md` e siga seu índice (`.digest.md`, `.graph.json` e ADRs relevantes) antes de editar.
+1. **Orientação Rápida:** Consulte o mapa `.project-mapper/graph.sqlite` em modo `--offline` quando disponível; caso contrário, siga `docs/README.md` e seu índice. Confira fontes e padrões relevantes em qualquer caso.
 2. **Skills Leves e Auto-contidas:** Ao editar qualquer `skills/<nome>/SKILL.md`, mantenha instruções diretas, verificáveis e sem acoplamento a orquestradores externos.
-3. **Planejamento, construção e validação:** `blueprint` e `quality-gate plan` podem iniciar o `SCOPE.md` e produzir seus planos em qualquer ordem. `forge` executa RED → GREEN e produz as evidências previstas. `quality-gate check` julga essas evidências contra `qa.json`.
+3. **Planejamento, construção e validação:** `new-scope` e `qa-scope plan` podem iniciar o `SCOPE.md` e produzir seus planos em qualquer ordem. `execute-scope` executa RED → GREEN e produz as evidências previstas. `qa-scope check` julga essas evidências contra `qa.json`.
 4. **Plugins Integrados:** Respeite as diretrizes do **Caveman** (respostas concisas, zero *fluff*), **Ponytail** (menor mudança completa, YAGNI) e **Codebase Memory MCP** (consultas de grafo antes de grep).
 
 ## Comandos Úteis
@@ -34,4 +34,4 @@ python skills/project-memory/scripts/generate_docs_graph.py docs
 python skills/project-memory/scripts/validate_ontology.py docs
 ```
 
-- Em modo direto, a Forge pode implementar, criar verificações ou rodar cenários existentes. Apresenta ação, alvo, pré-condições, efeitos e verificação antes de escrever ou causar efeitos. Em modo planejado, registra evidências por obrigação e candidato em `tasks.json`.
+- Em modo direto, a Execute Scope pode implementar, criar verificações ou rodar cenários existentes. Apresenta ação, alvo, pré-condições, efeitos e verificação antes de escrever ou causar efeitos. Em modo planejado, registra evidências por obrigação e candidato em `tasks.json`.

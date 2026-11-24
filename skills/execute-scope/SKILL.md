@@ -1,9 +1,9 @@
 ---
-name: forge
-description: Implement changes, author checks, or run project procedures after presenting a plan; execute Blueprint tasks and collect candidate-specific evidence for Quality Gate.
+name: execute-scope
+description: Implement changes, author checks, or run project procedures after presenting a plan; execute New Scope tasks and collect candidate-specific evidence for QA Scope.
 ---
 
-# Forge (`forge`)
+# Execute Scope (`execute-scope`)
 
 <system_role>
 Execute verifiable technical work directly from a user request or follow the DAG in `docs/specs/${change_id}/tasks.json` directly in the working tree. For each implementation task, prove a meaningful failing unit test (RED) before changing production code (GREEN). Keep strict file confinement, minimal diffs, targeted tests, and optional build/typecheck smoke checks. No git, worktrees, independent QA or mandatory REFACTOR phase.
@@ -20,7 +20,7 @@ Execute verifiable technical work directly from a user request or follow the DAG
 <mode_selection>
 Choose the mode before any task-contract preflight.
 
-- **Planned:** Use the planned protocol below when the user requests a planned run, references a change ID as a plan, supplies a task plan, or asks for formal Quality Gate evidence. Diagnose missing, stale or invalid contracts in this mode and request reconciliation as needed. Never silently switch to direct mode.
+- **Planned:** Use the planned protocol below when the user requests a planned run, references a change ID as a plan, supplies a task plan, or asks for formal QA Scope evidence. Diagnose missing, stale or invalid contracts in this mode and request reconciliation as needed. Never silently switch to direct mode.
 - **Direct:** Use this mode to implement a change, author or update a verification, or run an existing project procedure based on the user's input and the repository when no planned execution or formal gate is requested. An explicit request for direct mode may use existing artifacts as context, while a request for a formal gate requires its contracts. Direct mode has no prerequisite for `SCOPE.md`, `tasks.json` or `qa.json`.
 
 ### Direct mode
@@ -29,17 +29,17 @@ Choose the mode before any task-contract preflight.
 2. **Present the plan in the session before any write or execution with side effects.** State the expected result, edit scope (if any), and the action, target, preconditions, permitted effects and verification for each material step. Name the expected RED failure and GREEN result for changes to production behavior.
 3. **Proceed in the same run after presenting the plan.** Pause for a material unresolved decision or when the user requests review or plan-only output. Present any material change in edit scope, target, effects or verification before acting on it.
 4. **Follow the requested intent.** For a production behavior change, use the focused test first, observe the expected behavioral failure, implement and rerun it. For check-only authoring, edit the mapped test or fixtures and show that the check exercises the intended behavior and observes the failure it is designed to detect. A check may pass on already-correct production code. For execution-only requests, run the existing procedure and report its observations without editing source, tests or fixtures. If RED is inapplicable, explain why and run the appropriate checks.
-5. **Report actual outcomes.** List any changed paths, actions and target, observations, and unverified or blocked items. Keep planning and results in the session. Direct mode produces neither change contracts nor formal Quality Gate verdicts.
+5. **Report actual outcomes.** List any changed paths, actions and target, observations, and unverified or blocked items. Keep planning and results in the session. Direct mode produces neither change contracts nor formal QA Scope verdicts.
 
 In planned mode, read [PLANNED.md](./PLANNED.md) before preflight. In direct mode, skip that reference and all contract commands, including inspect. Apply the procedure rules in both modes.
 </mode_selection>
 
 <project_context>
 For each distinct `project_path`, before dispatch:
-1. If `docs/` exists, read `docs/README.md` FIRST. Follow its index; then review available `docs/.digest.md`, `docs/.graph.json`, and relevant ADRs (especially `ARCHITECTURE.md`, `TESTS.md`) and linked standards.
-2. Inspect neighboring code/tests and runner configuration; compare conventions with docs, flag discrepancies. Read shared orientation once per project. Give builders a concise architecture/style/testing summary with source paths. Builders inspect task-specific source and tests, and reopen orientation starting with `docs/README.md` when the summary is missing, stale or contradicted.
-3. If `docs/` or its README is absent, disclose it and use root README, manifests and adjacent code/tests instead. Do not invent project standards.
-4. When a published Project Mapper graph is available, use the read-only workflow in [Project map](references/project-map.md) in both modes. Hand relevant evidence and unresolved boundaries to the task executor. An absent or partial map is not a reason to fabricate or silently widen the edit scope.
+1. Consult an existing `.project-mapper/graph.sqlite` using the read-only [Project map](references/project-map.md) workflow in either mode. Hand relevant evidence, graph identity and unresolved boundaries to the executor.
+2. If the map or compatible CLI is unavailable or incomplete, follow `docs/README.md` and its index, including relevant ADRs and testing standards. Consult relevant docs as needed even when the map exists. If docs are absent, use the root README, manifests and adjacent code/tests and disclose material gaps.
+3. Inspect neighboring code/tests and runner configuration; compare conventions with available docs and flag discrepancies. Read shared orientation once per project. Give builders a concise architecture/style/testing summary with source paths. Builders inspect task-specific source and tests, and reopen orientation when the summary is missing, stale or contradicted.
+4. An absent or partial map is not a reason to fabricate or silently widen the edit scope.
 Read freely for context; the applicable edit scope constrains WRITES. Do not edit project docs.
 </project_context>
 

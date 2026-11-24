@@ -56,6 +56,12 @@ OBSOLETE_SKILLS = {
     "jev-social-research"
 }
 
+RENAMED_SKILLS = {
+    "blueprint": "new-scope",
+    "quality-gate": "qa-scope",
+    "forge": "execute-scope",
+}
+
 FAST_CODE_POLICY_TOKEN = b"{{FAST_CODE_SUBAGENTS_POLICY}}"
 
 _FAST_CODE_HAIKU_POLICY = (
@@ -134,7 +140,11 @@ def main():
     parser.add_argument("--target", choices=["all", "antigravity", "codex", "opencode", "claude"], default="all",
                         help="Limita a sincronização a um agente específico.")
     parser.add_argument("--no-prune", action="store_true", help="Não remove skills obsoletas dos destinos.")
+    parser.add_argument("--prune-renamed", action="store_true",
+                        help="Após sincronizar, remove nomes antigos das skills renomeadas selecionadas.")
     args = parser.parse_args()
+    if args.no_prune and args.prune_renamed:
+        parser.error("--no-prune e --prune-renamed não podem ser usados juntos")
 
     available_skills = get_available_skills()
     if not available_skills:
@@ -179,6 +189,20 @@ def main():
             action = sync_single_skill(src, dst, dry_run=args.dry_run, target_name=target_name)
             prefix = "[PLAN] " if args.dry_run else "[OK]   "
             print(f"   {prefix}{action}: {skill_name}")
+
+        for old_name, new_name in RENAMED_SKILLS.items():
+            old = target_dir / old_name
+            if new_name not in skills_to_sync or not old.exists():
+                continue
+            if old.is_symlink() or not old.is_dir():
+                print(f"   [!] Nome antigo não é diretório seguro: {old_name}; não removido")
+            elif not args.prune_renamed:
+                print(f"   [!] Nome antigo presente: {old_name} -> {new_name}; use --prune-renamed para removê-lo")
+            elif args.dry_run:
+                print(f"   [-] [PRUNE] Removerá nome antigo: {old_name} -> {new_name}")
+            else:
+                shutil.rmtree(old)
+                print(f"   [-] [PRUNED] Removido nome antigo: {old_name} -> {new_name}")
 
     print("\nDry-run concluído." if args.dry_run else "\nSincronização concluída com sucesso.")
 

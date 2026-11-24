@@ -5,6 +5,21 @@ description: Turn a nontrivial request into a self-contained, verifiable brief f
 
 # Outcome Delegation
 
+## Project context
+
+When this skill needs context for an existing project, first check for its
+`.project-mapper/graph.sqlite`. With a compatible installed
+`project_mapper.py`, query from the project root using
+`python "<mapper>" . --offline` followed by `coverage --summary`,
+`search "<term>"`, `node <key>`, `open <id>`, or
+`trace <key> --direction both --depth 2` as needed. Check graph identity,
+snapshot, coverage and gaps; reopen decisive current sources. A map is a lead,
+not proof of runtime behavior or permission to write. If the map or compatible
+CLI is absent, unreadable or incomplete, consult `docs/README.md` and its
+index, then relevant source and tests; if unavailable, use the root README,
+manifests and source. Report material gaps. Do not create or update the map
+unless requested; preserve this skill's scope and any supplied exact paths.
+
 Draft a brief that a recipient can execute and verify without the original conversation. Drafting does not authorize dispatch or execution. Leave the approach to the executor within the brief's boundaries.
 
 ## Prepare the brief

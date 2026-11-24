@@ -57,12 +57,12 @@ REQUIRED: Maintain the following minimum coverage levels:
 - PROHIBITED: Modifying test assertions or ignoring validation exit codes to force green verification status.
 
 ## CONSTRUCTION AND QA EVIDENCE
-- `blueprint` records focused unit files, runner source, command and RED/GREEN outcomes in `context.sqlite`; its Forge projection maps them to `unit_tests` and `files_allowed` in `tasks.json`.
-- `forge` reads `docs/README.md` first, creates or updates only mapped test files in RED and verifies a failure caused by missing acceptance behavior (not by syntax, imports or environment).
+- `new-scope` records focused unit files, runner source, command and RED/GREEN outcomes in `context.sqlite`; its Execute Scope projection maps them to `unit_tests` and `files_allowed` in `tasks.json`.
+- `execute-scope` consults the project map when available, otherwise starts with `docs/README.md`, creates or updates only mapped test files in RED and verifies a failure caused by missing acceptance behavior (not by syntax, imports or environment).
 - GREEN edits only allowed production files; the mapped tests remain frozen. The same unit-test command must exit 0 before the task is completed. Build/typecheck smoke checks are supplementary.
 - Missing test mappings and pre-existing unrelated test failures block execution; do not bypass or weaken the tests to reach GREEN. Neither git nor worktrees are used.
 
-- `quality-gate plan` specifies exact observations, conditions, assertions and provenance for material risks in `qa.json`. `forge` executes the planned checks and captures evidence on the final candidate. `quality-gate check` judges sufficiency and provenance independently.
+- `qa-scope plan` specifies exact observations, conditions, assertions and provenance for material risks in `qa.json`. `execute-scope` executes the planned checks and captures evidence on the final candidate. `qa-scope check` judges sufficiency and provenance independently.
 
 ## TOOLING
 - **Framework:** Python `unittest`, PowerShell native assertion scripts
@@ -83,7 +83,7 @@ REQUIRED: Maintain the following minimum coverage levels:
 - [**ARCHITECTURE.md**](./ARCHITECTURE.md): System architecture and patterns.
 
 
-### Direct Forge verification
+### Direct Execute Scope verification
 
 Before a write or an execution with side effects, publish a session plan with the action, target, prerequisites, permitted effects and verification. Defer runners that may write caches until after the plan. Use focused RED → GREEN for changes to production behavior. For check authoring or run-only requests, report the observations obtained without manufacturing a RED result.
 

@@ -32,7 +32,7 @@ agentic-workbench/
 </folder_structure>
 
 ## LAYERS
-- **Core Engineering Skills**: Shared scope, implementation planning, test-driven construction, evidence planning, acceptance review and architecture review (`blueprint`, `forge`, `quality-gate`, `the-grumpy-tech-lead`, `project-memory`).
+- **Core Engineering Skills**: Shared scope, implementation planning, test-driven construction, evidence planning, acceptance review and architecture review (`new-scope`, `execute-scope`, `qa-scope`, `the-grumpy-tech-lead`, `project-memory`).
 - **Product & Discovery Skills**: Problem framing, experiment design, backlog refinement, meta-prompt generation, and UI prototype parsing (`brainstorming`, `experiment-design`, `pbb-design`, `prompt-generator`, `read-ui-prototype`).
 - **Navigation, Mentorship & Delegation**: Repository mapping, AST graph discovery, contextual reasoning, outcome briefs, decision sparring, and CLI delegation wrappers (`project-mapper`, `codebase-memory`, `contextual-mentorship`, `outcome-delegation`, `decision-sparring`, `ask-antigravity`, `ask-codex`, `ask-opencode`).
 - **Operational Infrastructure**: Repository cleanup scripts and intentional local agent synchronization (`scripts/sync_skills.py`, `scripts/cleanup.ps1`, `scripts/cleanup.sh`).
@@ -57,9 +57,9 @@ REQUIRED: Any import violating these rules must fail CI verification via: `pytho
 ## MODULES
 | Module | Responsibility | Location |
 |--------|-----------------|-------------|
-| `blueprint` | Shared scope and construction planning | `skills/blueprint/` |
-| `forge` | Docs-first RED-GREEN executor and candidate evidence producer | `skills/forge/` |
-| `quality-gate` | Evidence planning (`plan`) and candidate assessment (`check`) | `skills/quality-gate/` |
+| `new-scope` | Shared scope and construction planning | `skills/new-scope/` |
+| `execute-scope` | Map-aware RED-GREEN executor and candidate evidence producer | `skills/execute-scope/` |
+| `qa-scope` | Evidence planning (`plan`) and candidate assessment (`check`) | `skills/qa-scope/` |
 | `the-grumpy-tech-lead` | Socratic architectural review and systemic risk detection | `skills/the-grumpy-tech-lead/` |
 | `project-memory` | Architecture, test protocols, and graph index maintenance | `skills/project-memory/` |
 | `brainstorming` | Collaborative discovery and architectural trade-off analysis | `skills/brainstorming/` |
@@ -80,9 +80,9 @@ REQUIRED: Any import violating these rules must fail CI verification via: `pytho
 | `cleanup` | Repository hygiene and cache purging scripts | `scripts/cleanup.ps1` |
 
 ## CHANGE CONTRACT
-- `blueprint` owns `context.sqlite` and its rendered `SCOPE.md`. Forge publishes its version-bound `tasks.json` projection. Quality Gate owns `qa.json` and may create a standalone scope when no Blueprint database exists.
+- `new-scope` owns `context.sqlite` and its rendered `SCOPE.md`. Execute Scope publishes its version-bound `tasks.json` projection. QA Scope owns `qa.json` and may create a standalone scope when no New Scope database exists.
 - Derived plans identify the scope revision. Reconcile affected plans after approved changes to the shared behavior and when QA obligations introduce evidence work.
-- `forge` executes unit-first RED → GREEN for implementation tasks and produces planned evidence in the working tree. `quality-gate check` judges the evidence against the published contract without modifying it.
+- `execute-scope` executes unit-first RED → GREEN for implementation tasks and produces planned evidence in the working tree. `qa-scope check` judges the evidence against the published contract without modifying it.
 
 ## PATTERNS
 <code_patterns>
@@ -117,8 +117,8 @@ import external_orchestrator                     # FORBIDDEN: provider-agnostic 
 
 ### Change contracts
 
-Planned changes can store `context.sqlite`, `SCOPE.md`, `tasks.json` and `qa.json` under `docs/specs/<change_id>/`. Blueprint's database is the specification; the scope is its rendered summary. Forge's task projection binds the database revision and hash and stores execution state and evidence. QA stores obligations and assessments. The bundled `contract.py` validates task and QA writes under a shared lock. The QA revision hashes the normative contract independently of assessments.
+Planned changes can store `context.sqlite`, `SCOPE.md`, `tasks.json` and `qa.json` under `docs/specs/<change_id>/`. New Scope's database is the specification; the scope is its rendered summary. Execute Scope's task projection binds the database revision and hash and stores execution state and evidence. QA stores obligations and assessments. The bundled `contract.py` validates task and QA writes under a shared lock. The QA revision hashes the normative contract independently of assessments.
 
-Direct Forge execution starts from the user request and the repository. It can implement, author a check or run an existing procedure. It presents action, target, preconditions, permitted effects and verification after read-only inspection and before writes or side effects.
+Direct Execute Scope execution starts from the user request and the repository. It can implement, author a check or run an existing procedure. It presents action, target, preconditions, permitted effects and verification after read-only inspection and before writes or side effects.
 
-For planned execution, Forge resolves each `evidence_checks[].qa_ids` against `qa.json.contract`, runs the procedure on the identified candidate and records observed outcomes in `tasks.json`. Failed checks may produce evidence. Missing observations or prerequisites are reported as gaps or blockers. Quality Gate judges sufficiency and records assessments.
+For planned execution, Execute Scope resolves each `evidence_checks[].qa_ids` against `qa.json.contract`, runs the procedure on the identified candidate and records observed outcomes in `tasks.json`. Failed checks may produce evidence. Missing observations or prerequisites are reported as gaps or blockers. QA Scope judges sufficiency and records assessments.

@@ -1,6 +1,6 @@
 # Project Documentation
 
-Index of project technical documentation for **Agentic Workbench**. Coding agents start here when `docs/` exists; follow the links for architecture, conventions and testing before making changes.
+Index of project technical documentation for **Agentic Workbench**. Consult a published project map when available; use this index for the relevant architecture, conventions and testing context.
 
 ## Documentation Index
 
@@ -25,9 +25,9 @@ If an exact path is supplied, read it directly. Otherwise use this order:
 
 ## Construction and QA Planning
 
-`blueprint` records the specification in `context.sqlite` and renders `SCOPE.md`. Its optional Forge export becomes a revision-bound `tasks.json` when Forge publishes it. `quality-gate plan` produces `qa.json`; if no Blueprint database exists it can initialize a standalone scope. Reconcile the scope and QA revisions before execution. `forge` executes RED → GREEN and planned evidence checks. `quality-gate check` judges candidate-specific evidence.
+`new-scope` records the specification in `context.sqlite` and renders `SCOPE.md`. Its optional Execute Scope export becomes a revision-bound `tasks.json` when Execute Scope publishes it. `qa-scope plan` produces `qa.json`; if no New Scope database exists it can initialize a standalone scope. Reconcile the scope and QA revisions before execution. `execute-scope` executes RED → GREEN and planned evidence checks. `qa-scope check` judges candidate-specific evidence.
 
 
-Forge supports implementation, check authoring and execution of existing procedures. Direct mode presents a session plan before writes or side effects. Planned mode maps identified checks to QA obligations and records a start and result per attempt in `tasks.json`. Replanning resets affected execution state while preserving attempt history. Reconcile uncertain external effects by operation key before retrying. Quality Gate records verdicts in `qa.json.assessments`.
+Execute Scope supports implementation, check authoring and execution of existing procedures. Direct mode presents a session plan before writes or side effects. Planned mode maps identified checks to QA obligations and records a start and result per attempt in `tasks.json`. Replanning resets affected execution state while preserving attempt history. Reconcile uncertain external effects by operation key before retrying. QA Scope records verdicts in `qa.json.assessments`.
 
-`blueprint` and `forge` can query an existing `.project-mapper/graph.sqlite` in the mapper's Git-free read-only mode. They verify consequential current sources and treat partial or stale map results as leads.
+All skills can query an existing `.project-mapper/graph.sqlite` in the mapper's Git-free read-only mode for project-related work. They inspect consequential current sources and fall back to the documentation index when the map is unavailable or incomplete.
