@@ -137,7 +137,11 @@ class ScopeHandoff(unittest.TestCase):
                                  'node', 'file:tests/test_existing.py'],
                                 capture_output=True, text=True, check=True)
         mapped = json.loads(result.stdout)
-        self.assertTrue(mapped['nodes'][0]['evidence'])
+        locator = mapped['nodes'][0]['evidence'][0]
+        source = self.bp('source-ref', 'SRC1', '--path', locator['path'],
+                         '--lines', str(locator['span'][0]), str(locator['span'][2]),
+                         '--expect-content-id', locator['content_id'])
+        self.plan['sources'] = [source]
         behavior = next(n for n in self.plan['nodes'] if n['id'] == 'B1')
         behavior['details']['project_mapper'] = dict(
             graph_sha256=mapped['graph_identity']['sha256'], snapshot=mapped['graph_identity']['snapshot'],
@@ -148,6 +152,12 @@ class ScopeHandoff(unittest.TestCase):
         observed = self.bp('get', 'B1')
         self.assertEqual(observed['details']['project_mapper']['graph_sha256'], mapped['graph_identity']['sha256'])
         self.assertEqual(observed['sources'][0]['path'], 'tests/test_existing.py')
+        self.assertEqual(observed['sources'][0]['version'], locator['content_id'])
+
+        (self.root / locator['path']).write_text('import unittest\n\n# Changed after mapping.\n', encoding='utf-8')
+        stale = self.bp('source-ref', 'SRC2', '--path', locator['path'],
+                        '--expect-content-id', locator['content_id'], ok=False)
+        self.assertIn('Source content changed', stale)
 
     def test_explicit_qa_mapping_flows_to_gate_and_stale_plan_is_rejected(self):
         # A check may read an existing test outside the task's write allowlist.

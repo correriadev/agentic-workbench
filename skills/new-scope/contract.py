@@ -11,6 +11,8 @@ import sqlite3
 import sys
 import tempfile
 
+sys.dont_write_bytecode = True
+
 from completeness import assess, coverage, repository_path, structural_checks
 from execute_export import export_execute_scope
 
@@ -49,6 +51,53 @@ def identifier(value):
         raise ValueError(f"Invalid identifier: {value!r}")
 
 
+def source_bytes(root, path):
+    target = repository_path(root, path)
+    if not target.is_file():
+        raise ValueError(f"Source must be a regular file: {path}")
+    return target.read_bytes()
+
+
+def source_ref(args, root):
+    identifier(args.node)
+    if not args.path:
+        raise ValueError("source-ref requires a project-relative --path")
+    if args.symbol is not None and not args.symbol.strip():
+        raise ValueError("Source symbol must be nonempty text")
+    if args.excerpt and not args.lines:
+        raise ValueError("--excerpt requires an explicit --lines START END range")
+    data = source_bytes(root, args.path)
+    digest = hashlib.sha256(data).hexdigest()
+    record = dict(id=args.node, project_root=str(root), path=args.path, sha256=digest)
+    if args.expect_content_id is not None:
+        expected = args.expect_content_id.lower()
+        if re.fullmatch(r"sha256:[0-9a-f]{64}", expected):
+            actual = f"sha256:{digest}"
+        elif re.fullmatch(r"git:(?:[0-9a-f]{40}|[0-9a-f]{64})", expected):
+            blob = hashlib.new("sha1" if len(expected.removeprefix("git:")) == 40 else "sha256")
+            blob.update(f"blob {len(data)}\0".encode("ascii"))
+            blob.update(data)
+            actual = f"git:{blob.hexdigest()}"
+        else:
+            raise ValueError("--expect-content-id requires a Git blob or raw SHA-256 content ID")
+        if actual != expected:
+            raise ValueError(f"Source content changed: {args.path} differs from the expected content ID")
+        record["version"] = actual
+    if args.symbol is not None:
+        record["symbol"] = args.symbol
+    if args.lines:
+        start, end = args.lines
+        lines = data.decode(errors="replace").splitlines()
+        if not 1 <= start <= end <= len(lines):
+            raise ValueError("Source line range exceeds file or has invalid bounds")
+        record.update(line_start=start, line_end=end)
+        if args.excerpt:
+            excerpt = "\n".join(lines[start - 1:end])
+            if excerpt.strip():
+                record["excerpt"] = excerpt
+    return record
+
+
 def check_row(table, row, revision):
     for key in ("id", "src", "dst", "task_id", "scenario_id", "node_id", "source_id",
                 "runner_source"):
@@ -66,16 +115,15 @@ def check_row(table, row, revision):
     if table == "nodes" and not isinstance(row.get("details", {}), dict):
         raise ValueError("Node details must be an object")
     if table == "sources":
-        path = repository_path(row["project_root"], row["path"])
-        data = path.read_bytes()
+        data = source_bytes(row["project_root"], row["path"])
         if hashlib.sha256(data).hexdigest() != row["sha256"]:
             raise ValueError(f"Source content changed: {row['path']}")
-        if row.get("line_end") and row["line_end"] > len(data.splitlines()):
-            raise ValueError("Source line range exceeds file")
-        if row.get("excerpt"):
+        if row.get("line_end") or row.get("excerpt"):
             lines = data.decode(errors="replace").splitlines()
-            snippet = "\n".join(lines[(row.get("line_start") or 1) - 1:row.get("line_end")])
-            if row["excerpt"] not in snippet:
+            end = row.get("line_end")
+            if end and end > len(lines):
+                raise ValueError("Source line range exceeds file")
+            if row.get("excerpt") and row["excerpt"] not in "\n".join(lines[(row.get("line_start") or 1) - 1:end]):
                 raise ValueError("Source excerpt does not match observed content")
     if table == "evidence":
         if not 0 < row["plan_revision"] <= revision or not isinstance(row["observations"], dict) or not row["observations"]:
@@ -274,23 +322,36 @@ def render(db, folder):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("folder", type=Path)
-    parser.add_argument("operation", choices=("init", "apply", "inspect", "get", "trace", "impact",
+    parser.add_argument("operation", choices=("init", "apply", "inspect", "get", "trace", "impact", "source-ref",
                                               "coverage", "gaps", "validate", "render-scope",
                                               "export-execute-scope", "export-forge"))
     parser.add_argument("node", nargs="?")
     parser.add_argument("--expect", type=int)
     parser.add_argument("--depth", type=int, default=6, choices=range(1, 21))
     parser.add_argument("--limit", type=int, default=50)
+    parser.add_argument("--path", help="project-relative file for source-ref")
+    parser.add_argument("--project-root", type=Path, help="source-ref target when it differs from the spec root")
+    parser.add_argument("--symbol", help="source symbol for source-ref")
+    parser.add_argument("--lines", nargs=2, type=int, metavar=("START", "END"), help="inclusive source-ref lines")
+    parser.add_argument("--expect-content-id", help="verify the source against a Project Mapper locator")
+    parser.add_argument("--excerpt", action="store_true", help="include the text of the selected source-ref lines")
     args = parser.parse_args()
     folder = args.folder.absolute()
     if (folder.parent.name != "specs" or folder.parent.parent.name != "docs"
             or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", folder.name)
             or folder.resolve() != folder):
         raise ValueError("Use a non-symlink docs/specs/<kebab-case-change-id> directory")
+    operation = args.operation
+    if operation == "source-ref":
+        root = args.project_root.resolve() if args.project_root is not None else folder.parents[2]
+        print(encode(source_ref(args, root)))
+        return 0
+    if (args.excerpt or any(value is not None for value in
+                            (args.path, args.project_root, args.symbol, args.lines, args.expect_content_id))):
+        raise ValueError("Source options are supported only by source-ref")
     path = folder / "context.sqlite"
     if path.is_symlink() or (path.exists() and (not path.is_file() or path.stat().st_nlink != 1)):
         raise ValueError("Database must be a regular file owned by this specification")
-    operation = args.operation
     if operation == "init":
         folder.mkdir(parents=True, exist_ok=True)
     writable = operation in {"init", "apply", "render-scope"}

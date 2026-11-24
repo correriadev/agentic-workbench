@@ -29,17 +29,14 @@ Use the graph directly to hand context to a coding agent.
 1. **Interpret intent.** Capture the goal, scope boundaries, confirmed behavior,
    acceptance criteria and explicit decisions. Record inferred hypotheses and
    pending questions as separate nodes. Keep provenance and confirmation distinct.
-2. **Ground in the repository.** For each target root, first consult an available
-   `.project-mapper/graph.sqlite` using [Project map](references/project-map.md)
-   to locate affected flows and their evidence. If the map or compatible CLI is
-   unavailable or incomplete, follow `docs/README.md` and its index; if docs
-   are absent, use the root README and manifest. Also inspect relevant standards,
-   affected code, test runner configuration and nearby unit tests. Record material
-   gaps and resolve
-   documentation/code mismatches explicitly. Trace interfaces, endpoints, DTOs,
-   domain rules, methods, persistence, jobs, events, auth, error handling and
-   existing test patterns where relevant. Record precise paths, symbols, line
-   ranges and SHA-256 hashes. Declare future files and symbols as planned.
+2. **Ground in the repository.** For each target root, use
+   [Project map](references/project-map.md) for a focused read of affected flows,
+   files and tests. If the map is unavailable or leaves a material question open,
+   consult `docs/README.md` and its index, then inspect the missing evidence in
+   current sources. If docs are absent, use the root README, manifests and source.
+   Record decisive paths, symbols and line ranges with `source-ref`. Inspect the
+   relevant runner and unit tests. Resolve documentation/code mismatches and
+   declare future files and symbols as planned.
 3. **Model behavior before tasks.** Define inputs, preconditions, transitions,
    outputs, failure cases, external dependencies and observable effects.
    Connect acceptance criteria and API facets to that behavior. Distinguish an
