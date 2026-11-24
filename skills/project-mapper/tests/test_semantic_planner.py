@@ -1,6 +1,7 @@
 """Semantic work units must come from graph nodes and preserve boundaries."""
 
-from pathlib import Path
+from contextlib import closing
+import sqlite3
 import sys
 import unittest
 
@@ -57,8 +58,7 @@ class SemanticPlanner(unittest.TestCase):
             invoke(repo, 'map', '--commit', revision)
             manifest = inventory(repo, revision)
             path = repo / '.project-mapper/graph.sqlite'
-            import sqlite3
-            with sqlite3.connect(path) as db:
+            with closing(sqlite3.connect(path)) as db, db:
                 db.execute("INSERT INTO nodes VALUES ('orphan:x','symbol','example','x',0)")
             with graph_store.database(path) as db:
                 _, report = self.planner()(db, manifest)
@@ -147,15 +147,16 @@ class SemanticPlanner(unittest.TestCase):
 
     def test_nonprintable_identifiers_remain_pending_and_do_not_invalidate_plan(self):
         with test_directory() as repo:
-            revision = fixture(repo, {'src/odd\nname.ts': 'export const value = 1;\n',
+            odd_path = 'src/odd\u0085name.ts'
+            revision = fixture(repo, {odd_path: 'export const value = 1;\n',
                                       'src/okay.ts': 'export const ready = 1;\n'})
             invoke(repo, 'map', '--commit', revision)
             manifest = inventory(repo, revision)
             with graph_store.database(repo / '.project-mapper/graph.sqlite') as db:
                 plan, report = self.planner()(db, manifest)
-                self.assertTrue(any(item['node'] == 'file:src/odd\nname.ts' and item['status'] == 'pending'
+                self.assertTrue(any(item['node'] == 'file:' + odd_path and item['status'] == 'pending'
                                     for item in report['unassigned']))
-                self.assertIn('src/odd\nname.ts', report['unmapped_paths'])
+                self.assertIn(odd_path, report['unmapped_paths'])
                 self.assertTrue(all(all(node.isprintable() and node == node.strip() for node in task['node_ids'])
                                     for task in plan['questions']))
                 self.assertTrue(all(all(path.isprintable() and path == path.strip() for path in task['seeds'])

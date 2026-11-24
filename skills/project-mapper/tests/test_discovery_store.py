@@ -2,8 +2,9 @@ from contextlib import closing
 from pathlib import Path
 import sqlite3
 import sys
-from tempfile import TemporaryDirectory
 import unittest
+
+from test_acceptance import test_directory
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import graph_store as store
@@ -21,7 +22,11 @@ class DiscoveryStore(unittest.TestCase):
             db.executemany('INSERT INTO nodes VALUES (?,?,?,?,?)', nodes)
             expected = dict(metadata=[('schema_version', '2')], nodes=nodes, discoveries=[], discovery_support=[])
             store.check_integrity(db, expected)
-            self.assertEqual([row['key'] for row in store.inspect_node(db, 'service:api')], ['service:api'])
+            row, = store.inspect_node(db, 'service:api')
+            self.assertEqual(row['key'], 'service:api')
+            self.assertEqual(row['context_diagnostics'], [])
+            self.assertEqual(row['flow_discoveries'], [])
+            self.assertEqual(row['reviewed_discrepancies'], [])
             self.assertEqual(store.search_discoveries(db, 'api', 3), [])
             with self.assertRaisesRegex(MappingError, 'discovery'):
                 store.open_discovery(db, 'service:api')
@@ -35,8 +40,8 @@ class DiscoveryStore(unittest.TestCase):
                     provenance=[('p', 'agent-investigation', 1, 'reading')],
                     observations=[('v', 'o', 'p', 'code', 'source', '')], discoveries=discoveries,
                     discovery_support=[('r/1', '', 'v'), ('r/2', '/huge', 'v')])
-        with TemporaryDirectory() as work:
-            path = Path(work) / 'map.sqlite'
+        with test_directory() as work:
+            path = work / 'map.sqlite'
             store.write(path, data)
             with store.database(path) as db:
                 selected = set()

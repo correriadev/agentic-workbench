@@ -70,6 +70,13 @@ def validate_plan(plan, identity, entries, *, allow_legacy=False):
                 raise MappingError('graph assignment requires at least one node')
             for node in node_ids:
                 string(node, 'assigned node')
+        if isinstance(item, dict) and 'scope' in item:
+            keys += ' scope'
+            scope = item['scope']
+            if scope != {'kind': 'file'}:
+                fields(scope, 'kind anchor', 'flow scope')
+                if scope['kind'] != 'flow' or scope['anchor'] not in item.get('node_ids', []):
+                    raise MappingError('flow scope requires an assigned anchor node')
         fields(item, keys, 'question')
         key = slug(item['id'], 'question id')
         if len(key) > 128 or DEVICE.fullmatch(key) or key in dependencies:
@@ -240,6 +247,34 @@ def validate_shard(question_id, raw, manifest, reader):
     return raw
 
 
+def draft_subject_diagnostics(raw):
+    links = {(claim['source'], claim['target']) for claim in raw['claims'] if claim['relation'] == 'describes'}
+    links.update((claim['target'], claim['source']) for claim in raw['claims'] if claim['relation'] == 'explained-by')
+    diagnostics = []
+    for item in raw.get('discoveries', []):
+        content = item['content']
+        if not isinstance(content, dict) or 'subject_node' not in content:
+            continue
+        subject = content['subject_node']
+        if not isinstance(subject, str) or not subject or subject != subject.strip() or not subject.isprintable():
+            reason = 'Use an exact node ID for subject_node or omit the field for shared context.'
+        elif not any(ref['pointer'] in ('', '/subject_node') for ref in item['support']):
+            reason = 'Cite source support for /subject_node, or omit the field for shared context.'
+        elif (item['id'], subject) not in links:
+            reason = 'Check other accepted shards for describes or explained-by to this subject, or add a cited claim.'
+        else:
+            continue
+        diagnostics.append(dict(discovery=item['id'], subject_node=subject, reason=reason))
+    return diagnostics
+
+
+def validate_discrepancies(raw):
+    for claim in raw['claims']:
+        if claim['relation'] == 'conflicts-with' and (
+                claim['source'] == claim['target'] or ':' in claim['source'] or ':' in claim['target']):
+            raise MappingError('conflicts-with requires two distinct discovery IDs with attributed accounts')
+
+
 def compile_investigation(manifest, plan, shards, reader, *, allow_legacy=False):
     """Rebuild logical rows from the accepted subset, retaining every planned question."""
     validate_plan(plan, manifest['snapshot']['identity'], manifest['entries'], allow_legacy=allow_legacy)
@@ -260,6 +295,7 @@ def compile_investigation(manifest, plan, shards, reader, *, allow_legacy=False)
     graph = Graph(profile=profile)
     coverage, reports, outcomes = [], {}, {}
     discovery_rows, support_rows = [], set()
+    deferred = []
     for key, question in questions.items():
         shard = shards.get(key)
         status = shard['status'] if shard else 'unexamined'
@@ -281,7 +317,16 @@ def compile_investigation(manifest, plan, shards, reader, *, allow_legacy=False)
                             for anchor in anchors]
                 graph.node(node, 'discovery', 'investigation', item['title'], evidence)
                 support_rows.update((node, pointer, ev) for ev in evidence)
+        published = 0
+        pending_start = len(deferred)
         for claim, anchors in claims:
+            missing = sorted({claim[end] for end in ('source', 'target')
+                              if ':' not in claim[end] and claim[end] not in titles})
+            if missing and claim['relation'] in {'describes', 'explained-by', 'conflicts-with'}:
+                deferred.append(dict(question=key, source=claim['source'], relation=claim['relation'],
+                                     target=claim['target'], condition=claim['condition'], missing_endpoints=missing,
+                                     reason='Accept the defining discovery shard or correct the endpoint ID.'))
+                continue
             limitation = 'Supervisor-reviewed static claim; verification replays source locators.'
             if claim['condition']:
                 limitation += ' Condition: ' + claim['condition']
@@ -292,13 +337,21 @@ def compile_investigation(manifest, plan, shards, reader, *, allow_legacy=False)
                 graph.node(node, kind, 'investigation', name, evidence)
             graph.relation(claim['relation'], claim['source'], claim['target'], 'resolved', evidence,
                            conditions=[claim['condition']] if claim['condition'] else [])
+            published += 1
             if claim['relation'] == 'member-of':
                 dimension = graph.nodes[claim['target']]['kind']
                 graph.member(dimension, claim['target'], claim['source'], evidence)
+        issues = [gap] if gap else []
+        if len(deferred) > pending_start:
+            pending = 'Accepted link awaits a defining discovery. Check deferred claims for missing endpoint IDs.'
+            status = 'partial'
+            issues.append(pending)
+            reason = gap or pending
+            gap = gap or pending
         for path in cited:
             outcomes[path] = dict(status='cited', reason='An accepted claim cites a source range in this file.')
         reports[key] = dict(question=question, status=status, cited_paths=sorted(cited),
-                            claims=len(claims), gap=gap)
+                            claims=published, gap=gap)
         if discoveries:
             reports[key]['discoveries'] = len(discoveries)
         if absence_anchors:
@@ -308,8 +361,8 @@ def compile_investigation(manifest, plan, shards, reader, *, allow_legacy=False)
             methods.append('agent-discovery-reading')
         coverage.append(dict(area=key, family='investigation', status='analyzed' if status == 'answered' else status,
                              reason=reason, paths=sorted(cited), task=key, method=methods, basis=question['question'],
-                             scoped_absence=bool(absence_anchors), findings=len(claims) + len(discoveries),
-                             issues=[gap] if gap else []))
+                             scoped_absence=bool(absence_anchors), findings=published + len(discoveries),
+                             issues=issues))
 
     eligible = sum(item['eligible'] for item in manifest['entries'])
     answered = sum(row['status'] == 'answered' for row in reports.values())
@@ -325,5 +378,7 @@ def compile_investigation(manifest, plan, shards, reader, *, allow_legacy=False)
     metadata = dict(data['metadata'])
     metadata.update(status=canonical('complete' if questions and answered == len(questions) else 'partial'),
                     investigation_scope=canonical(scope), accepted_shards=canonical(shards))
+    if deferred:
+        metadata['deferred_claims'] = canonical(deferred)
     data['metadata'] = list(metadata.items())
     return data

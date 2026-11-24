@@ -1,3 +1,4 @@
+from contextlib import closing
 import json
 from pathlib import Path
 import sqlite3
@@ -49,7 +50,7 @@ class MultidimensionalCLI(unittest.TestCase):
             self.assertNotEqual(attempt.returncode, 0)
             self.assertIn('active investigation preserved', attempt.stderr)
             self.assertEqual(invoke(repo, 'verify')['integrity'], 'ok')
-            with sqlite3.connect(repo / '.project-mapper/graph.sqlite') as database:
+            with closing(sqlite3.connect(repo / '.project-mapper/graph.sqlite')) as database, database:
                 database.execute("UPDATE nodes SET name='tampered' WHERE key='file:package.json'")
             self.assertNotEqual(invoke(repo, 'verify', ok=False).returncode, 0)
 

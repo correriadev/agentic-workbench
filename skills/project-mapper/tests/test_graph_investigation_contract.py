@@ -2,7 +2,7 @@
 
 import json
 import argparse
-from contextlib import contextmanager
+from contextlib import ExitStack, closing, contextmanager
 import os
 from pathlib import Path
 import shutil
@@ -31,13 +31,21 @@ class GraphInvestigationContract(unittest.TestCase):
                 stage = Path(run['plan']).parent
                 replacement = repo / '.project-mapper' / 'replacement.sqlite'
                 shutil.copyfile(graph, replacement)
-                with sqlite3.connect(replacement) as altered:
+                with closing(sqlite3.connect(replacement)) as altered, altered:
                     altered.execute("UPDATE nodes SET name='new-generation' WHERE key='file:app.js'")
                 original_database = mapper.store.database
 
                 @contextmanager
                 def swapped_database(path):
-                    with original_database(path) as old_connection:
+                    with ExitStack() as stack:
+                        if os.name == 'nt':
+                            # Keep the old view while releasing Windows' lock on the file being replaced.
+                            old_connection = stack.enter_context(closing(sqlite3.connect(':memory:')))
+                            old_connection.row_factory = sqlite3.Row
+                            with original_database(path) as published:
+                                published.backup(old_connection)
+                        else:
+                            old_connection = stack.enter_context(original_database(path))
                         old_connection.execute('SELECT count(*) FROM nodes').fetchone()
                         os.replace(replacement, graph)
                         new_pin = mapper.graph_fingerprint(graph)
@@ -138,7 +146,7 @@ class GraphInvestigationContract(unittest.TestCase):
             revision = fixture(repo, {'app.js': 'export const app=1;\n'})
             invoke(repo, 'map', '--commit', revision)
             graph = repo / '.project-mapper' / 'graph.sqlite'
-            with sqlite3.connect(graph) as connection:
+            with closing(sqlite3.connect(graph)) as connection, connection:
                 connection.execute("UPDATE nodes SET name='tampered' WHERE key='file:app.js'")
             failed = invoke(repo, 'investigate', '--from-graph', '--commit', revision, ok=False)
             self.assertNotEqual(failed.returncode, 0)
@@ -160,14 +168,14 @@ class GraphInvestigationContract(unittest.TestCase):
             accept(repo, run, question['id'])
             reviewed = invoke(repo, 'check-plan', run['run'])['fingerprint']
             graph = repo / '.project-mapper' / 'graph.sqlite'
-            with sqlite3.connect(graph) as connection:
+            with closing(sqlite3.connect(graph)) as connection, connection:
                 connection.execute("UPDATE nodes SET name='tampered' WHERE key='file:app.js'")
             rejected_plan = invoke(repo, 'check-plan', run['run'], ok=False)
             self.assertNotEqual(rejected_plan.returncode, 0)
             failed = invoke(repo, 'publish', run['run'], '--reviewed-english-plan', reviewed, ok=False)
             self.assertNotEqual(failed.returncode, 0)
             self.assertIn('graph changed', failed.stderr)
-            with sqlite3.connect(graph) as connection:
+            with closing(sqlite3.connect(graph)) as connection:
                 self.assertEqual(connection.execute("SELECT name FROM nodes WHERE key='file:app.js'").fetchone()[0],
                                  'tampered')
 
@@ -179,7 +187,7 @@ class GraphInvestigationContract(unittest.TestCase):
             plan = json.loads(Path(run['plan']).read_text(encoding='utf-8'))
             question = plan['questions'][0]
             graph = repo / '.project-mapper' / 'graph.sqlite'
-            with sqlite3.connect(graph) as connection:
+            with closing(sqlite3.connect(graph)) as connection, connection:
                 connection.execute("INSERT INTO nodes VALUES ('symbol:app.js:phantom','symbol','app.js','phantom',0)")
             question['node_ids'].append('symbol:app.js:phantom')
             save(run['plan'], plan)

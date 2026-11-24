@@ -19,7 +19,8 @@ import graph_store as store
 from export_json import write_export
 from multidimensional import PROFILE as STATIC_PROFILE, extract_graph
 from csharp_profile import PROFILE as CSHARP_PROFILE
-from investigation import compile_investigation, new_plan, validate_plan, validate_shard
+from investigation import (compile_investigation, draft_subject_diagnostics, new_plan, validate_discrepancies,
+                           validate_plan, validate_shard)
 from pipeline import (collect, envelope, final_coverage, load, make_plan, project, review_envelope,
                       reviews, safe_path, save, validate_baseline)
 from python_profile import MANIFEST, PROFILE, Source, extract
@@ -83,12 +84,15 @@ def graph_fingerprint(path):
     checksum = hashlib.sha256()
     with os.fdopen(os.open(path, flags), 'rb') as source:
         opened = os.fstat(source.fileno())
-        if [opened.st_dev, opened.st_ino, opened.st_size, opened.st_mtime_ns, opened.st_ctime_ns] != before:
+        handle_stamp = [opened.st_dev, opened.st_ino, opened.st_size, opened.st_mtime_ns, opened.st_ctime_ns]
+        # Windows path and handle stats can report different meanings for ctime.
+        size = 4 if os.name == 'nt' else 5
+        if handle_stamp[:size] != before[:size]:
             raise MappingError('graph changed while opening it')
         for block in iter(lambda: source.read(1024 * 1024), b''):
             checksum.update(block)
         after = os.fstat(source.fileno())
-        if [after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns] != before:
+        if [after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns] != handle_stamp:
             raise MappingError('graph changed while hashing it')
     if graph_stamp(path) != before:
         raise MappingError('graph changed while hashing it')
@@ -445,6 +449,7 @@ def check_plan(root, name, *, summary=False, question=None, listing=False, offse
         next_offset = offset + len(items)
         return dict(snapshot=plan['snapshot'], fingerprint=fingerprint, total=len(plan['questions']),
                     questions=[dict(id=item['id'], question=item['question'], area=area(item),
+                                    **({'scope': item['scope']} if 'scope' in item else {}),
                                     progress=progress(item), seeds=len(item['seeds']),
                                     node_ids=len(item.get('node_ids', [])))
                                for item in items],
@@ -564,10 +569,17 @@ def import_investigation(root, source_root, source_run):
     destination = run_directory(output_paths(root)[0], result['run'])
     generated = load(safe_path(destination, 'plan.json'))
     assigned = {node for question in plan['questions'] for node in question.get('node_ids', [])}
+    originally_assigned = assigned.copy()
+    flow_anchors = {item['scope']['anchor'] for item in plan['questions']
+                    if item.get('scope', {}).get('kind') == 'flow'}
     question_ids = {question['id'] for question in plan['questions']}
     added = 0
     for question in generated['questions']:
-        new_nodes = [node for node in question.get('node_ids', []) if node not in assigned and
+        anchor = question['scope'].get('anchor')
+        if anchor in flow_anchors:
+            continue
+        existing = originally_assigned if anchor else assigned
+        new_nodes = [node for node in question.get('node_ids', []) if node not in existing and
                      node.startswith(('csharp-', 'dotnet-project:', 'nuget:'))]
         if not new_nodes:
             continue
@@ -578,6 +590,8 @@ def import_investigation(root, source_root, source_run):
             raise MappingError('imported C# assignment ID collides with the source plan')
         plan['questions'].append(question)
         question_ids.add(question['id'])
+        if anchor:
+            flow_anchors.add(anchor)
         assigned.update(question['node_ids'])
         added += 1
     temporary_plan = safe_path(destination, f'plan-{uuid4().hex}.tmp')
@@ -710,7 +724,7 @@ def write_lock(directory):
 
 
 def scope_info(info):
-    return {'investigation_scope': info['investigation_scope']} if 'investigation_scope' in info else {}
+    return {key: info[key] for key in ('investigation_scope', 'deferred_claims') if key in info}
 
 
 def has_multidimensional_profile(info):
@@ -790,6 +804,7 @@ def publish(root, name, *, reviewed_english_plan=None):
         store.check_integrity(connection, data)
         info = store.metadata(connection)
         write_readme(candidate_readme, info, connection, Path(__file__).resolve())
+        diagnostics = store.context_diagnostics(connection, limit=13) if 'questions' in plan else []
     graph_assignment = 'questions' in plan and any(item.get('node_ids') for item in plan['questions'])
     candidate_pin = graph_fingerprint(candidate) if graph_assignment else None
     # Coordinate with accept_shard (stage lock) as well as other publishers.
@@ -842,6 +857,8 @@ def publish(root, name, *, reviewed_english_plan=None):
     return dict(path=str(graph_path), snapshot=info['snapshot'], status=info['status'],
                 readme_written=readme_written, run=name, **scope_info(info), relationships=len(data['relationships']),
                 nodes=len(data['nodes']), discoveries=len(data.get('discoveries', [])),
+                **(dict(context_diagnostics=diagnostics[:12], context_diagnostics_truncated=len(diagnostics) > 12)
+                   if diagnostics else {}),
                 supplemental_fingerprint=info['supplemental_fingerprint'])
 
 
@@ -1000,6 +1017,7 @@ def draft_coverage(question, raw, pairs):
         mapped.add(requirement)
         mappings.append(dict(requirement=requirements[requirement-1], claim=claims[claim-1]))
     return dict(status=raw['status'], gap=raw['gap'], mappings=mappings,
+                context_diagnostics=draft_subject_diagnostics(raw),
                 unmapped=[text for i, text in enumerate(requirements, 1) if i not in mapped])
 
 
@@ -1014,11 +1032,13 @@ def check_shard(root, args):
             check_run_assignments(root, manifest, [question], stage=stage)
             raw = load(safe_path(stage, f'shards/{args.task}.json'))
             validate_shard(question['id'], raw, manifest, reader)
+            validate_discrepancies(raw)
             if args.command == 'preflight':
                 return draft_coverage(question, raw, args.covers)
             decisions = load(safe_path(stage, 'decisions.json'))
             fingerprint = decision_fingerprint(plan['output_language'], question, raw, decisions)
             return dict(question=args.task, status=raw['status'], claims=len(raw['claims']),
+                        context_diagnostics=draft_subject_diagnostics(raw),
                         discoveries=len(raw.get('discoveries', [])), fingerprint=fingerprint)
         if args.command == 'preflight':
             raise MappingError('preflight requires an investigation question')
@@ -1112,6 +1132,7 @@ def graph_unit(root, args, connection):
     check_graph_assignment(connection, manifest, [question])
     result = dict(snapshot=manifest['snapshot'], graph_fingerprint=generation,
                   question=dict(id=question['id'], question=question['question'],
+                    **({'scope': question['scope']} if 'scope' in question else {}),
                   depends_on=question['depends_on'], seed_count=len(question['seeds']),
                   node_count=len(question['node_ids'])), question_fingerprint=digest(question))
     result.update(role_coverage(connection, question['node_ids']))
@@ -1125,12 +1146,17 @@ def graph_unit(root, args, connection):
         values = ','.join('( ? )' for _ in keys)
         rows = connection.execute(
             f'WITH assigned(key) AS (VALUES {values}) '
-            'SELECT id,type,family,source,target,state FROM relationships '
+            'SELECT id,type,family,source,target,state,reason,conditions FROM relationships '
             'WHERE source IN (SELECT key FROM assigned) OR target IN (SELECT key FROM assigned) '
             'ORDER BY id LIMIT ? OFFSET ?', (*keys, args.limit + 1, args.edge_offset)).fetchall()
         more_nodes = args.node_offset + len(nodes) < len(keys)
         more_edges = len(rows) > args.limit
-        result.update(nodes=nodes, edges=[dict(row) for row in rows[:args.limit]],
+        edges = [dict(row, conditions=json.loads(row['conditions'])) for row in rows[:args.limit]]
+        for edge in edges:
+            if edge['state'] == 'unresolved':
+                edge['candidates'] = [row[0] for row in connection.execute(
+                    'SELECT node FROM relationship_candidates WHERE relationship=? ORDER BY node', (edge['id'],))]
+        result.update(seeds=question['seeds'], nodes=nodes, edges=edges,
                       next_node_offset=args.node_offset + len(nodes) if more_nodes else None,
                       next_edge_offset=args.edge_offset + args.limit if more_edges else None,
                       next_nodes=(dict(node_offset=args.node_offset + len(nodes), expect_graph=generation)
