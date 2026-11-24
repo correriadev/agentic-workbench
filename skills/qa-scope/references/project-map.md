@@ -1,40 +1,44 @@
 # Consult a published project map
 
-For each target project, locate an existing `.project-mapper/graph.sqlite` and
-a compatible installed Project Mapper `scripts/project_mapper.py`. Use the
-public CLI in read-only offline mode from the project root:
+Read an existing `.project-mapper/graph.sqlite` with the installed Project Mapper
+CLI in offline mode. Use `--expect-revision COMMIT` before the subcommand when
+the intended mapped commit is known. Compare the `graph_identity.sha256` and
+snapshot across related queries and restart if publication changes.
+
+In `plan`, start from a material risk or acceptance criterion. Use the linked
+`details.project_mapper` records when the New Scope specification supplies them.
+Otherwise search by an exact path, symbol or English behavior terms. Use
+`--terms` for English keywords with a natural-language question. Open the
+relevant discovery for conditions and evidence locators. Use a typed,
+shallow `trace --summary` when the risk depends on a call, transaction boundary,
+external effect or test relationship.
 
 ```text
-python "<mapper>" . --offline coverage --summary
-python "<mapper>" . --offline search "<English concept or exact identifier>" --limit 10
-python "<mapper>" . --offline node "<node key>"
+python "<mapper>" . --offline search "<path, symbol or behavior terms>" --limit 5
 python "<mapper>" . --offline open "<discovery ID>"
-python "<mapper>" . --offline trace "<key>" --direction both --depth 2
+python "<mapper>" . --offline trace "<key>" --type "<relation>" --direction out --depth 1 --summary
+python "<mapper>" . --offline coverage --area "<path or question>" --summary
 ```
 
-In `plan`, follow relevant entrypoints, conditions, persistence, external
-effects, tests and observation points. Inspect coverage and unresolved links.
-When `context.sqlite` exists, inspect relevant acceptance, behavior and risk
-nodes and their `details.project_mapper` references using the installed
-New Scope CLI's `get` and `trace`, or read the database directly in read-only
-mode. Retain source paths and symbols in `source_refs`; report the map snapshot,
-graph SHA, relevant IDs and material limitations without changing the QA schema
-or turning map findings into user-confirmed requirements.
+Choose incoming edges for tests or callers and outgoing edges for effects
+and dependencies. Expand only when another hop can change the evidence
+requirement. Use `node` for its own evidence and targeted coverage for
+material gaps or truncation. For older compatible CLIs, use their
+available search and traversal limits and compare the snapshot manually.
+Record current source paths and symbols or line ranges in `source_refs`.
+Keep the map identity and limitations with the planning rationale.
 
-In `check`, use these links to understand the planned behavior and what to
-inspect. Judge the actual candidate, test definitions and recorded execution
-observations against the published QA obligations. An earlier map snapshot is
-not proof of the changed candidate or an executed test. Reopen decisive current
-source and compare bytes with locator `content_id`; `sha256:` is a raw SHA-256,
-while `git:` is the Git blob hash of `b"blob " + decimal_length + b"\0" +
-bytes` (SHA-1 for 40 hex characters, SHA-256 for 64). An unverified static
-relationship is only a candidate. Keep the same `graph_identity` snapshot and
-SHA across related offline queries and restart if publication changes them.
+In `check`, start with the published obligation and the candidate's evidence.
+Use map links to find decisive test definitions, configurations and observation
+points. Inspect those current sources. Compare each relied-on locator's
+`content_id` using New Scope's `source-ref --expect-content-id` when available.
+For a local check, `sha256:` hashes raw bytes and `git:` hashes
+`b"blob " + decimal_length + b"\0" + bytes` using SHA-1 for 40 hex characters
+or SHA-256 for 64. Base the verdict on the actual candidate and recorded
+observations from the planned scenario.
 
-Offline queries check stored graph integrity, not the live checkout or execution.
-If the map or compatible CLI is absent, unreadable or incomplete, follow
-`docs/README.md` and its index, inspect current source and tests, and report
-material gaps. If docs are absent, use the root README, manifests and code.
-Do not create or update a map as part of QA; map absence alone does not block a
-conclusion supported by other evidence. Missing material evidence yields an
-inconclusive assessment as described in the skill.
+A globally partial map can support an individual lookup. Use
+`docs/README.md` and its index when the map or CLI is unavailable or leaves
+a material question open. Without docs, use the root README, manifests,
+source and tests. Keep the map read-only and record missing material evidence
+in the finding.
