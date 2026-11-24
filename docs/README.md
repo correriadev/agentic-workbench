@@ -25,7 +25,9 @@ If an exact path is supplied, read it directly. Otherwise use this order:
 
 ## Construction and QA Planning
 
-Either `blueprint` or `quality-gate plan` can initialize the shared `SCOPE.md`. The former produces `tasks.json` and the latter produces `qa.json`. Use the same scope revision when both plans exist. `forge` executes RED → GREEN and the planned evidence checks. `quality-gate check` judges the candidate-specific evidence when a QA contract applies.
+`blueprint` records the specification in `context.sqlite` and renders `SCOPE.md`. Its optional Forge export becomes a revision-bound `tasks.json` when Forge publishes it. `quality-gate plan` produces `qa.json`; if no Blueprint database exists it can initialize a standalone scope. Reconcile the scope and QA revisions before execution. `forge` executes RED → GREEN and planned evidence checks. `quality-gate check` judges candidate-specific evidence.
 
 
 Forge supports implementation, check authoring and execution of existing procedures. Direct mode presents a session plan before writes or side effects. Planned mode maps identified checks to QA obligations and records a start and result per attempt in `tasks.json`. Replanning resets affected execution state while preserving attempt history. Reconcile uncertain external effects by operation key before retrying. Quality Gate records verdicts in `qa.json.assessments`.
+
+`blueprint` and `forge` can query an existing `.project-mapper/graph.sqlite` in the mapper's Git-free read-only mode. They verify consequential current sources and treat partial or stale map results as leads.

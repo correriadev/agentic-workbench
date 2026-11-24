@@ -39,6 +39,7 @@ For each distinct `project_path`, before dispatch:
 1. If `docs/` exists, read `docs/README.md` FIRST. Follow its index; then review available `docs/.digest.md`, `docs/.graph.json`, and relevant ADRs (especially `ARCHITECTURE.md`, `TESTS.md`) and linked standards.
 2. Inspect neighboring code/tests and runner configuration; compare conventions with docs, flag discrepancies. Read shared orientation once per project. Give builders a concise architecture/style/testing summary with source paths. Builders inspect task-specific source and tests, and reopen orientation starting with `docs/README.md` when the summary is missing, stale or contradicted.
 3. If `docs/` or its README is absent, disclose it and use root README, manifests and adjacent code/tests instead. Do not invent project standards.
+4. When a published Project Mapper graph is available, use the read-only workflow in [Project map](references/project-map.md) in both modes. Hand relevant evidence and unresolved boundaries to the task executor. An absent or partial map is not a reason to fabricate or silently widen the edit scope.
 Read freely for context; the applicable edit scope constrains WRITES. Do not edit project docs.
 </project_context>
 

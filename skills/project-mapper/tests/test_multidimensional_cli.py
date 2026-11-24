@@ -1,7 +1,10 @@
 from contextlib import closing
 import json
 from pathlib import Path
+import os
 import sqlite3
+import subprocess
+import sys
 import unittest
 
 from test_acceptance import fixture, invoke, test_directory
@@ -9,6 +12,32 @@ from test_investigation import accept, add_question, publish_investigation, save
 
 
 class MultidimensionalCLI(unittest.TestCase):
+    def test_offline_queries_need_no_git_and_identify_unverified_snapshot(self):
+        with test_directory() as repo:
+            revision = fixture(repo, {'package.json': '{"name":"demo"}\n'})
+            invoke(repo, 'map', '--commit', revision)
+            cli = Path(__file__).resolve().parents[1] / 'scripts/project_mapper.py'
+            env = dict(os.environ, PATH='')
+
+            def query(*args):
+                return subprocess.run([sys.executable, str(cli), str(repo), '--offline', *args],
+                                      capture_output=True, text=True, env=env)
+
+            search = query('search', 'package.json')
+            self.assertEqual(search.returncode, 0, search.stderr)
+            found = json.loads(search.stdout)
+            self.assertEqual(found['graph_identity']['snapshot']['revision'], revision)
+            self.assertFalse(found['graph_identity']['current_snapshot_verified'])
+            self.assertTrue(any(n['key'] == 'file:package.json' for n in found['nodes']))
+            node = query('node', 'file:package.json')
+            self.assertEqual(node.returncode, 0, node.stderr)
+            self.assertEqual(json.loads(node.stdout)['graph_identity']['sha256'],
+                             found['graph_identity']['sha256'])
+            self.assertEqual(query('trace', 'file:package.json', '--depth', '1').returncode, 0)
+            self.assertEqual(query('coverage', '--summary').returncode, 0)
+            self.assertNotEqual(query('verify').returncode, 0)
+            self.assertNotEqual(query('node', 'file:package.json', '--run', 'invalid').returncode, 0)
+
     def test_map_and_enrichment_replay_the_same_snapshot(self):
         with test_directory() as repo:
             revision = fixture(repo, {

@@ -1173,6 +1173,7 @@ def graph_unit(root, args, connection):
 def arguments():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('repo', type=Path, help='root of the target Git repository')
+    parser.add_argument('--offline', action='store_true', help='query an existing graph without invoking Git')
     commands = parser.add_subparsers(dest='command', required=True)
     export = commands.add_parser('export', help='export a published graph to JSON')
     export.add_argument('--output', required=True, help='new JSON filename inside .project-mapper')
@@ -1393,7 +1394,27 @@ def dispatch(root, args):
 def main():
     parser, args = arguments()
     try:
-        print(canonical(dispatch(repository(args.repo), args)))
+        if args.offline:
+            if (args.command not in {'coverage', 'dimensions', 'search', 'open', 'node', 'trace'}
+                    or getattr(args, 'run', None)):
+                raise MappingError('offline mode supports published graph queries without run assignments only')
+            root = args.repo.resolve(strict=True)
+            if not root.is_dir():
+                raise MappingError('target root must be a directory')
+            graph = output_paths(root)[1]
+            before = graph_fingerprint(graph)
+            with store.database(graph) as connection:
+                store.check_integrity(connection)
+                info = store.metadata(connection, 'snapshot', 'status', 'profile')
+            result = dispatch(root, args)
+            after = graph_fingerprint(graph)
+            if before != after:
+                raise MappingError('graph changed during offline query; retry')
+            result['graph_identity'] = dict(sha256=before['sha256'], **info,
+                                            current_snapshot_verified=False)
+        else:
+            result = dispatch(repository(args.repo), args)
+        print(canonical(result))
     except (MappingError, OSError, sqlite3.Error, ValueError, KeyError, TypeError, LookupError, SyntaxError) as error:
         parser.exit(1, f'project-mapper: {error}\n')
 

@@ -100,6 +100,15 @@ Use `conflicts-with` to connect two supported, attributed discoveries whose conc
 
 ## Query a published map
 
+For consumers that cannot invoke Git, put `--offline` between the root and the
+query command, for example `python "<mapper>" . --offline search "payment"`.
+`coverage`, `dimensions`, `search`, `open`, `node` and `trace` are supported;
+run-pinned queries, publication, export and `verify` are not. Each response
+includes `graph_identity` with the graph SHA-256, recorded snapshot, status and
+profile. Offline checks graph integrity but neither replays evidence nor verifies
+that the current working tree matches the snapshot. Compare graph identities
+across queries and inspect decisive current sources before using the result.
+
 From the target Git root, with the same mapper path:
 
 ```text

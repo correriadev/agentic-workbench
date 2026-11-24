@@ -31,7 +31,11 @@ Use the graph directly to hand context to a coding agent.
    pending questions as separate nodes. Keep provenance and confirmation distinct.
 2. **Ground in the repository.** For each target root, read `docs/README.md` first
    when present, then follow its index, digest, graph, relevant ADRs and testing
-   protocol. If absent, record the gap and inspect the root README, manifest,
+   protocol. Use an available `.project-mapper/graph.sqlite` as described in
+   [Project map](references/project-map.md) to locate the affected flows and
+   their source evidence. If the map is unavailable or incomplete, continue
+   with direct inspection and record consequential gaps. If docs are absent,
+   inspect the root README, manifest,
    affected code, test runner configuration and nearby unit tests. Resolve
    documentation/code mismatches explicitly. Trace interfaces, endpoints, DTOs,
    domain rules, methods, persistence, jobs, events, auth, error handling and
@@ -62,10 +66,5 @@ Use the graph directly to hand context to a coding agent.
    artifact paths and the blocked work. Blueprint records expectations and
    never creates execution observations from planning.
 
-For scheduled boleto cancellation, investigate the race between cancellation
-and execution, authorization, duplicate requests, atomicity and partial failure.
-Confirm semantics from the target project or record them as proposals. Define
-independent observables for HTTP status, persisted state and whether a cancelled
-schedule can still dispatch. A status assertion can cover only the status.
-
-Read [Graph CLI](references/graph-cli.md) for the write format and queries.
+Read [Graph CLI](references/graph-cli.md) for the write format, queries and
+the optional version-bound Forge handoff.
