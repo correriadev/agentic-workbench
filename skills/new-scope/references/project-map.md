@@ -1,49 +1,50 @@
 # Use a published project map
 
-For each target root, use an existing `.project-mapper/graph.sqlite` when a
-compatible Project Mapper CLI is available. Find its installed `scripts/project_mapper.py`;
-do not assume this skill's installation is adjacent. This optional read does not
-authorize creating or updating the map. If either is absent, unreadable or
-incompatible or incomplete, follow `docs/README.md` and its index, then
-investigate current sources directly. If docs are absent, use the root README,
-manifests and sources; report material limitations.
+Read the existing `.project-mapper/graph.sqlite` with the installed Project
+Mapper CLI in offline mode. Locate that CLI independently of New Scope's
+installation. When the intended committed revision is known from the task
+context, pass `--expect-revision COMMIT` before the subcommand. Across related
+queries compare `graph_identity.sha256` and its snapshot. Restart a batch if its
+publication changes.
 
-From the target root, use Python 3.12+ and the CLI's read-only offline mode:
+Begin with the exact endpoint, path, symbol or English behavior terms relevant
+to a scope decision. Locate the affected contract, observable effects and
+nearby tests. Use `--terms` for English keywords with a natural-language
+question. Open a discovery for its conditions and source ranges. Use a typed,
+shallow `trace --summary` when the question needs relationships. Expand only
+where a material continuation remains. For older compatible CLIs use the
+available search and depth controls and compare the returned snapshot manually.
 
 ```text
-python "<mapper>" . --offline coverage --summary
-python "<mapper>" . --offline dimensions --summary
-python "<mapper>" . --offline search "<English concept or exact identifier>" --limit 10
-python "<mapper>" . --offline node "<structural node key>"
+python "<mapper>" . --offline search "<identifier or English behavior terms>" --limit 5
 python "<mapper>" . --offline open "<discovery ID>"
-python "<mapper>" . --offline trace "<key>" --direction both --depth 2
+python "<mapper>" . --offline trace "<key>" --type "<relation>" --direction out --depth 1 --summary
+python "<mapper>" . --offline coverage --area "<path or question>" --summary
 ```
 
-Begin with scope-specific questions: entrypoints and callers, conditions and
-variants, persistence and external effects, affected interfaces, neighboring
-tests and runner configuration. Search using English concepts and original
-identifiers. Open relevant discoveries, traverse both directions selectively,
-follow material continuations and inspect `coverage --area <path-or-question>`.
-Inspect truncation, unresolved targets, candidate relationships, discrepancies
-and boundaries; an empty search does not establish absence. Follow source locators
-for each consequential statement. A flow discovery does not by itself assign its
-role to every linked node. A static candidate does not establish a runtime call,
-deployed state or an executed test.
+Use `node` when you need that node's evidence or subject-specific context.
+Request global coverage or dimensions when the decision needs repository-wide
+breadth. Inspect relevant gaps, truncation, candidate relationships and
+conflicting sources. Attribute findings to the subject or flow they describe.
+Support absence claims with scoped coverage and current sources.
+Coverage can be partial overall and sufficient for an
+individual lookup. Use `docs/README.md` and its index for questions the graph
+leaves open or when the map or CLI is absent, stale, unreadable or incompatible.
+If docs are unavailable, start from the root README, manifests and current
+sources. Use static facts to locate behavior and test definitions. Runtime,
+deployment and test execution claims require their own observations.
 
-Offline queries return `graph_identity` with a graph SHA-256, snapshot, status
-and profile. They check stored graph integrity but do not verify the snapshot
-against the current working tree or replay evidence. Keep the graph SHA and
-snapshot consistent across queries; restart if publication changes either.
-Treat old or unverified maps as leads, including after edits. Compare decisive
-current source bytes to the locator's `content_id`: `sha256:` hashes raw bytes;
-`git:` hashes `b"blob " + decimal_length + b"\0" + bytes` with SHA-1 for a
-40-character ID or SHA-256 for a 64-character ID. Missing, changed or unreadable
-sources require direct investigation, not a freshness claim.
+For each decisive locator, use [source-ref](graph-cli.md#current-source-references)
+with its path, inclusive line range and `--expect-content-id`. Inspect the
+source in that range. A revision match pins the published snapshot. A content
+ID match checks the current file bytes. When a file differs, consult its current
+version and record a new source reference for the inspected lines.
 
 Record relevant map snapshot, graph SHA, node/discovery ID, relation, conditions
 and limitations in the affected specification node's `details.project_mapper`.
-Attach ordinary `sources` and `node_sources` for each supporting current file,
-with path, symbol, lines and its raw SHA-256 as required by the New Scope CLI.
-Keep conflicting findings attributed. Record material unresolved evidence as a
-gap or hypothesis and block only dependent work; do not copy the whole map or
-turn mapper content into a confirmed human decision.
+Link the inspected current `sources` through `node_sources`. Keep the map's
+conditions and limitations attached to the claim they qualify. Use observed
+repository nodes for established facts, planned nodes for proposed changes,
+and hypotheses or gaps for evidence still needed. Identify the affected
+acceptance criterion, the observable effect and its test or runner. Block work
+that depends on an unresolved gap.

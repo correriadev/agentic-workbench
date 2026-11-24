@@ -116,6 +116,47 @@ class GraphTests(unittest.TestCase):
     def gap_codes(self):
         return {item["code"] for item in self.run_cli("gaps")["gaps"]}
 
+    def test_source_ref_grounds_docs_before_init_without_a_graph(self):
+        self.folder = self.folder.with_name("docs-fallback")
+        target = self.root / "dependency"
+        (target / "docs").mkdir(parents=True)
+        (target / "docs/README.md").write_text("# Test policy\n\nUse the focused runner.\n", encoding="utf-8")
+        record = self.run_cli("source-ref", "DOC1", "--project-root", str(target),
+                              "--path", "docs/README.md", "--lines", "3", "3", "--excerpt")
+        self.assertFalse(self.folder.exists())
+        self.assertEqual(record["project_root"], str(target))
+        self.assertEqual(record["excerpt"], "Use the focused runner.")
+        self.assertNotIn("version", record)
+        self.run_cli("init")
+        self.apply(dict(request_id="documentation", reason="Ground the runner policy",
+                        nodes=[node("C1", "constraint", "Use a focused runner.", "observed", "repository")],
+                        sources=[record], node_sources=[dict(node_id="C1", source_id="DOC1")]))
+        self.assertEqual(self.run_cli("get", "C1")["sources"][0]["sha256"], record["sha256"])
+
+    def test_source_ref_hashes_and_reads_the_same_bytes_and_apply_rechecks(self):
+        path = "tests/test_existing.py"
+        file = self.root / path
+        data = "# validação\r\nimport unittest\r\n".encode()
+        file.write_bytes(data)
+        digest = hashlib.sha256(data).hexdigest()
+        blob = b"blob " + str(len(data)).encode() + b"\0" + data
+        for content_id in (f"sha256:{digest}", "git:" + hashlib.sha1(blob).hexdigest(),
+                           "git:" + hashlib.sha256(blob).hexdigest()):
+            with self.subTest(content_id=content_id):
+                record = self.run_cli("source-ref", "SRC2", "--path", path, "--symbol", "unittest",
+                                      "--lines", "1", "1", "--excerpt", "--expect-content-id", content_id)
+                self.assertEqual(record["sha256"], digest)
+                self.assertEqual(record["version"], content_id)
+                self.assertEqual(record["symbol"], "unittest")
+                self.assertEqual(record["excerpt"], "# validação")
+        self.assertIn("line range", self.run_cli("source-ref", "SRC2", "--path", path,
+                                                 "--lines", "1", "9", status=1))
+        self.assertIn("project-relative path", self.run_cli("source-ref", "SRC2", "--path", "../source.py", status=1))
+        file.write_bytes(data + b"# Changed after inspection.\r\n")
+        self.assertIn("Source content changed", self.apply(
+            dict(request_id="changed-source", reason="Record initial evidence", sources=[record]), status=1))
+        self.assertEqual(self.run_cli("inspect")["revision"], 0)
+
     def test_artifacts_and_regeneration(self):
         self.apply()
         self.run_cli("render-scope")

@@ -9,6 +9,7 @@ run `python /path/to/new-scope/contract.py docs/specs/<change-id> <operation>`.
 | `inspect` | Identity, current revision and whether the summary matches |
 | `apply` | `--expect N` and one JSON object on stdin, committed atomically |
 | `get ID` | Full node, adjacent edges, provenance, operational mappings and observations |
+| `source-ref ID` | Read current file evidence and print a row for `sources` |
 | `trace ID` | Bounded traversal in both directions, using `--depth` and `--limit` |
 | `impact ID` | Directed traversal of downstream planning dependencies |
 | `coverage [ID]` | Planned assertions, observables and recorded execution references |
@@ -46,6 +47,25 @@ before issuing a new request. Use `remove_edges` with `src`, `relation` and
   ]
 }
 ```
+
+## Current source references
+
+`source-ref` reads a project-relative file and returns a `sources` row with its
+raw SHA-256. It works before `init`. Paths default to the project containing the
+specification. Use `--project-root` for evidence from another target root.
+
+```text
+python "<contract>" docs/specs/<change-id> source-ref SRC1 --path "<source path>" --symbol "<symbol>" --lines 20 34 --expect-content-id "<locator content_id>" --excerpt
+```
+
+Copy the inclusive line numbers from the locator and choose an exact symbol when
+known. The optional content ID accepts Project Mapper's raw SHA-256 or Git blob
+hash, computed locally from the same bytes as the raw SHA-256. Use `--excerpt`
+with a focused range to see those verified bytes as text. Omit it when the
+reference alone suffices. Submit the row through `apply` and add the corresponding
+`node_sources` link. `apply` checks the raw hash again before storing a new source.
+For a changed file or a documentation lead without a map, inspect the current
+file and create its reference from the current lines.
 
 ## Relationship conventions
 
