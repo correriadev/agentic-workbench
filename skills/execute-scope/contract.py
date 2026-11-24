@@ -82,20 +82,20 @@ def validate_blueprint(folder, document):
     binding = document.get('blueprint_source')
     if not binding:
         if source.exists():
-            raise ValueError('Blueprint specification exists; reconcile the task plan with its current revision')
-        return  # Legacy plans without a Blueprint database remain supported.
+            raise ValueError('New Scope specification exists; reconcile the task plan with its current revision')
+        return  # Legacy plans without a New Scope database remain supported.
     if (not isinstance(binding, dict) or set(binding) != {'revision', 'sha256'}
             or type(binding['revision']) is not int or not isinstance(binding['sha256'], str)
             or source.is_symlink() or not source.is_file()
             or any((folder / ('context.sqlite' + suffix)).exists() for suffix in ('-wal', '-journal'))):
-        raise ValueError('Blueprint source is unavailable, active, or invalid')
+        raise ValueError('New Scope source is unavailable, active, or invalid')
     with sqlite3.connect(source.resolve().as_uri() + '?mode=ro', uri=True) as db:
         db.execute('PRAGMA trusted_schema=OFF')
         db.execute('BEGIN')
         row = db.execute('SELECT change_id, revision FROM spec_meta').fetchone()
         if (not row or row != (document['change_id'], binding['revision'])
                 or digest(source.read_bytes()) != binding['sha256']):
-            raise ValueError('Blueprint specification changed; reconcile the task plan')
+            raise ValueError('New Scope specification changed; reconcile the task plan')
         nodes = {key: (content, json.loads(details)) for key, content, details in db.execute(
             "SELECT id,content,details FROM nodes WHERE kind='task' "
             "AND state NOT IN ('superseded','resolved') "
@@ -103,12 +103,12 @@ def validate_blueprint(folder, document):
         planned = indexed(document['tasks'])
         blocked = indexed(document.get('blocked_tasks', []))
         if planned.keys() & blocked.keys() or planned.keys() | blocked.keys() != nodes.keys():
-            raise ValueError('Blueprint tasks and blockers must match the specification')
+            raise ValueError('New Scope tasks and blockers must match the specification')
         for key, task in planned.items():
             details = db.execute('SELECT project_root,kind,unit_command,red,green FROM task_details WHERE task_id=?',
                                  (key,)).fetchone()
             if not details:
-                raise ValueError('Blueprint task is missing its operational mapping')
+                raise ValueError('New Scope task is missing its operational mapping')
             root, kind, command, red, green = details
             files = list(db.execute('SELECT path,origin,role FROM task_files WHERE task_id=? ORDER BY path', (key,)))
             content, extra = nodes[key]
@@ -132,16 +132,42 @@ def validate_blueprint(folder, document):
                 expected['smoke_command'] = extra['smoke_command']
             actual = {k: v for k, v in task.items() if k not in ('status', 'phase', 'attempts', 'error')}
             if actual != expected:
-                raise ValueError('Blueprint task definition differs from its specification: ' + key)
+                raise ValueError('New Scope task definition differs from its specification: ' + key)
 
 
 def text_list(value):
     return isinstance(value, list) and bool(value) and all(map(nonempty_text, value))
 
 
-def validate_qa(contract, scope_text, *, publishing=False):
+def scoped_acceptance_ids(folder, scope_text):
+    source = folder / 'context.sqlite'
+    if source.exists() or source.is_symlink():
+        if (source.is_symlink() or not source.is_file()
+                or any((folder / ('context.sqlite' + suffix)).exists() for suffix in ('-wal', '-journal'))):
+            raise ValueError('Specification source is unavailable, active, or invalid')
+        with sqlite3.connect(source.resolve().as_uri() + '?mode=ro', uri=True) as db:
+            db.execute('PRAGMA trusted_schema=OFF')
+            db.execute('BEGIN')
+            meta = db.execute('SELECT change_id, revision FROM spec_meta').fetchone()
+            match = re.search(r'(?m)^Database revision: ([0-9]+)$', scope_text)
+            if not meta or meta[0] != folder.name or not match or meta[1] != int(match.group(1)):
+                raise ValueError('New Scope specification and scope revisions differ; render the current scope')
+            active = {row[0] for row in db.execute(
+                "SELECT id FROM nodes WHERE kind='acceptance' AND state <> 'superseded' "
+                "AND id NOT IN (SELECT dst FROM edges WHERE relation='supersedes')")}
+            section = re.search(r'(?ms)^## Acceptance criteria[ \t]*\r?\n(.*?)(?=^## |\Z)', scope_text)
+            rendered = set(re.findall(r'(?m)^- \*\*([A-Za-z][A-Za-z0-9_.:-]*) — ', section.group(1))) if section else set()
+            if not section or rendered != active:
+                raise ValueError('New Scope acceptance criteria do not match the rendered scope')
+            return active
+    # Standalone scopes declare each acceptance ID at the beginning of a line or table row.
+    return set(re.findall(r'(?m)^[|*# \-]*\*{0,2}(A[A-Za-z0-9_-]*)(?=\*|\s|[:|—])', scope_text))
+
+
+def validate_qa(contract, scope_text, folder, *, publishing=False):
     obligations = indexed(contract["obligations"])
     risks = set(re.findall(r"(?m)^[|*# \-]*\*{0,2}(R[0-9]+)\b", scope_text))
+    acceptances = scoped_acceptance_ids(folder, scope_text)
     coverage = {}
     for entry in contract.get("risk_coverage", []):
         key, refs = entry["risk_id"], set(entry["obligation_ids"])
@@ -155,6 +181,8 @@ def validate_qa(contract, scope_text, *, publishing=False):
     if not obligations and not contract.get("empty_obligations_rationale"):
         raise ValueError("Empty QA contract requires an explicit scope decision")
     for obligation in obligations.values():
+        if not text_list(obligation.get("acceptance_ids")) or set(obligation["acceptance_ids"]) - acceptances:
+            raise ValueError("QA obligation references an unknown or inactive acceptance criterion")
         if publishing:
             for field in ("acceptance_ids", "risk_ids", "preconditions", "observables",
                           "assertions", "artifacts", "source_refs"):
@@ -361,7 +389,7 @@ def main():
         scope = digest(scope_bytes) if scope_bytes is not None else None
         if args.operation == "scope":
             if (folder / 'context.sqlite').exists() or (folder / 'context.sqlite').is_symlink():
-                raise ValueError('Blueprint owns this scope; render it from the specification')
+                raise ValueError('New Scope owns this scope; render it from the specification')
             if args.expect != (scope or "absent") or not proposed.strip():
                 raise ValueError("Scope changed or is empty")
             atomic_write(scope_path, proposed.encode())
@@ -384,13 +412,13 @@ def main():
         if args.operation == "qa-plan":
             if value["scope_revision"] != scope or value["change_id"] != folder.name:
                 raise ValueError("QA contract has stale scope or wrong change ID")
-            validate_qa(value, scope_bytes.decode(), publishing=True)
+            validate_qa(value, scope_bytes.decode(), folder, publishing=True)
             value = {"contract": value, "assessments": qa.get("assessments", []) if qa else []}
         else:
             if qa and (contract is None or contract["scope_revision"] != scope
                        or contract["change_id"] != folder.name):
                 raise ValueError("Replan the stale or legacy QA contract")
-            obligations = validate_qa(contract, scope_bytes.decode()) if contract else {}
+            obligations = validate_qa(contract, scope_bytes.decode(), folder) if contract else {}
             if task_write:
                 validate_blueprint(folder, value)
                 if (value["scope_revision"], value.get("qa_revision"), value["change_id"]) != (

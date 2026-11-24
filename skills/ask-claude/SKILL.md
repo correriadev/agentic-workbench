@@ -5,6 +5,21 @@ description: Delegate consultations, code reviews, and implementations to the lo
 
 # Ask Claude
 
+## Project context
+
+When this skill needs context for an existing project, first check for its
+`.project-mapper/graph.sqlite`. With a compatible installed
+`project_mapper.py`, query from the project root using
+`python "<mapper>" . --offline` followed by `coverage --summary`,
+`search "<term>"`, `node <key>`, `open <id>`, or
+`trace <key> --direction both --depth 2` as needed. Check graph identity,
+snapshot, coverage and gaps; reopen decisive current sources. A map is a lead,
+not proof of runtime behavior or permission to write. If the map or compatible
+CLI is absent, unreadable or incomplete, consult `docs/README.md` and its
+index, then relevant source and tests; if unavailable, use the root README,
+manifests and source. Report material gaps. Do not create or update the map
+unless requested; preserve this skill's scope and any supplied exact paths.
+
 Delegate to the local `claude` CLI on behalf of the user. Include the objective, relevant paths, acceptance conditions, and authorized scope. Do not send secrets or delegate back to the requesting agent.
 
 ## Intent routing

@@ -5,6 +5,21 @@ description: Generate and execute a separate, versioned end-to-end test reposito
 
 # Journey Verifier
 
+## Project context
+
+When this skill needs context for an existing project, first check for its
+`.project-mapper/graph.sqlite`. With a compatible installed
+`project_mapper.py`, query from the project root using
+`python "<mapper>" . --offline` followed by `coverage --summary`,
+`search "<term>"`, `node <key>`, `open <id>`, or
+`trace <key> --direction both --depth 2` as needed. Check graph identity,
+snapshot, coverage and gaps; reopen decisive current sources. A map is a lead,
+not proof of runtime behavior or permission to write. If the map or compatible
+CLI is absent, unreadable or incomplete, consult `docs/README.md` and its
+index, then relevant source and tests; if unavailable, use the root README,
+manifests and source. Report material gaps. Do not create or update the map
+unless requested; preserve this skill's scope and any supplied exact paths.
+
 Take a target checkout, the requested behavior and an output location outside the target. Run `python scripts/init_suite.py TARGET SUITE` from this skill directory to initialize or resume a separate repository. Inspect local differences and pin the source revision. Deliver one documented, noninteractive command from the suite, even when the target already has extensive tests.
 
 1. **Establish the oracle.** Read requirements, operator contracts, tests, fixtures, clients, helpers, assertions and available run records. Record what each existing check distinguishes, its inputs, dependencies and observed execution. Separate a test definition from a passing run. For each important gap, name a plausible defect and the independent observation that would expose it. Mark implementation-only expectations as characterizations. Record disputed product behavior as an open decision.

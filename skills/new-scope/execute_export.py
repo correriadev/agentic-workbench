@@ -1,4 +1,4 @@
-"""Project a Blueprint revision into the existing Forge task contract."""
+"""Project a New Scope revision into the existing Execute Scope task contract."""
 import hashlib
 import json
 from pathlib import Path
@@ -21,10 +21,10 @@ def load_json(path):
     return value
 
 
-def export_forge(db, folder, metadata, scope_bytes):
+def export_execute_scope(db, folder, metadata, scope_bytes):
     source = folder / 'context.sqlite'
     if any((folder / ('context.sqlite' + suffix)).exists() for suffix in ('-wal', '-journal')):
-        raise ValueError('Close active Blueprint writers before exporting')
+        raise ValueError('Close active New Scope writers before exporting')
     source_hash = sha(source.read_bytes())
     scope_hash = sha(scope_bytes)
     qa = load_json(folder / 'qa.json')
@@ -119,7 +119,7 @@ def export_forge(db, folder, metadata, scope_bytes):
     if not isinstance(evidence, list):
         raise ValueError('Prior task evidence must be an array')
     if sha(source.read_bytes()) != source_hash:
-        raise ValueError('Blueprint changed during export; retry')
+        raise ValueError('New Scope changed during export; retry')
     return dict(change_id=metadata['change_id'], scope_revision=scope_hash, qa_revision=qa_revision,
                 blueprint_source=dict(revision=metadata['revision'], sha256=source_hash),
                 tasks=[tasks[key] for key in sorted(tasks) if not reasons[key]],

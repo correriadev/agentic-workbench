@@ -4,7 +4,9 @@ For each target root, use an existing `.project-mapper/graph.sqlite` when a
 compatible Project Mapper CLI is available. Find its installed `scripts/project_mapper.py`;
 do not assume this skill's installation is adjacent. This optional read does not
 authorize creating or updating the map. If either is absent, unreadable or
-incompatible, report the limitation and investigate sources directly.
+incompatible or incomplete, follow `docs/README.md` and its index, then
+investigate current sources directly. If docs are absent, use the root README,
+manifests and sources; report material limitations.
 
 From the target root, use Python 3.12+ and the CLI's read-only offline mode:
 
@@ -41,7 +43,7 @@ sources require direct investigation, not a freshness claim.
 Record relevant map snapshot, graph SHA, node/discovery ID, relation, conditions
 and limitations in the affected specification node's `details.project_mapper`.
 Attach ordinary `sources` and `node_sources` for each supporting current file,
-with path, symbol, lines and its raw SHA-256 as required by the Blueprint CLI.
+with path, symbol, lines and its raw SHA-256 as required by the New Scope CLI.
 Keep conflicting findings attributed. Record material unresolved evidence as a
 gap or hypothesis and block only dependent work; do not copy the whole map or
 turn mapper content into a confirmed human decision.

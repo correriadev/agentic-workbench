@@ -1,7 +1,7 @@
-# Blueprint graph CLI
+# New Scope graph CLI
 
 Use Python 3.12+ and its standard-library SQLite. From the target project root,
-run `python /path/to/blueprint/contract.py docs/specs/<change-id> <operation>`.
+run `python /path/to/new-scope/contract.py docs/specs/<change-id> <operation>`.
 
 | Operation | Arguments and result |
 |---|---|
@@ -15,7 +15,11 @@ run `python /path/to/blueprint/contract.py docs/specs/<change-id> <operation>`.
 | `gaps` | Deterministic findings and task readiness |
 | `validate` | Integrity and planning findings, with a nonzero exit on a blocked plan |
 | `render-scope` | Atomically regenerate the human summary for the current revision |
-| `export-forge` | Print a version-bound Forge task projection; writes nothing |
+| `export-execute-scope` | Print a version-bound Execute Scope task projection; writes nothing |
+
+`export-forge` remains a compatibility alias with the same output. The
+persisted `blueprint_source` field retains its existing name and meaning so
+plans created before the skill rename remain readable.
 
 ## Apply format
 
@@ -77,13 +81,13 @@ The implementation task's `task_files` entries are the file allowlist and
 directly, including the same focused command. Use `runner_source` for
 configuration or an inspected example that grounds that command.
 
-## Handoff to Forge
+## Handoff to Execute Scope
 
 After reviewing `gaps`, `coverage` and `validate`, run `render-scope`, then
-`export-forge`. This prints JSON for Forge's existing `plan` operation; it does
-not publish `tasks.json`. Give the JSON and the current Forge `inspect` digest
-to Forge, which publishes it with its own contract script. The projection binds
-the exact Blueprint database revision and SHA-256, current scope and QA revision.
+`export-execute-scope`. This prints JSON for Execute Scope's existing `plan` operation; it does
+not publish `tasks.json`. Give the JSON and the current Execute Scope `inspect` digest
+to Execute Scope, which publishes it with its own contract script. The projection binds
+the exact New Scope database revision and SHA-256, current scope and QA revision.
 Reconcile any rejection; do not remove the binding. Existing execution evidence
 is retained, while projected tasks return to pending when replanned.
 
@@ -96,7 +100,7 @@ The exporter leaves an unready task and its dependents in `blocked_tasks`,
 including missing production paths, missing QA mappings or pending obligations;
 it never invents a mapping. If recording these mappings changes the scope
 revision, rerender and reconcile QA before exporting. Legacy plans remain
-readable without this projection when no Blueprint database exists.
+readable without this projection when no New Scope database exists.
 
 Planning readiness is a structural result. The validator compares declared
 observable IDs and checks task mappings, but cannot prove that a test body,

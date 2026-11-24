@@ -1,8 +1,10 @@
 import pathlib
 import contextlib
+import io
 import shutil
 import uuid
 import unittest
+from unittest.mock import patch
 
 import sync_skills
 
@@ -19,6 +21,36 @@ def temporary_directory():
 
 
 class SyncSkillsTests(unittest.TestCase):
+    def test_renamed_skills_are_only_removed_when_explicitly_requested(self):
+        with temporary_directory() as root:
+            root = pathlib.Path(root)
+            source = root / 'source'
+            (source / 'new-scope').mkdir(parents=True)
+            (source / 'new-scope' / 'SKILL.md').write_text('name: new-scope')
+            destination = root / 'destination'
+            destination.mkdir()
+            for name in ('blueprint', 'forge', 'unrelated'):
+                (destination / name).mkdir()
+                (destination / name / 'SKILL.md').write_text(name)
+
+            def run(*flags):
+                args = ['sync_skills.py', '--target', 'codex', '--skill', 'new-scope', *flags]
+                with patch.object(sync_skills, 'REPO_SKILLS', source), \
+                     patch.object(sync_skills, 'TARGETS', {'codex': destination}), \
+                     patch('sys.argv', args), contextlib.redirect_stdout(io.StringIO()):
+                    sync_skills.main()
+
+            run('--dry-run', '--prune-renamed')
+            self.assertTrue((destination / 'blueprint').exists())
+            self.assertFalse((destination / 'new-scope').exists())
+            run()
+            self.assertTrue((destination / 'blueprint').exists())
+            self.assertTrue((destination / 'new-scope').exists())
+            run('--prune-renamed')
+            self.assertFalse((destination / 'blueprint').exists())
+            self.assertTrue((destination / 'forge').exists())
+            self.assertTrue((destination / 'unrelated').exists())
+
     def test_mapper_policy_renders_for_all_targets_without_changing_source(self):
         with temporary_directory() as root:
             source = pathlib.Path(root) / 'source'

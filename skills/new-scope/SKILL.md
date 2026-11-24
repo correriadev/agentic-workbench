@@ -1,9 +1,9 @@
 ---
-name: blueprint
-description: Build or revise an engineering specification from intent and repository evidence. Use to plan a feature or fix, map unit-first RED/GREEN work, or query implementation and verification gaps in a Blueprint SQLite graph.
+name: new-scope
+description: Build or revise an engineering specification from intent and repository evidence. Use to plan a feature or fix, map unit-first RED/GREEN work, or query implementation and verification gaps in a New Scope SQLite graph.
 ---
 
-# Blueprint
+# New Scope
 
 Use `docs/specs/<change_id>/context.sqlite` as the canonical specification. Generate
 `SCOPE.md` from that database. Both artifacts use technical English. Human edits
@@ -29,14 +29,13 @@ Use the graph directly to hand context to a coding agent.
 1. **Interpret intent.** Capture the goal, scope boundaries, confirmed behavior,
    acceptance criteria and explicit decisions. Record inferred hypotheses and
    pending questions as separate nodes. Keep provenance and confirmation distinct.
-2. **Ground in the repository.** For each target root, read `docs/README.md` first
-   when present, then follow its index, digest, graph, relevant ADRs and testing
-   protocol. Use an available `.project-mapper/graph.sqlite` as described in
-   [Project map](references/project-map.md) to locate the affected flows and
-   their source evidence. If the map is unavailable or incomplete, continue
-   with direct inspection and record consequential gaps. If docs are absent,
-   inspect the root README, manifest,
-   affected code, test runner configuration and nearby unit tests. Resolve
+2. **Ground in the repository.** For each target root, first consult an available
+   `.project-mapper/graph.sqlite` using [Project map](references/project-map.md)
+   to locate affected flows and their evidence. If the map or compatible CLI is
+   unavailable or incomplete, follow `docs/README.md` and its index; if docs
+   are absent, use the root README and manifest. Also inspect relevant standards,
+   affected code, test runner configuration and nearby unit tests. Record material
+   gaps and resolve
    documentation/code mismatches explicitly. Trace interfaces, endpoints, DTOs,
    domain rules, methods, persistence, jobs, events, auth, error handling and
    existing test patterns where relevant. Record precise paths, symbols, line
@@ -63,8 +62,8 @@ Use the graph directly to hand context to a coding agent.
    findings with evidence or retain explicit blockers. Review assertion
    semantics, command selection and actual observability manually. Render the
    summary only after this review. Report the revision, test mappings, both
-   artifact paths and the blocked work. Blueprint records expectations and
+   artifact paths and the blocked work. New Scope records expectations and
    never creates execution observations from planning.
 
 Read [Graph CLI](references/graph-cli.md) for the write format, queries and
-the optional version-bound Forge handoff.
+the optional version-bound Execute Scope handoff.

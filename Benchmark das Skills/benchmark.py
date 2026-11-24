@@ -1,4 +1,4 @@
-"""Measure a frozen Agentic Workbench skills checkout with the stdlib."""
+"""Measure a frozen checkout; each skill uses its own compatible test oracle."""
 import argparse
 import datetime
 import hashlib
@@ -11,7 +11,7 @@ import time
 import uuid
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument("skills", type=Path, help="Directory containing blueprint, forge and quality-gate")
+parser.add_argument("skills", type=Path, help="Directory containing new-scope, execute-scope and qa-scope")
 parser.add_argument("output", type=Path, help="New JSON result path")
 parser.add_argument("--repeats", type=int, default=5)
 args = parser.parse_args()
@@ -20,15 +20,22 @@ if args.repeats < 1:
 if args.output.exists():
     parser.error("Choose a new output path to preserve the run history")
 
-test = Path(__file__).with_name("test_contract.py")
+tests = {
+    "new-scope": Path(__file__).with_name("test_new_scope_contract.py"),
+    "execute-scope": Path(__file__).with_name("test_contract.py"),
+    "qa-scope": Path(__file__).with_name("test_contract.py"),
+}
 manifest = {
+    "format_version": 2,
     "run_id": str(uuid.uuid4()),
     "recorded_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     "python": sys.version,
-    "fixture_and_oracle_sha256": hashlib.sha256(test.read_bytes()).hexdigest(),
+    "fixture_and_oracle_sha256": {
+        name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in tests.items()
+    },
     "skills": {},
 }
-for name in ("blueprint", "forge", "quality-gate"):
+for name, test in tests.items():
     folder = args.skills / name
     files = {}
     for path in sorted(folder.rglob("*")):
@@ -52,7 +59,9 @@ for name in ("blueprint", "forge", "quality-gate"):
         "files": files, "rounds": rounds,
         "median_ms": statistics.median(round_["elapsed_ms"] for round_ in rounds),
     }
-contracts = {s["files"]["contract.py"]["sha256"] for s in manifest["skills"].values()}
+contracts = {manifest["skills"][name]["files"]["contract.py"]["sha256"]
+             for name in ("execute-scope", "qa-scope")}
+manifest["contracts_compared"] = ["execute-scope", "qa-scope"]
 manifest["contracts_identical"] = len(contracts) == 1
 with args.output.open("x", encoding="utf-8") as stream:
     json.dump(manifest, stream, indent=2)
