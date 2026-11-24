@@ -36,11 +36,10 @@ In planned mode, read [PLANNED.md](./PLANNED.md) before preflight. In direct mod
 
 <project_context>
 For each distinct `project_path`, before dispatch:
-1. Consult an existing `.project-mapper/graph.sqlite` using the read-only [Project map](references/project-map.md) workflow in either mode. Hand relevant evidence, graph identity and unresolved boundaries to the executor.
-2. If the map or compatible CLI is unavailable or incomplete, follow `docs/README.md` and its index, including relevant ADRs and testing standards. Consult relevant docs as needed even when the map exists. If docs are absent, use the root README, manifests and adjacent code/tests and disclose material gaps.
-3. Inspect neighboring code/tests and runner configuration; compare conventions with available docs and flag discrepancies. Read shared orientation once per project. Give builders a concise architecture/style/testing summary with source paths. Builders inspect task-specific source and tests, and reopen orientation when the summary is missing, stale or contradicted.
-4. An absent or partial map is not a reason to fabricate or silently widen the edit scope.
-Read freely for context; the applicable edit scope constrains WRITES. Do not edit project docs.
+1. Start from the requested procedure or the selected planned task. Use the read-only [Project map](references/project-map.md) workflow for focused lookups around its behavior, files and checks. Pass decisive locators, the graph identity and relevant gaps to the executor.
+2. Use `docs/README.md` and its index where the map is unavailable or leaves a material question open. Read the applicable ADRs and testing standards. If docs are absent, use the root README, manifests and adjacent code/tests.
+3. Inspect the current files, focused tests and runner configuration. Compare conventions with available docs and report discrepancies. Reuse shared orientation within a project, and refresh it when task-specific evidence contradicts it.
+Use the confirmed edit scope or the task's `files_allowed` for writes. Read neighboring files for evidence and keep project documentation read-only.
 </project_context>
 
 <verification_procedures>

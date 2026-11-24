@@ -5,7 +5,8 @@ from contextlib import contextmanager
 import hashlib
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+import stat
 import sys
 import tempfile
 import re
@@ -264,6 +265,108 @@ def validate_tasks(tasks):
     return phases
 
 
+def write_paths(task):
+    paths = task.get("files_allowed", [])
+    if not isinstance(paths, list) or any(not nonempty_text(path) for path in paths):
+        raise ValueError("Task write paths must be a list of explicit project-relative files")
+    authorized = []
+    for path in paths:
+        portable = path.replace("\\", "/") if os.name == "nt" else path
+        relative = PurePosixPath(portable)
+        if (relative.is_absolute() or relative.as_posix() != portable or not relative.parts
+                or ".." in relative.parts or re.search(r'[\\:*?\x00-\x1f]', portable)):
+            raise ValueError(f"Invalid task write path: {path}")
+        authorized.append((path, relative))
+    return authorized
+
+
+def check_live_write_paths(task):
+    root = Path(task["project_path"])
+    if not root.is_absolute() or not root.is_dir():
+        raise ValueError("Task must have an existing absolute project root")
+    if is_redirected(root.lstat()):
+        raise ValueError("Task project root is a symlink or reparse point")
+    missing = []
+    for path, relative in write_paths(task):
+        current = root
+        for part in relative.parts:
+            current = current / part
+            try:
+                info = current.lstat()
+            except FileNotFoundError:
+                missing.append(path)
+                break
+            if is_redirected(info):
+                raise ValueError(f"Task write path traverses a symlink or reparse point: {path}")
+        else:
+            if not stat.S_ISREG(info.st_mode):
+                raise ValueError(f"Task write path is not a regular file: {path}")
+    return missing
+
+
+def is_redirected(info):
+    return (stat.S_ISLNK(info.st_mode)
+            or bool(getattr(info, "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT))
+
+
+def validate_task_contract(folder, document, scope, revision):
+    validate_blueprint(folder, document)
+    if (document["scope_revision"], document.get("qa_revision"), document["change_id"]) != (
+        scope, revision, folder.name
+    ):
+        raise ValueError("Task plan revision mismatch")
+    tasks = indexed(document["tasks"])
+    phases = validate_tasks(tasks)
+    blocked = indexed(document.get("blocked_tasks", []))
+    if blocked.keys() & tasks.keys():
+        raise ValueError("Executable and blocked task IDs must be disjoint")
+    return tasks, phases, blocked
+
+
+def task_qa_ids(task):
+    return set(task.get("qa_ids", [])) | {qa for check in task.get("evidence_checks", []) for qa in check["qa_ids"]}
+
+
+def preflight(folder, task_id):
+    scope_bytes = (folder / "SCOPE.md").read_bytes()
+    scope = digest(scope_bytes)
+    document, tasks_digest = read(folder / "tasks.json")
+    if document is None:
+        raise ValueError("Publish the task plan first")
+    qa, _ = read(folder / "qa.json")
+    contract = qa.get("contract") if qa is not None else None
+    if qa is not None and (not isinstance(contract, dict) or contract["scope_revision"] != scope
+                           or contract["change_id"] != folder.name):
+        raise ValueError("Replan the stale or legacy QA contract")
+    revision = contract_digest(contract) if contract is not None else None
+    tasks, phases, blocked = validate_task_contract(folder, document, scope, revision)
+    if task_id in blocked:
+        raise ValueError(f"Task is blocked: {task_id}")
+    if task_id not in tasks:
+        raise ValueError(f"Unknown task: {task_id}")
+    task = tasks[task_id]
+    status, phase = task_state(task)
+    active_phases = {phases[task_id]}
+    if phases[task_id] == "red_pending":
+        active_phases.add("green_pending")
+    if ((status, phase) != ("completed", "completed")
+            and (status not in {"pending", "in_progress"} or phase not in active_phases)):
+        raise ValueError(f"Task is not ready for execution or reconciliation: {task_id}")
+    if any(task_state(tasks[dep["task"]]) != ("completed", "completed") for dep in task["depends_on"]):
+        raise ValueError("Task dependencies are incomplete")
+    obligations = validate_qa(contract, scope_bytes.decode(), folder) if contract else {}
+    links = task_qa_ids(task)
+    if links - obligations.keys():
+        raise ValueError("Unknown QA obligation")
+    evidence = document.get("evidence", [])
+    finished = {record["attempt_id"] for record in evidence if record.get("event") == "result"}
+    return dict(task=task, scope_revision=scope, qa_revision=revision, tasks_digest=tasks_digest,
+                blueprint_source=document.get("blueprint_source"), missing_paths=check_live_write_paths(task),
+                qa_obligations=[obligations[key] for key in sorted(links)],
+                unfinished_attempts=[record for record in evidence if record.get("event") == "started"
+                                     and record["task_id"] == task_id and record["id"] not in finished])
+
+
 def validate_transition(before, after, first):
     old, new = task_state(before), task_state(after)
     if old == new:
@@ -376,10 +479,18 @@ def verify_finding_evidence(record, evidence, tasks, revision, obligations, asse
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("folder", type=Path)
-    parser.add_argument("operation", choices=("inspect", "plan", "build", "qa-plan", "qa-check", "scope"))
+    parser.add_argument("operation", choices=("inspect", "plan", "build", "qa-plan", "qa-check", "scope", "preflight"))
+    parser.add_argument("task_id", nargs="?", help="task to inspect before planned execution")
     parser.add_argument("--expect", help="Current destination file digest, or absent")
     args = parser.parse_args()
     folder = args.folder
+    if args.operation == "preflight":
+        if args.task_id is None:
+            parser.error("preflight requires a task ID")
+        print(json.dumps(preflight(folder, args.task_id), ensure_ascii=False))
+        return
+    if args.task_id is not None:
+        parser.error("a task ID is supported only by preflight")
     proposed = None if args.operation == "inspect" else (
         sys.stdin.read() if args.operation == "scope" else json.load(sys.stdin)
     )
@@ -420,17 +531,8 @@ def main():
                 raise ValueError("Replan the stale or legacy QA contract")
             obligations = validate_qa(contract, scope_bytes.decode(), folder) if contract else {}
             if task_write:
-                validate_blueprint(folder, value)
-                if (value["scope_revision"], value.get("qa_revision"), value["change_id"]) != (
-                    scope, revision, folder.name
-                ):
-                    raise ValueError("Task plan revision mismatch")
-                planned = indexed(value["tasks"])
-                phases = validate_tasks(planned)
+                planned, phases, _ = validate_task_contract(folder, value, scope, revision)
                 previous = indexed(tasks["tasks"]) if tasks else {}
-                blocked = indexed(value.get("blocked_tasks", []))
-                if blocked.keys() & planned.keys():
-                    raise ValueError("Executable and blocked task IDs must be disjoint")
                 if args.operation == "plan":
                     validate_replan(
                         planned, previous, phases,
@@ -438,17 +540,17 @@ def main():
                         bool(tasks) and tasks.get("qa_revision") != revision,
                     )
                 for key, task in planned.items():
-                    if args.operation == "build":
+                    if args.operation == "plan":
+                        write_paths(task)
+                    else:
                         validate_transition(previous[key], task, phases[key])
-                        if task_state(task) != task_state(previous[key]) and any(
-                            task_state(previous[dep["task"]]) != ("completed", "completed")
-                            for dep in task["depends_on"]
-                        ):
-                            raise ValueError("Task dependencies are incomplete")
-                    links = set(task.get("qa_ids", []))
-                    for check in task.get("evidence_checks", []):
-                        links.update(check["qa_ids"])
-                    if links - obligations.keys():
+                        if task_state(task) != task_state(previous[key]):
+                            if any(task_state(previous[dep["task"]]) != ("completed", "completed")
+                                   for dep in task["depends_on"]):
+                                raise ValueError("Task dependencies are incomplete")
+                            if task["status"] == "in_progress":
+                                check_live_write_paths(task)
+                    if task_qa_ids(task) - obligations.keys():
                         raise ValueError("Unknown QA obligation")
                 evidence = indexed(value.get("evidence", []))
                 old_evidence = indexed(tasks.get("evidence", [])) if tasks else {}

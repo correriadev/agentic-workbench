@@ -43,16 +43,17 @@ supported. Each implementation task defines:
 - Supervisor is the sole writer of state fields; preserve everything else and reparse JSON after each write.
 - Phases: `pending/red_pending` -> `in_progress/red_pending` -> `in_progress/green_pending` -> `completed/completed`, or `failed`.
 - Persist `green_pending` immediately after verified RED and freeze tests. On crash, reset `in_progress` to `pending` without losing phase or attempts. For `green_pending` resume, rerun tests: expected failure permits GREEN; already green requires code/scope audit and final GREEN verification; unrelated failure blocks.
-- Ready tasks are pending with all `depends_on[].task` completed (accept historical `done`). Dispatch sequentially.
+- Ready tasks are pending with prerequisites at `completed/completed`. Dispatch sequentially.
 </state_and_dag_tracking>
 
 <execution_protocol>
 
 ### 0. Preflight
-1. Validate `SCOPE.md`, parseable tasks JSON, unique IDs, acyclic DAG, absolute existing project roots, test mappings, allowed paths and states. Verify `blocked_tasks` IDs are disjoint from executable tasks and absent from their dependency lists; execute only the ready tasks and report outstanding blockers. Never edit QA or scope files.
-   For a New Scope-bound plan, verify its source binding and inspect affected
-   task nodes, blockers and source references. The contract checks identity and
-   task fields, not whether the assertions or source interpretation are correct.
+1. Run `preflight TASK_ID` to check the selected task and current scope, plan,
+   QA and New Scope bindings. Inspect the phase, unresolved attempts, mapped
+   obligations and missing paths in its response. Confirm any missing files
+   are planned before allowing their creation. Inspect the active source
+   references and confirm the assertions measure the required behavior.
 2. Read `<project_context>`, verify targeted unit runner command and optional build/typecheck `smoke_command`; reject unavailable/unsafe commands.
 3. Check mapped existing tests for preexisting failures and halt if found; missing-file errors for planned `[NEW]` tests do not count as RED.
 4. Snapshot working-tree files (paths, mtimes, optionally hashes) excluding `.git`, dependencies and caches to audit actual writes, not only builder claims.
@@ -115,6 +116,11 @@ Report overall completion as partial whenever `blocked_tasks` or unresolved QA e
 Run the bundled `contract.py` next to this SKILL.md with Python 3.9+.
 Pass the absolute `docs/specs/<change_id>` directory as the first argument.
 Run `inspect` to obtain `scope_revision`, `qa_revision` and destination digests.
+Run `preflight TASK_ID` before dispatching a planned task. It reads the current
+contract and existing paths and returns the task, its mapped QA obligations,
+unfinished attempts and `tasks_digest` for the next state write. Reconcile
+unfinished attempts with external effects before retrying. Confirm the live
+paths and procedure target before applying changes or running a check.
 For updates run the designated operation with `--expect <destination_digest>`
 (or `--expect absent` for a new file), supplying the proposed JSON on stdin.
 Use the digests from before analysis. If the destination changed, reread and
