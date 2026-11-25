@@ -111,6 +111,12 @@ the exact New Scope database revision and SHA-256, current scope and QA revision
 Reconcile any rejection; do not remove the binding. Existing execution evidence
 is retained, while projected tasks return to pending when replanned.
 
+The projection copies task `content` into `description` and `technical_steps`.
+Include the rationale and priority the executor needs there, with decisions linked
+for supporting context. Arbitrary `details` fields are not automatically exported.
+Tasks are exported in ID order; priority text guides selection among ready tasks,
+not an automatic scheduler. Keep `depends_on` reserved for real prerequisites.
+
 For explicit formal QA mapping, put `qa_ids` and `evidence_checks` on the task
 node's `details`. Each check needs an `id`, `command`, `qa_ids`, and `files`
 as project-relative references; all QA IDs must identify ready obligations in the
