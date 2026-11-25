@@ -10,8 +10,10 @@ import re
 import tomllib
 from pathlib import PurePosixPath
 
+from extraction_cache import merge_graph, pack_graph
 from python_profile import Source
 from resolve import Graph
+from scan_files import digest
 
 
 PROFILE = {
@@ -151,7 +153,7 @@ def import_candidates(text, sequence=None):
                     break
 
 
-def candidate_paths(path, spec, paths):
+def candidate_paths(path, spec):
     if not spec.startswith(('./', '../')) or not SAFE_NAME.fullmatch(spec):
         return []
     base = posixpath.normpath(posixpath.join(posixpath.dirname(path), spec))
@@ -165,7 +167,7 @@ def candidate_paths(path, spec, paths):
     if not suffix:
         stems.extend(base + ext for ext in sorted(JS_EXTENSIONS))
         stems.extend(base + '/index' + ext for ext in sorted(JS_EXTENSIONS))
-    return sorted(set(stems) & paths)
+    return sorted(set(stems))
 
 
 def file_node(graph, path):
@@ -340,8 +342,50 @@ def extract_workflow(graph, source, paths):
             graph.relation('runs-script', 'file:' + source.path, key, 'resolved', [ev])
 
 
-def extract_graph(manifest, reader, *, csharp=False, profile=None):
+def extract_source_facts(reader, path, profile, csharp_parser):
+    graph = Graph(profile)
+    relative_imports = []
+    project_anchor = None
+    try:
+        source = Source(reader, path)
+        anchor = source.anchor('source-file', path)
+        ev = graph.observe(anchor, 'file-inventory', 'source')
+        root = graph.node('file:' + path, 'file', 'repository', path, [ev])
+        if csharp_parser is not None:
+            from csharp_profile import extract
+            project_anchor = dict(anchor, kind='dotnet-project-candidate')
+            graph.member('code', 'csharp', root, [ev])
+            reason = extract(graph, source, csharp_parser)
+        else:
+            parts = PurePosixPath(path).parts
+            is_test = bool(re.search(r'\.(?:test|spec)\.[cm]?[jt]sx?$', parts[-1])) or bool(
+                {'tests', '__tests__'}.intersection(parts))
+            graph.member('test' if is_test else 'code', 'source', root, [ev])
+            sequence = tokens(source.text)
+            javascript_candidates(graph, source, sequence)
+            for spec, line, method in import_candidates(source.text, sequence):
+                if not SAFE_NAME.fullmatch(spec):
+                    continue
+                anchor = source.anchor('import-candidate', method, line=line)
+                evidence = graph.observe(anchor, 'javascript-lexical-import', 'candidate',
+                                         'Lexical candidate, not a parsed or runtime-verified import.')
+                if spec.startswith(('./', '../')):
+                    # The cache only needs to match names in the next inventory.
+                    relative_imports.append(([digest(name) for name in candidate_paths(path, spec)], evidence))
+                else:
+                    key = graph.node('dependency:' + spec, 'dependency', 'npm', spec, [evidence], external=True)
+                    graph.relation('imports', root, None, 'unresolved', [evidence], candidates=[key],
+                                   reason='Bare reference may be a package or a configured local alias.')
+            reason = 'JS/TS imports are lexical candidates; symbols, calls and dynamic dispatch are not analyzed.'
+    except (UnicodeError, ValueError, RecursionError) as error:
+        reason = f'{type(error).__name__} while parsing supported input.'
+    return dict(graph=pack_graph(graph), relative_imports=relative_imports, project_anchor=project_anchor,
+                reason=reason)
+
+
+def extract_graph(manifest, reader, *, csharp=False, profile=None, cache=None):
     graph = Graph(profile or PROFILE)
+    csharp_parser = None
     if csharp:
         from csharp_profile import parser
         csharp_parser = parser()
@@ -349,10 +393,12 @@ def extract_graph(manifest, reader, *, csharp=False, profile=None):
     outcomes = {}
     entries = manifest['entries']
     paths = {item['path'] for item in entries if item['eligible']}
+    path_ids = {digest(path): path for path in paths}
     for path in sorted(paths):
         file_node(graph, path)
     # Resolve workflows after all manifests are processed, regardless of path order.
     workflows = []
+    project_anchors = {}
     for item in entries:
         path = item['path']
         if not item['eligible']:
@@ -380,54 +426,46 @@ def extract_graph(manifest, reader, *, csharp=False, profile=None):
                                  task=None, paths=[path], method=['snapshot-static'], basis='unsupported input',
                                  scoped_absence=False, findings=0, issues=[reason]))
             continue
-        reason = ''
-        try:
-            source = Source(reader, path)
-            ev = graph.observe(source.anchor('source-file', path), 'file-inventory', 'source')
-            graph.node('file:' + path, 'file', 'repository', path, [ev])
-            if csharp and suffix in {'.cs', '.csproj'}:
-                from csharp_profile import extract, extract_project
-                if suffix == '.cs':
-                    graph.member('code', 'csharp', 'file:' + path, [ev])
-                    reason = extract(graph, source, csharp_parser)
-                else:
-                    reason = extract_project(graph, source, paths)
-            elif suffix in JS_EXTENSIONS:
-                is_test = (bool(re.search(r'\.(?:test|spec)\.[cm]?[jt]sx?$', name)) or
-                           'tests' in PurePosixPath(path).parts or '__tests__' in PurePosixPath(path).parts)
-                graph.member('test' if is_test else 'code', 'source', 'file:' + path, [ev])
-                sequence = tokens(source.text)
-                javascript_candidates(graph, source, sequence)
-                for spec, line, method in import_candidates(source.text, sequence):
-                    if not SAFE_NAME.fullmatch(spec):
-                        continue
-                    anchor = source.anchor('import-candidate', method, line=line)
-                    evidence = graph.observe(anchor, 'javascript-lexical-import', 'candidate',
-                                             'Lexical candidate, not a parsed or runtime-verified import.')
-                    if spec.startswith(('./', '../')):
-                        link_file(graph, 'imports', 'file:' + path, candidate_paths(path, spec, paths), evidence,
-                                  'Relative reference is missing or has multiple eligible targets.')
-                    else:
-                        key = graph.node('dependency:' + spec, 'dependency', 'npm', spec, [evidence], external=True)
-                        graph.relation('imports', 'file:' + path, None, 'unresolved', [evidence], candidates=[key],
-                                       reason='Bare reference may be a package or a configured local alias.')
-                reason = 'JS/TS imports are lexical candidates; symbols, calls and dynamic dispatch are not analyzed.'
-            elif name == 'package.json':
-                extract_package(graph, source, paths)
-                reason = 'Package declarations indexed; command bodies and dependency versions are omitted.'
-            elif name == 'mcp.json':
-                extract_mcp(graph, source)
-                reason = 'Server identities indexed; commands, arguments and environment are omitted.'
-            elif name == 'wrangler.toml':
-                extract_wrangler(graph, source, paths)
-                reason = 'Worker entry and binding declarations indexed; deployment/runtime state is not analyzed.'
+        if suffix in JS_EXTENSIONS or csharp and suffix == '.cs':
+            parser_for_file = csharp_parser if suffix == '.cs' else None
+            if cache is None:
+                facts = extract_source_facts(reader, path, graph.profile, parser_for_file)
             else:
-                workflows.append(source)
-                reason = 'Only simple npm run lines are recognized; YAML conditions and multiline steps are not parsed.'
-            status = 'partial'
-        except (UnicodeError, ValueError, tomllib.TOMLDecodeError, RecursionError) as error:
-            status = 'partial'
-            reason = f'{type(error).__name__} while parsing supported input.'
+                facts = cache.extract(path, item['content_id'], 'csharp' if parser_for_file else 'javascript',
+                                      lambda: extract_source_facts(reader, path, graph.profile, parser_for_file))
+            merge_graph(graph, facts['graph'])
+            for candidates, evidence in facts['relative_imports']:
+                targets = sorted(path_ids[key] for key in candidates if key in path_ids)
+                link_file(graph, 'imports', 'file:' + path, targets, evidence,
+                          'Relative reference is missing or has multiple eligible targets.')
+            if facts['project_anchor']:
+                project_anchors[path] = facts['project_anchor']
+            reason = facts['reason']
+        else:
+            if cache is not None:
+                cache.extracted.add(path)
+            try:
+                source = Source(reader, path)
+                ev = graph.observe(source.anchor('source-file', path), 'file-inventory', 'source')
+                graph.node('file:' + path, 'file', 'repository', path, [ev])
+                if csharp and suffix == '.csproj':
+                    from csharp_profile import extract_project
+                    reason = extract_project(graph, source, paths)
+                elif name == 'package.json':
+                    extract_package(graph, source, paths)
+                    reason = 'Package declarations indexed; command bodies and dependency versions are omitted.'
+                elif name == 'mcp.json':
+                    extract_mcp(graph, source)
+                    reason = 'Server identities indexed; commands, arguments and environment are omitted.'
+                elif name == 'wrangler.toml':
+                    extract_wrangler(graph, source, paths)
+                    reason = 'Worker entry and binding declarations indexed; deployment/runtime state is not analyzed.'
+                else:
+                    workflows.append(source)
+                    reason = 'Only simple npm run lines are recognized; YAML conditions and multiline steps are not parsed.'
+            except (UnicodeError, ValueError, tomllib.TOMLDecodeError, RecursionError) as error:
+                reason = f'{type(error).__name__} while parsing supported input.'
+        status = 'partial'
         outcomes[path] = dict(status=status, reason=reason)
         coverage.append(dict(area=path, family='multidimensional-static', status=status, reason=reason,
                              task=None, paths=[path], method=['snapshot-static'], basis='supported input subset',
@@ -437,19 +475,15 @@ def extract_graph(manifest, reader, *, csharp=False, profile=None):
     if csharp:
         projects = sorted(path for path in paths if path.lower().endswith('.csproj') and
                           'dotnet-project:' + path in graph.nodes)
-        for path in sorted(p for p in paths if p.lower().endswith('.cs')):
+        for path, anchor in sorted(project_anchors.items()):
             parents = [p for p in projects if str(PurePosixPath(p).parent) == '.' or
                        path.startswith(str(PurePosixPath(p).parent) + '/')]
             if not parents:
                 continue
             depth = max(len(PurePosixPath(p).parent.parts) for p in parents)
             nearest = [p for p in parents if len(PurePosixPath(p).parent.parts) == depth]
-            try:
-                source = Source(reader, path)
-                ev = graph.observe(source.anchor('dotnet-project-candidate', path), 'dotnet-project-layout', 'candidate',
-                                   'Directory-based candidate; MSBuild compile inclusion is not evaluated.')
-            except (UnicodeError, ValueError):
-                continue
+            ev = graph.observe(anchor, 'dotnet-project-layout', 'candidate',
+                               'Directory-based candidate; MSBuild compile inclusion is not evaluated.')
             graph.relation('belongs-to-project', 'file:' + path, None, 'unresolved', [ev],
                            candidates=['dotnet-project:' + p for p in nearest],
                            reason='Project inclusion and imported MSBuild properties are not evaluated.')

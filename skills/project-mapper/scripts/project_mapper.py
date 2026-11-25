@@ -4,11 +4,13 @@ import argparse
 from collections import Counter, defaultdict
 from contextlib import closing, contextmanager
 from fnmatch import fnmatchcase
+from graphlib import TopologicalSorter
 import hashlib
 import json
 import os
 from pathlib import Path
 import re
+import shutil
 import sqlite3
 import sys
 from uuid import uuid4
@@ -16,6 +18,7 @@ from uuid import uuid4
 sys.dont_write_bytecode = True
 
 import graph_store as store
+from extraction_cache import ExtractionCache, extractor_identity, read_cache
 from export_json import write_export
 from multidimensional import PROFILE as STATIC_PROFILE, extract_graph
 from csharp_profile import PROFILE as CSHARP_PROFILE
@@ -24,8 +27,10 @@ from investigation import (compile_investigation, draft_subject_diagnostics, new
 from pipeline import (collect, envelope, final_coverage, load, make_plan, project, review_envelope,
                       reviews, safe_path, save, validate_baseline)
 from python_profile import MANIFEST, PROFILE, Source, extract
+from publication_artifacts import abandoned_stages, legacy_artifacts, publication_workspace, remove_abandoned
 from resolve import reconcile
-from scan_files import MappingError, canonical, digest, inventory, repository, snapshot_options, snapshot_reader
+from scan_files import (MappingError, canonical, commit_changes, digest, inventory, repository, snapshot_options,
+                        snapshot_reader)
 
 
 OUTPUT = '.project-mapper'
@@ -188,15 +193,19 @@ def start_run(root, commit, *, investigation=False, agent_review=False, multidim
     return result
 
 
-def multidimensional_rows(manifest, plan, reader):
+def multidimensional_rows(manifest, plan, reader, *, cache=None):
     profile = plan.get('profile')
     if plan.get('kind') != 'multidimensional' or not supported_multidimensional_profile(profile):
         raise MappingError('recorded multidimensional profile differs; use the original mapper or rebuild')
     static_profile = {key: value for key, value in profile.items() if key not in {'python_profile', 'csharp_profile'}}
     graph, coverage, outcomes, reports = extract_graph(manifest, reader, csharp='csharp_profile' in profile,
-                                                        profile=static_profile)
-    python_outcomes = {entry['path']: extract(reader, entry['path']) for entry in manifest['entries']
-                       if entry['eligible'] and (entry['path'].endswith('.py') or entry['path'] == MANIFEST)}
+                                                       profile=static_profile, cache=cache)
+    python_outcomes = {}
+    for entry in manifest['entries']:
+        path = entry['path']
+        if entry['eligible'] and (path.endswith('.py') or path == MANIFEST):
+            python_outcomes[path] = (extract(reader, path) if cache is None else
+                                     cache.extract(path, entry['content_id'], 'python', lambda: extract(reader, path)))
     python_graph = reconcile(python_outcomes)
     for key, node in python_graph.nodes.items():
         if key in graph.nodes and graph.nodes[key] != node:
@@ -716,7 +725,7 @@ def baseline_rows(stage, manifest, plan, reader):
 
 @contextmanager
 def write_lock(directory):
-    # Only hold this lock while replacing shared state. The OS releases it on exit or crash.
+    # Serialize publication, recovery and cleanup. The OS releases the lock on exit or crash.
     for suffix in ('', '-journal', '-wal', '-shm'):
         safe_path(directory, 'publication.sqlite' + suffix)
     with closing(sqlite3.connect(directory / 'publication.sqlite', timeout=10)) as lock:
@@ -769,6 +778,264 @@ def guard_promotion(path, info):
         raise MappingError('active investigation preserved; previously accepted questions are missing')
 
 
+def stage_publication(workspace, data):
+    candidate = safe_path(workspace, 'candidate.sqlite')
+    candidate_readme = safe_path(workspace, 'README.md')
+    store.write(candidate, data)
+    with store.database(candidate) as connection:
+        store.check_integrity(connection, data)
+        info = store.metadata(connection)
+        diagnostics = []
+        if 'questions' in info['plan']:
+            check_graph_assignment(connection, info, info['plan']['questions'])
+            diagnostics = store.context_diagnostics(connection, limit=13)
+        write_readme(candidate_readme, info, connection, Path(__file__).resolve())
+    return candidate, candidate_readme, info, diagnostics
+
+
+def replace_readme(candidate, path):
+    try:
+        os.replace(candidate, path)
+    except OSError:
+        return False
+    return True
+
+
+def publication_result(path, info, data, diagnostics, readme_written, **extra):
+    result = dict(path=str(path), snapshot=info['snapshot'], status=info['status'],
+                  readme_written=readme_written, relationships=len(data['relationships']), nodes=len(data['nodes']),
+                  discoveries=len(data.get('discoveries', [])), supplemental_fingerprint=info['supplemental_fingerprint'],
+                  **scope_info(info), **extra)
+    if diagnostics:
+        result.update(context_diagnostics=diagnostics[:12], context_diagnostics_truncated=len(diagnostics) > 12)
+    return result
+
+
+def refresh_investigation(directory, workspace, previous, manifest, profile, base, reader, *, reuse):
+    """Carry reviewed answers only for a compatible transition with unchanged inputs."""
+    old_plan = previous['plan']
+    old_accepted = previous.get('accepted_shards', {})
+    plan = new_plan(manifest['snapshot']['identity'])
+    eligible = {entry['path'] for entry in manifest['entries'] if entry['eligible']}
+    static_nodes = {row[0] for row in base['nodes']}
+    for item in old_plan['questions']:
+        question = dict(item)
+        if not reuse:
+            question['seeds'] = [path for path in question['seeds'] if path in eligible]
+            nodes = [node for node in question.get('node_ids', []) if node in static_nodes]
+            if nodes:
+                question['node_ids'] = nodes
+            else:
+                question.pop('node_ids', None)
+            scope = question.get('scope', {})
+            if scope.get('kind') == 'flow' and scope['anchor'] not in nodes:
+                question.pop('scope')
+        plan['questions'].append(question)
+    accepted = {key: dict(raw, snapshot=plan['snapshot']) for key, raw in old_accepted.items()} if reuse else {}
+    semantic = compile_investigation(manifest, plan, accepted, reader)
+    data = compose_multidimensional(manifest, reader, semantic, base=base)
+    name = 'run-' + uuid4().hex
+    stage = safe_path(workspace, name, directory=True, create=True)
+    shards = safe_path(stage, 'shards', directory=True, create=True)
+    questions = question_index(plan)
+    decisions = {}
+    for key in TopologicalSorter({key: item['depends_on'] for key, item in questions.items()}).static_order():
+        if key in accepted:
+            raw = accepted[key]
+            decisions[key] = decision_fingerprint(plan['output_language'], questions[key], raw, decisions)
+            save(safe_path(shards, key + '.json'), raw)
+    for filename, value in (('inventory.json', manifest), ('plan.json', plan), ('decisions.json', decisions),
+                            ('static-profile.json', profile)):
+        save(safe_path(stage, filename), value)
+
+    prior_run = previous.get('investigation_run')
+    prior_review = {}
+    if isinstance(prior_run, str) and RUN.fullmatch(prior_run):
+        old_stage = safe_path(directory, prior_run, directory=True)
+        archive = safe_path(old_stage, 'prior-review.json')
+        if archive.is_file():
+            prior_review = load(archive)
+    if not reuse:
+        previous_questions = question_index(old_plan)
+        prior_review.update({key: dict(snapshot=previous['snapshot'], run=prior_run,
+                                       question=previous_questions[key], shard=raw)
+                             for key, raw in old_accepted.items()})
+    prior_review = {key: value for key, value in prior_review.items() if key in questions and key not in accepted}
+    if prior_review:
+        save(safe_path(stage, 'prior-review.json'), prior_review)
+    data['metadata'].append(('investigation_run', canonical(name)))
+    return data, stage, plan, len(accepted), len(questions) - len(accepted)
+
+
+def cached_extracts(directory, snapshot, identity):
+    try:
+        cache_path = safe_path(directory, 'cache.sqlite')
+        if any(safe_path(directory, 'cache.sqlite' + suffix).exists()
+               for suffix in ('-journal', '-wal', '-shm')):
+            return cache_path, None, False
+    except MappingError:
+        return None, None, False
+    owned, extracts = read_cache(cache_path, snapshot, identity)
+    return cache_path, extracts, owned
+
+
+def save_static_cache(cache_path, staged_cache, owned_cache):
+    if not owned_cache:
+        return 'Existing cache.sqlite was preserved because it is not a recognized mapper cache.'
+    try:
+        if staged_cache is None:
+            cache_path.unlink(missing_ok=True)
+        else:
+            os.replace(staged_cache, cache_path)
+    except OSError:
+        return 'Graph published, but the extraction cache could not be updated.'
+    return None
+
+
+def map_snapshot(root, commit, csharp, *, refresh=False):
+    if csharp:
+        from csharp_profile import parser
+        parser()  # Check the optional profile before creating any output.
+    manifest = inventory(root, commit)
+    snapshot = manifest['snapshot']
+    directory, graph_path, readme_path = output_paths(root, create=True)
+    with write_lock(directory):
+        removed = remove_abandoned(directory)
+        previous = {}
+        generation = graph_stamp(graph_path) if graph_path.exists() else None
+        if refresh and generation:
+            with store.database(graph_path) as connection:
+                store.check_integrity(connection)
+                previous = store.metadata(connection)
+        prior_snapshot = previous.get('snapshot', {})
+        prior_profile = previous.get('multidimensional_profile', previous.get('profile'))
+        csharp = csharp or isinstance(prior_profile, dict) and 'csharp_profile' in prior_profile
+        profile = CSHARP_MULTIDIMENSIONAL_PROFILE if csharp else MULTIDIMENSIONAL_PROFILE
+        base_revision = prior_snapshot.get('revision')
+        if snapshot == prior_snapshot and profile == prior_profile:
+            with store.database(graph_path) as connection:
+                counts = {table: connection.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]
+                          for table in ('nodes', 'relationships')}
+                counts['discoveries'] = (connection.execute('SELECT COUNT(*) FROM discoveries').fetchone()[0]
+                                         if store.check_schema(connection) >= 2 else 0)
+            if graph_stamp(graph_path) != generation:
+                raise MappingError('published graph changed during refresh; retry')
+            return dict(path=str(graph_path), snapshot=snapshot, status=previous['status'], mode='unchanged',
+                        base_revision=base_revision, changed_paths=0, extracted_files=0, reused_files=0,
+                        removed=removed, run=previous.get('investigation_run'), **counts, **scope_info(previous))
+
+        changes = None
+        reason = 'no published commit' if refresh else 'full map requested'
+        if (prior_snapshot.get('mode') == 'commit' and isinstance(base_revision, str)
+                and re.fullmatch(r'(?:[0-9a-f]{40}|[0-9a-f]{64})', base_revision)):
+            try:
+                changes = commit_changes(root, base_revision, snapshot['revision'])
+            except MappingError:
+                # Missing history or unsupported diff data must not be used for reuse.
+                pass
+            if changes is None:
+                reason = 'Git ancestry or diff unavailable'
+            elif prior_profile != profile:
+                reason = 'extraction profile changed'
+            else:
+                reason = 'compatible cache unavailable'
+        identity = extractor_identity(profile)
+        cache_path, old_extracts, owned_cache = cached_extracts(directory, prior_snapshot.get('identity'), identity)
+        incremental = changes is not None and prior_profile == profile and old_extracts is not None
+        cache = ExtractionCache(identity, old_extracts if incremental else None, changes or ())
+        with publication_workspace(directory) as workspace:
+            stage = None
+            progress = {}
+            with snapshot_reader(root, manifest) as reader:
+                data = multidimensional_rows(manifest, multidimensional_plan(manifest, profile), reader, cache=cache)
+                if 'questions' in previous.get('plan', {}):
+                    data, stage, plan, accepted, pending = refresh_investigation(
+                        directory, workspace, previous, manifest, profile, data, reader,
+                        reuse=incremental and not changes)
+                    progress = dict(run=stage.name, reused_questions=accepted, pending_questions=pending)
+            candidate, candidate_readme, info, diagnostics = stage_publication(workspace, data)
+            staged_cache = None
+            if snapshot['mode'] == 'commit' and owned_cache:
+                staged_cache = safe_path(workspace, 'cache.sqlite')
+                cache.write(staged_cache, snapshot['identity'])
+            if snapshot['mode'] == 'worktree' and manifest != inventory(root):
+                raise MappingError('input snapshot changed before publication')
+            output_paths(root)
+            if (graph_stamp(graph_path) if graph_path.exists() else None) != generation:
+                raise MappingError('published graph changed during refresh; retry')
+            guard_promotion(graph_path, info)
+
+            destination = None
+            pin = None
+            if stage:
+                if any(question.get('node_ids') for question in plan['questions']):
+                    pin = dict(snapshot=snapshot['identity'], **graph_fingerprint(candidate))
+                    save_graph_pin(stage, pin)
+                destination = safe_path(directory, stage.name, directory=True)
+                os.rename(stage, destination)
+            try:
+                os.replace(candidate, graph_path)
+            except OSError:
+                if destination:
+                    os.rename(destination, stage)
+                raise
+            if pin:
+                promoted_stamp = graph_stamp(graph_path)
+                if promoted_stamp[:4] == pin['stamp'][:4]:
+                    try:
+                        save_graph_pin(destination, dict(pin, stamp=promoted_stamp))
+                    except OSError:
+                        pass  # The original pin can still verify the exact hash.
+
+            readme_written = replace_readme(candidate_readme, readme_path)
+            cache_warning = save_static_cache(cache_path, staged_cache, owned_cache)
+            return publication_result(
+                graph_path, info, data, diagnostics, readme_written, mode='incremental' if incremental else 'full',
+                **({'full_reason': reason} if refresh and not incremental else {}),
+                base_revision=base_revision, changed_paths=len(changes) if changes is not None else None,
+                extracted_files=len(cache.extracted), reused_files=len(cache.reused), removed=removed,
+                **({'cache_warning': cache_warning} if cache_warning else {}), **progress)
+
+
+def build_baseline(root, commit):
+    manifest = inventory(root, commit)
+    directory, graph_path, readme_path = output_paths(root, create=True)
+    with write_lock(directory), publication_workspace(directory) as workspace:
+        removed = remove_abandoned(directory, current=workspace)
+        safe_path(workspace, 'shards', directory=True, create=True)
+        with snapshot_reader(root, manifest) as reader:
+            plan = make_plan(manifest, reader, False)
+            collect(plan, reader, workspace)
+            data = baseline_rows(workspace, manifest, plan, reader)
+        candidate, candidate_readme, info, diagnostics = stage_publication(workspace, data)
+        if commit is None and manifest != inventory(root):
+            raise MappingError('input snapshot changed before publication')
+        output_paths(root)
+        guard_promotion(graph_path, info)
+        os.replace(candidate, graph_path)
+        cache_path, _, owned_cache = cached_extracts(directory, None, None)
+        cache_warning = save_static_cache(cache_path, None, owned_cache)
+        return publication_result(graph_path, info, data, diagnostics, replace_readme(candidate_readme, readme_path),
+                                  removed=removed, **({'cache_warning': cache_warning} if cache_warning else {}))
+
+
+def cleanup(root, apply=False):
+    directory, graph_path, _ = output_paths(root)
+    if not directory.exists():
+        return dict(paths=[], removed=[])
+    with write_lock(directory):
+        active_run = None
+        if graph_path.exists():
+            with store.database(graph_path) as connection:
+                active_run = store.metadata(connection, 'investigation_run').get('investigation_run')
+        candidates = abandoned_stages(directory) + legacy_artifacts(directory, active_run, load_run)
+        paths = [path.relative_to(directory).as_posix() for path in candidates]
+        if apply:
+            for path in candidates:
+                shutil.rmtree(path)
+        return dict(paths=paths, removed=paths if apply else [])
+
+
 def publish(root, name, *, reviewed_english_plan=None):
     directory, graph_path, readme_path = output_paths(root)
     stage = run_directory(directory, name)
@@ -796,34 +1063,22 @@ def publish(root, name, *, reviewed_english_plan=None):
             data = multidimensional_rows(manifest, plan, reader)
         else:
             data = baseline_rows(stage, manifest, plan, reader)
-    # A separate publication attempt directory allows retries after a crash or invalid shard.
-    attempt = safe_path(stage, 'publish-' + uuid4().hex, directory=True, create=True)
-    candidate = safe_path(attempt, 'candidate.sqlite')
-    candidate_readme = safe_path(attempt, 'README.md')
-    store.write(candidate, data)
-    with store.database(candidate) as connection:
-        store.check_integrity(connection, data)
-        info = store.metadata(connection)
-        write_readme(candidate_readme, info, connection, Path(__file__).resolve())
-        diagnostics = store.context_diagnostics(connection, limit=13) if 'questions' in plan else []
-    graph_assignment = 'questions' in plan and any(item.get('node_ids') for item in plan['questions'])
-    candidate_pin = graph_fingerprint(candidate) if graph_assignment else None
     # Coordinate with accept_shard (stage lock) as well as other publishers.
-    with write_lock(directory), write_lock(stage):
+    with write_lock(directory), write_lock(stage), publication_workspace(directory) as workspace:
+        removed = remove_abandoned(directory, current=workspace)
+        candidate, candidate_readme, info, diagnostics = stage_publication(workspace, data)
+        graph_assignment = 'questions' in plan and any(item.get('node_ids') for item in plan['questions'])
+        candidate_pin = graph_fingerprint(candidate) if graph_assignment else None
         if manifest != inventory(root, manifest['snapshot']['revision']):
             raise MappingError('input snapshot changed before publication')
-        if 'questions' in plan and load(safe_path(stage, 'plan.json')) != plan:
-            raise MappingError('plan changed during publication; review the current plan with check-plan')
         if 'questions' in plan:
+            if load(safe_path(stage, 'plan.json')) != plan:
+                raise MappingError('plan changed during publication; review the current plan with check-plan')
             check_run_assignments(root, manifest, plan['questions'], stage=stage)
-            if any(question.get('node_ids') for question in plan['questions']):
-                # A graph assignment may outlive the planning process. Recheck
-                # the active graph before accepting claims based on it.
+            if graph_assignment:
+                # Replay the graph to which this run's assignments were pinned.
                 with store.database(graph_path) as active:
                     verify(root, active, replayed_base=replayed_base)
-            # The decision ledger and accepted shards must still be the exact
-            # inputs used to build this candidate. Another publisher may have
-            # revised a shard while this candidate was being assembled.
             decisions = load(safe_path(stage, 'decisions.json'))
             accepted = json.loads(dict(data['metadata'])['accepted_shards'])
             if not isinstance(decisions, dict) or set(decisions) != set(accepted):
@@ -850,17 +1105,8 @@ def publish(root, name, *, reviewed_english_plan=None):
                 raise MappingError('promoted graph changed while publishing')
             save_graph_pin(stage, dict(snapshot=manifest['snapshot']['identity'],
                                        sha256=candidate_pin['sha256'], stamp=promoted_stamp))
-        readme_written = True
-        try:
-            os.replace(candidate_readme, readme_path)
-        except OSError:
-            readme_written = False
-    return dict(path=str(graph_path), snapshot=info['snapshot'], status=info['status'],
-                readme_written=readme_written, run=name, **scope_info(info), relationships=len(data['relationships']),
-                nodes=len(data['nodes']), discoveries=len(data.get('discoveries', [])),
-                **(dict(context_diagnostics=diagnostics[:12], context_diagnostics_truncated=len(diagnostics) > 12)
-                   if diagnostics else {}),
-                supplemental_fingerprint=info['supplemental_fingerprint'])
+        return publication_result(graph_path, info, data, diagnostics, replace_readme(candidate_readme, readme_path),
+                                  run=stage.name, removed=removed)
 
 
 def verify(root, connection, *, replayed_base=None):
@@ -1191,6 +1437,11 @@ def arguments():
     map_args = commands.add_parser('map', help='publish a multidimensional static map of the snapshot')
     snapshot_options(map_args)
     map_args.add_argument('--csharp', action='store_true', help='enable the optional pinned C# syntax parser')
+    refresh_args = commands.add_parser('refresh', help='update a committed map using validated Git history')
+    refresh_args.add_argument('--commit', required=True, help='target Git revision to pin and map')
+    refresh_args.add_argument('--csharp', action='store_true', help='enable the optional pinned C# syntax parser')
+    cleanup_args = commands.add_parser('cleanup', help='list removable publication artifacts')
+    cleanup_args.add_argument('--apply', action='store_true', help='remove the listed mapper-owned artifacts')
     snapshot_options(commands.add_parser('build', help='publish the optional static Python baseline'))
     prepare_args = commands.add_parser('prepare', help='inventory, plan and extract in an unpublished run')
     snapshot_options(prepare_args)
@@ -1310,13 +1561,12 @@ def dispatch(root, args):
         return start_run(root, args.commit, investigation=True, from_graph=args.from_graph)
     if args.command == 'import-run':
         return import_investigation(root, args.source_repo, args.source_run)
-    if args.command == 'map':
-        if args.csharp:
-            from csharp_profile import parser
-            parser()  # Fail before creating a run when the optional parser is unavailable.
-        return publish(root, start_run(root, args.commit, multidimensional=True, csharp=args.csharp)['run'])
+    if args.command in {'map', 'refresh'}:
+        return map_snapshot(root, args.commit, args.csharp, refresh=args.command == 'refresh')
+    if args.command == 'cleanup':
+        return cleanup(root, args.apply)
     if args.command == 'build':
-        return publish(root, start_run(root, args.commit)['run'])
+        return build_baseline(root, args.commit)
     if args.command == 'prepare':
         return start_run(root, args.commit, agent_review=args.agent_review)
     if args.command == 'check-plan':

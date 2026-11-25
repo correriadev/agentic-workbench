@@ -59,6 +59,18 @@ def git(root, *args, allow_missing=False):
     return result.stdout
 
 
+def commit_changes(root, base, target):
+    """Return paths changed across a proven descendant transition."""
+    ancestor = subprocess.run(**git_command(root, 'merge-base', '--is-ancestor', base, target),
+                              capture_output=True, check=False)
+    if ancestor.returncode:
+        return None
+    changed = git(root, 'diff', '--no-ext-diff', '--no-textconv', '--no-renames',
+                  '--no-relative', '--ignore-submodules=none', '--name-only', '-z', base, target, '--')
+    paths = (git_path(raw) for raw in rows_z(changed))
+    return {row(path, 'file')['path'] for path in paths if not excluded(path)}
+
+
 def repository(path):
     root = Path(path).resolve(strict=True)
     top = Path(os.fsdecode(git(root, 'rev-parse', '--show-toplevel').rstrip(b'\r\n'))).resolve(strict=True)

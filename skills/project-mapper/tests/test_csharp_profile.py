@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from multidimensional import extract_graph
-from test_acceptance import fixture, invoke, test_directory
+from test_acceptance import fixture, git, invoke, rows, test_directory
 from test_investigation import add_question, accept, publish_investigation, save
 
 
@@ -94,6 +94,23 @@ public class Controller {
             self.assertEqual(node['kind'], 'class')
             self.assertTrue(any(edge['type'] == 'describes' for edge in node['outgoing']))
             self.assertEqual(invoke(repo, 'verify')['integrity'], 'ok')
+
+    def test_refresh_reuses_csharp_and_rebinds_project_candidates(self):
+        repo = self.enterContext(test_directory())
+        revision = fixture(repo, {'src/Api.cs': 'namespace App; public class Api { public void Go() {} }\n',
+                                  'App.csproj': '<Project />'})
+        invoke(repo, 'map', '--commit', revision, '--csharp')
+        git(repo, 'mv', 'App.csproj', 'src/Api.csproj')
+        git(repo, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test',
+            '-c', 'commit.gpgsign=false', 'commit', '-qm', 'move project')
+        result = invoke(repo, 'refresh', '--commit', 'HEAD')
+        self.assertEqual((result['mode'], result['reused_files'], result['extracted_files']),
+                         ('incremental', 1, 1))
+        self.assertEqual(rows(repo, 'SELECT c.node FROM relationship_candidates c '
+                                    'JOIN relationships r ON r.id=c.relationship '
+                                    "WHERE r.type='belongs-to-project' AND r.source='file:src/Api.cs'"),
+                         [('dotnet-project:src/Api.csproj',)])
+        self.assertEqual(invoke(repo, 'verify')['integrity'], 'ok')
 
     def test_import_preserves_source_and_replays_reviewed_shards_in_separate_checkout(self):
         with test_directory() as source, test_directory() as target:
