@@ -1,6 +1,6 @@
 ---
 name: project-mapper
-description: Map a Git snapshot across code, configuration, tests, entrypoints and infrastructure, then investigate and query source-backed relationships in SQLite.
+description: Map or refresh a Git snapshot across code, configuration, tests, entrypoints and infrastructure, then investigate and query source-backed relationships in SQLite.
 ---
 
 # Project Mapper
@@ -36,7 +36,7 @@ with current sources before changing code or making claims about the checkout.
 
 {{PROJECT_MAPPER_SEMANTIC_WORKER_POLICY}}
 
-1. **Map.** From the target Git root run `python "<mapper>" . map --commit HEAD` with [project_mapper.py](scripts/project_mapper.py). For C# use the optional `--csharp` profile and its pinned dependencies. Preserve an existing semantic investigation by importing it into a separate checkout as described in the [C# profile](references/workflow.md#c-profile). Use `--worktree` for local changes. This publishes a queryable static map without executing the target. Inspect `coverage --summary`, targeted coverage, and [profile limits](references/workflow.md#multidimensional-map).
+1. **Map or refresh.** From the target Git root run `python "<mapper>" . map --commit HEAD` with [project_mapper.py](scripts/project_mapper.py). After commits, use `refresh --commit HEAD` to update a published map and see which extractions were reused and which questions need review. Use `map --worktree` for uncommitted changes. For C# use the optional `--csharp` profile and its pinned dependencies. Inspect `coverage --summary`, targeted coverage, and [profile limits](references/workflow.md#multidimensional-map). See [refresh and cleanup](references/workflow.md#refresh-a-committed-map) for the Git and evidence contracts.
 2. **Plan.** Run `investigate --commit REV --from-graph` on the exact snapshot to create [bounded file and flow assignments](references/workflow.md#graph-derived-plan). Review unassigned inputs and boundaries. Refine questions to the requested operation and extend the plan when source evidence reveals a material continuation.
 3. **Investigate.** [Dispatch independent units in batches](references/workflow.md#dispatch), in parallel where practical, or run them locally. Inspect their subgraphs and then the cited sources. Produce evidence-backed [semantic context](references/workflow.md#semantic-context) for nodes and flows. Where context is missing or partial, report it instead of inferring purpose from an identifier.
 4. **Review.** Reopen decisive source ranges and challenge the strongest alternative. [Reconcile and accept](references/workflow.md#review-and-publish) the exact checked shard. Review every question in the final plan, including open ones, before publishing.

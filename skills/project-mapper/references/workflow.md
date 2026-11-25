@@ -10,6 +10,20 @@ Add `--dimension NAME` to select matching memberships, all edges incident to tho
 
 Start with `python "<mapper>" . map --commit HEAD` (or `--worktree`). The command inventories the snapshot and publishes `.project-mapper/graph.sqlite` plus its README. It reads source without running target code. `search` returns structural node candidates as well as discoveries, `node KEY` shows evidence and adjacent relationships, and `trace KEY` traverses them. Start with `coverage --summary` and `dimensions --summary`; use `coverage --area PATH` for details before interpreting missing results.
 
+### Refresh a committed map
+
+After committing changes, run `python "<mapper>" . refresh --commit HEAD`. The command pins the target revision, checks whether the published commit is its ancestor, and reads the changed paths from the Git trees. Git treats moves as a deletion and an addition. If the commit and profile already match, the graph stays in place. A compatible `cache.sqlite` lets the mapper reuse file-local Python, JS/TS and optional C# extraction. It rebinds relationships against the full target inventory, including import and project candidates. A missing cache, changed profile or unprovable ancestry triggers a full extraction from the target commit. Refresh uses local Git objects and inherits the published C# option. Use `map --worktree` to include local edits.
+
+The receipt reports `mode`, `base_revision`, `snapshot.revision`, `changed_paths`, `extracted_files` and `reused_files`. Committed maps retain a single extraction cache for the next refresh. `verify` independently rebuilds the graph rows from the published revision. A failed build before publication leaves the current graph readable.
+
+If there are published semantic questions, refresh creates a run at the target commit and reports `reused_questions` and `pending_questions`. With compatible extraction and identical mapped inputs, it revalidates the reviewed evidence before carrying it forward. If the inputs changed or reuse could not be established, questions reopen for review, with available seeds and static assignments. Earlier accepted answers are available as reference in that run's `prior-review.json`. Resume with `check-plan RUN --summary` and review against the new snapshot. Extend the plan when new code introduces new questions.
+
+### Clean publication artifacts
+
+`map`, `build`, `refresh` and `publish` discard their construction directories. They recover abandoned workspaces whose mapper ownership can be verified under the publication lock. The directory retains the graph, README, lock, any current extraction cache and saved runs for preparation or investigation.
+
+Use `python "<mapper>" . cleanup` to preview additional removals. Use `cleanup --apply` to delete recognized stale workspaces and residual publication attempts, including old static map runs that contain only their generated bookkeeping. The command preserves saved investigations, manual exports and files of uncertain ownership.
+
 The JavaScript/TypeScript profile uses lexical recognition, not an AST or type checker: imports, symbol definitions, configuration properties and tool-like objects are candidates, and a resolved file target does not establish runtime execution. It does not resolve calls or construct a complete MCP-to-service flow; investigate those relationships. The configuration profile covers selected package, MCP, Wrangler and GitHub Actions declarations. The existing Python AST profile is also included. The map does not determine deployed state or store arbitrary configuration values. See the recorded profile and coverage for exact limitations and unhandled inputs. A submodule is a boundary, not an indexed repository.
 
 ## C# profile
