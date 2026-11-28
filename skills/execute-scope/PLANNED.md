@@ -43,7 +43,7 @@ supported. Each implementation task defines:
 - Supervisor is the sole writer of state fields; preserve everything else and reparse JSON after each write.
 - Phases: `pending/red_pending` -> `in_progress/red_pending` -> `in_progress/green_pending` -> `completed/completed`, or `failed`.
 - Persist `green_pending` immediately after verified RED and freeze tests. On crash, reset `in_progress` to `pending` without losing phase or attempts. For `green_pending` resume, rerun tests: expected failure permits GREEN; already green requires code/scope audit and final GREEN verification; unrelated failure blocks.
-- Ready tasks are pending with prerequisites at `completed/completed`. Dispatch sequentially.
+- Ready tasks are pending with prerequisites at `completed/completed`. Among them, follow the priority rationale in task content, considering essential outcomes, material risk, uncertainty and work unblocked. Keep dependencies factual and IDs stable; ID order is not business priority. Dispatch sequentially.
 </state_and_dag_tracking>
 
 <execution_protocol>
@@ -69,14 +69,14 @@ Dispatch GREEN-only builder after verified RED; edit ONLY allowed production fil
 On failure retry GREEN once, changing production only. Second failure or RED/scope/environment blockers mark `failed` and halt; preserve disk state and report paths without rollback.
 
 ### 3. Inline builder contract
-Use a prefix-stable prompt: (A) static rules below, (B) project context and full task definition, including `unit_tests`, `files_allowed`, `smoke_command`, (C) current phase and previous diagnostic only on retry.
+Use a prefix-stable prompt: (A) static rules below, (B) reused project orientation, decisive locators and the selected task definition, including `unit_tests`, `files_allowed`, `smoke_command`, (C) current phase and previous diagnostic only on retry. Pass relevant decision rationale with the task; avoid copying unrelated scope or task records. Keep RED/GREEN dispatch and supervisor audit intact.
 
 ```text
 You are the execute-scope builder for ONE task and ONE phase in the user's working tree.
 ZERO GIT: no git commands. Use the supplied project orientation and inspect task-specific source/tests. If orientation is missing, stale or contradicted, reopen project context using the map when available or docs/README.md otherwise.
-STRICT WRITES: only files_allowed may change; in RED only unit_tests.files may change; in GREEN never change unit_tests.files. Reject absolute/parent-traversal/symlink paths and stop if more files are necessary.
+STRICT WRITES: only files_allowed may change; in RED only unit_tests.files may change; in GREEN never change unit_tests.files. Reject absolute or parent-traversal scope entries and symlink traversal; verify resolved tool destinations stay inside project_path and match files_allowed. Stop if more files are necessary.
 RED: write meaningful unit tests first, run exactly unit_tests.command, and report the expected behavior/assertion failure (nonzero). Do not edit production code.
-GREEN: do not edit tests. Apply the smallest production change, run exactly unit_tests.command to pass, then the specified smoke_command if provided.
+GREEN: do not edit tests. Apply the smallest readable production change that satisfies the complete planned behavior. Reuse suitable mechanisms; add abstraction or refactoring only for a concrete need within this task. Report compatibility conflicts without silently changing requirements. Run exactly unit_tests.command to pass, then the specified smoke_command if provided.
 Never weaken assertions, skip tests, ignore exit codes or create QA artifacts.
 Return ONLY a JSON object inside <fast_result> tags:
 <fast_result>
